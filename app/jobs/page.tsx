@@ -128,7 +128,7 @@ export default function JobsPage() {
                   <div>
                     <h3 className="font-medium mb-2">Description</h3>
                     <p className="text-gray-600 dark:text-gray-400 whitespace-pre-wrap">
-                      {selectedJob.job_data.description}
+                      {selectedJob.description}
                     </p>
                   </div>
                 </div>
