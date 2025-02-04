@@ -107,7 +107,7 @@ export default function JobsPage() {
                   <p className="text-lg mb-2">{selectedJob.job_data.poster_display_name}</p>
                   <p className="text-gray-600 dark:text-gray-400">
                     {selectedJob.job_data.bounty.reward.type === 'fixed' 
-                      ? `$${selectedJob.job_data.bounty.reward.amount}`
+                      ? `$${selectedJob.job_data.bounty.reward.total_amount}`
                       : 'Reward varies'}
                   </p>
                 </div>
