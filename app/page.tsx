@@ -78,8 +78,7 @@ export default function Home() {
             "Content Writer",
             "Research Assistant",
             "Virtual Assistant",
-            "Code Developer",
-            "Marketing Specialist",
+            "Code Developer"
           ].map((role) => (
             <button
               key={role}
