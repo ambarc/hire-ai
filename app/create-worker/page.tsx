@@ -34,11 +34,14 @@ export default function CreateWorker() {
       })
 
       if (!response.ok) {
-        throw new Error('Failed to create worker')
+        const errorData = await response.json()
+        console.error('Server response:', errorData)
+        throw new Error(`Failed to create worker: ${errorData.error || response.statusText}`)
       }
 
       router.push('/workers')
     } catch (err) {
+      console.error('Submission error:', err)
       setError(`Failed to create worker. Please try again. ${err}`)
     } finally {
       setIsSubmitting(false)
@@ -95,7 +98,7 @@ export default function CreateWorker() {
               className="w-full px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-800 
                        focus:outline-none focus:ring-2 focus:ring-gray-500 dark:focus:ring-gray-400
                        bg-transparent"
-              placeholder="Enter your name"
+              placeholder="Your name"
             />
           </div>
 
