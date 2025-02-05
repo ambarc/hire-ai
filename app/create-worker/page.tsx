@@ -49,15 +49,15 @@ export default function CreateWorker() {
   }
 
   return (
-    <div className="min-h-screen bg-white dark:bg-black">
+    <div className="min-h-screen bg-white">
       {/* Navigation */}
-      <nav className="border-b border-gray-200 dark:border-gray-800">
+      <nav className="border-b border-gray-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16 items-center">
             <div className="flex-shrink-0">
-              <Link href="/" className="flex items-center space-x-2">
+              <Link href="/" className="flex items-center space-x-3 transition-colors duration-200 hover:text-indigo-600">
                 <svg
-                  className="w-8 h-8"
+                  className="w-8 h-8 text-indigo-600"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
@@ -69,26 +69,26 @@ export default function CreateWorker() {
                   <path d="M12 16v-4" />
                   <path d="M12 8h.01" />
                 </svg>
-                <span className="text-xl font-semibold tracking-tight">AIHire</span>
+                <span className="text-xl font-bold">AIHire</span>
               </Link>
             </div>
 
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-6">
               <Link 
                 href="/jobs" 
-                className="px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-900"
+                className="text-gray-600 hover:text-gray-900 transition-colors duration-200"
               >
                 Jobs
               </Link>
               <Link 
                 href="/workers" 
-                className="px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-900"
+                className="text-gray-600 hover:text-gray-900 transition-colors duration-200"
               >
                 Workers
               </Link>
               <Link href="/create-job">
-                <button className="px-4 py-2 bg-white text-black rounded-lg hover:bg-gray-100 
-                               transition-colors font-medium">
+                <button className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 
+                               transition-colors duration-200 font-medium">
                   Add a job
                 </button>
               </Link>
@@ -103,11 +103,11 @@ export default function CreateWorker() {
         </div>
       </nav>
 
-      <main className="max-w-2xl mx-auto pt-12 p-8">
-        <h1 className="text-3xl font-bold mb-8">Create a Worker Profile</h1>
+      <main className="max-w-2xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
+        <h1 className="text-3xl font-bold text-gray-900 mb-8">Create a Worker Profile</h1>
         
         {error && (
-          <div className="mb-4 p-4 text-red-500 bg-red-50 dark:bg-red-900/10 rounded-lg">
+          <div className="mb-6 p-4 text-red-600 bg-red-50 rounded-lg border border-red-100">
             {error}
           </div>
         )}

@@ -27,12 +27,10 @@ export default function JobsContent() {
     fetchJobs();
   }, []);
 
-  // Find the selected job or default to the first job
   const selectedJob = jobId 
     ? jobs.find(job => job.id === jobId) 
     : jobs[0];
 
-  // Add new useEffect for title
   useEffect(() => {
     document.title = selectedJob 
       ? `Hire AI - ${selectedJob.title}`
@@ -40,34 +38,38 @@ export default function JobsContent() {
   }, [selectedJob]);
 
   if (loading) {
-    return <div>Loading...</div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-pulse text-gray-600">Loading...</div>
+      </div>
+    );
   }
 
   return (
-    <div className="flex max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
+    <div className="flex max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
       {/* Left Navigation Panel */}
-      <div className="w-1/3 pr-8 border-r border-gray-200 dark:border-gray-800">
-        <h2 className="text-xl font-semibold mb-6">Available Jobs</h2>
+      <div className="w-1/3 pr-8 border-r border-gray-100">
+        <h2 className="text-2xl font-bold text-gray-900 mb-6">Available Jobs</h2>
         <div className="space-y-4">
           {jobs.map((job) => (
             <Link 
               href={`/jobs?id=${job.id}`} 
               key={job.id}
-              className={`block p-4 rounded-lg border ${
+              className={`block p-6 rounded-lg shadow-sm transition-all duration-200 ${
                 job.id === selectedJob?.id
-                  ? 'border-blue-500 dark:border-blue-400'
-                  : 'border-gray-200 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700'
-              } transition-colors`}
+                  ? 'border-2 border-indigo-500 shadow-md'
+                  : 'border border-gray-100 hover:border-gray-200 hover:shadow-md'
+              }`}
             >
-              <h3 className="font-medium">{job.title}</h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
+              <h3 className="font-semibold text-gray-900">{job.title}</h3>
+              <p className="text-sm text-gray-600 mt-1">
                 {job.job_data.poster_display_name}
               </p>
-              <div className="flex gap-2 mt-2">
+              <div className="flex gap-2 mt-3">
                 {job.job_data.skills.slice(0, 2).map((skill) => (
                   <span 
                     key={skill}
-                    className="px-2 py-1 rounded-md bg-gray-100 dark:bg-gray-800 text-xs"
+                    className="px-3 py-1 rounded-full bg-gray-50 text-gray-600 text-xs font-medium"
                   >
                     {skill}
                   </span>
@@ -80,13 +82,13 @@ export default function JobsContent() {
 
       {/* Right Detail View */}
       <div className="w-2/3 pl-8">
-        <div className="p-6 rounded-xl border border-gray-200 dark:border-gray-800">
+        <div className="p-8 rounded-xl shadow-sm border border-gray-100">
           {selectedJob ? (
-            <>
-              <h2 className="text-2xl font-semibold mb-4">{selectedJob.title}</h2>
-              <div className="mb-6">
-                <p className="text-lg mb-2">{selectedJob.job_data.poster_display_name}</p>
-                <p className="text-gray-600 dark:text-gray-400">
+            <div className="space-y-8">
+              <div>
+                <h2 className="text-3xl font-bold text-gray-900 mb-4">{selectedJob.title}</h2>
+                <p className="text-lg text-gray-900 mb-2">{selectedJob.job_data.poster_display_name}</p>
+                <p className="text-gray-600">
                   {selectedJob.job_data.bounty.reward.type === 'fixed' 
                     ? `$${selectedJob.job_data.bounty.reward.total_amount}`
                     : selectedJob.job_data.bounty.reward.type === 'per_task'
@@ -94,28 +96,30 @@ export default function JobsContent() {
                       : 'Reward varies'}
                 </p>
               </div>
-              <div className="space-y-4">
+
+              <div className="space-y-6">
                 <div>
-                  <h3 className="font-medium mb-2">Required Skills</h3>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-3">Required Skills</h3>
                   <div className="flex flex-wrap gap-2">
                     {selectedJob.job_data.skills.map((skill) => (
                       <span
                         key={skill}
-                        className="px-3 py-1 rounded-full bg-gray-100 dark:bg-gray-800 text-sm"
+                        className="px-4 py-2 rounded-full bg-gray-50 text-gray-600 text-sm font-medium"
                       >
                         {skill}
                       </span>
                     ))}
                   </div>
                 </div>
+
                 {selectedJob.job_data.certifications?.length > 0 && (
                   <div>
-                    <h3 className="font-medium mb-2">Required Certifications</h3>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-3">Required Certifications</h3>
                     <div className="flex flex-wrap gap-2">
                       {selectedJob.job_data.certifications.map((cert) => (
                         <span
                           key={cert}
-                          className="px-3 py-1 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 text-sm"
+                          className="px-4 py-2 rounded-full bg-indigo-50 text-indigo-600 text-sm font-medium"
                         >
                           {cert}
                         </span>
@@ -123,16 +127,17 @@ export default function JobsContent() {
                     </div>
                   </div>
                 )}
+
                 <div>
-                  <h3 className="font-medium mb-2">Description</h3>
-                  <p className="text-gray-600 dark:text-gray-400 whitespace-pre-wrap">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-3">Description</h3>
+                  <p className="text-gray-600 leading-relaxed whitespace-pre-wrap">
                     {selectedJob.description}
                   </p>
                 </div>
               </div>
-            </>
+            </div>
           ) : (
-            <p>No job selected</p>
+            <p className="text-gray-600">No job selected</p>
           )}
         </div>
       </div>
