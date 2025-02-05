@@ -20,6 +20,7 @@ export interface RewardStrategy {
 // Main Job Data Type
 export interface JobData {
   skills: string[];
+  certifications: string[];
   poster_display_name: string;
   bounty: RewardStrategy;
 }
