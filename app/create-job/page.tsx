@@ -71,6 +71,33 @@ export default function CreateJob() {
                 <span className="text-xl font-bold">AIHire</span>
               </Link>
             </div>
+
+            <div className="flex items-center space-x-4">
+              <Link 
+                href="/jobs" 
+                className="px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-900"
+              >
+                Jobs
+              </Link>
+              <Link 
+                href="/workers" 
+                className="px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-900"
+              >
+                Workers
+              </Link>
+              <Link href="/create-job">
+                <button className="px-4 py-2 bg-white text-black rounded-lg hover:bg-gray-100 
+                               transition-colors font-medium">
+                  Add a job
+                </button>
+              </Link>
+              <Link href="/create-worker">
+                <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 
+                               transition-colors font-medium">
+                  List a Worker
+                </button>
+              </Link>
+            </div>
           </div>
         </div>
       </nav>
