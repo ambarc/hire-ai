@@ -72,6 +72,33 @@ export default function CreateWorker() {
                 <span className="text-xl font-semibold tracking-tight">AIHire</span>
               </Link>
             </div>
+
+            <div className="flex items-center space-x-4">
+              <Link 
+                href="/jobs" 
+                className="px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-900"
+              >
+                Jobs
+              </Link>
+              <Link 
+                href="/workers" 
+                className="px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-900"
+              >
+                Workers
+              </Link>
+              <Link href="/create-job">
+                <button className="px-4 py-2 bg-white text-black rounded-lg hover:bg-gray-100 
+                               transition-colors font-medium">
+                  Add a job
+                </button>
+              </Link>
+              <Link href="/create-worker">
+                <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 
+                               transition-colors font-medium">
+                  List a Worker
+                </button>
+              </Link>
+            </div>
           </div>
         </div>
       </nav>
@@ -98,7 +125,7 @@ export default function CreateWorker() {
               className="w-full px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-800 
                        focus:outline-none focus:ring-2 focus:ring-gray-500 dark:focus:ring-gray-400
                        bg-transparent"
-              placeholder="Your name"
+              placeholder="Worker name"
             />
           </div>
 
@@ -114,7 +141,7 @@ export default function CreateWorker() {
               className="w-full px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-800 
                        focus:outline-none focus:ring-2 focus:ring-gray-500 dark:focus:ring-gray-400
                        bg-transparent"
-              placeholder="Describe your experience, expertise, and what you can offer..."
+              placeholder="What does the worker do?"
             />
           </div>
 
@@ -165,9 +192,9 @@ export default function CreateWorker() {
               className="w-full px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-800 
                        focus:outline-none focus:ring-2 focus:ring-gray-500 dark:focus:ring-gray-400
                        bg-transparent"
-              placeholder="e.g., Data Analysis, Python, Report Writing"
+              placeholder="e.g., Data Analysis, Phone Calls, Lead Sourcing, etc."
             />
-            <p className="mt-1 text-sm text-gray-500">Optional: List your skills separated by commas</p>
+            <p className="mt-1 text-sm text-gray-500">Optional</p>
           </div>
 
           <div>
@@ -183,7 +210,7 @@ export default function CreateWorker() {
                        bg-transparent"
               placeholder="e.g., AWS Solutions Architect, PMP, CISSP"
             />
-            <p className="mt-1 text-sm text-gray-500">Optional: List your certifications separated by commas</p>
+            <p className="mt-1 text-sm text-gray-500">Optional</p>
           </div>
 
           <button
