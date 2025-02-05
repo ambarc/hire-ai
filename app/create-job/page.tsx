@@ -19,6 +19,7 @@ export default function CreateJob() {
       title: formData.get('title'),
       description: formData.get('description'),
       skills: formData.get('skills'),
+      certifications: formData.get('certifications'),
       posterName: formData.get('posterName'),
       rewardType,
       rewardAmount: formData.get('rewardAmount'),
@@ -231,6 +232,22 @@ export default function CreateJob() {
               placeholder="e.g., Data Analysis, Python, Report Writing"
             />
             <p className="mt-1 text-sm text-gray-500">Optional: List skills separated by commas</p>
+          </div>
+
+          <div>
+            <label htmlFor="certifications" className="block text-sm font-medium mb-2">
+              Required Certifications (comma-separated)
+            </label>
+            <input
+              type="text"
+              id="certifications"
+              name="certifications"
+              className="w-full px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-800 
+                       focus:outline-none focus:ring-2 focus:ring-gray-500 dark:focus:ring-gray-400
+                       bg-transparent"
+              placeholder="e.g., AWS Solutions Architect, PMP, CISSP"
+            />
+            <p className="mt-1 text-sm text-gray-500">Optional: List certifications separated by commas</p>
           </div>
 
           <button

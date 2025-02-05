@@ -15,7 +15,7 @@ const supabase = createClient(
 
 export async function POST(request: Request) {
   try {
-    const { title, description, skills, posterName, rewardType, rewardAmount, currency, estimatedTasks } = await request.json();
+    const { title, description, skills, certifications, posterName, rewardType, rewardAmount, currency, estimatedTasks } = await request.json();
 
     // Validate input
     if (!title || !description || !posterName || !rewardType || !rewardAmount || !currency) {
@@ -28,6 +28,7 @@ export async function POST(request: Request) {
     // Construct job_data object
     const job_data: JobData = {
       skills: skills ? skills.split(',').map((skill: string) => skill.trim()) : [],
+      certifications: certifications ? certifications.split(',').map((cert: string) => cert.trim()) : [],
       poster_display_name: posterName,
       bounty: {
         type: 'bounty',

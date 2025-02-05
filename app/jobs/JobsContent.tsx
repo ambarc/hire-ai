@@ -108,7 +108,9 @@ export default function JobsContent() {
                   <p className="text-gray-600 dark:text-gray-400">
                     {selectedJob.job_data.bounty.reward.type === 'fixed' 
                       ? `$${selectedJob.job_data.bounty.reward.total_amount}`
-                      : 'Reward varies'}
+                      : selectedJob.job_data.bounty.reward.type === 'per_task'
+                        ? `$${selectedJob.job_data.bounty.reward.amount_per_task} per task (Est. ${selectedJob.job_data.bounty.reward.estimated_tasks} tasks)`
+                        : 'Reward varies'}
                   </p>
                 </div>
                 <div className="space-y-4">
@@ -125,6 +127,21 @@ export default function JobsContent() {
                       ))}
                     </div>
                   </div>
+                  {selectedJob.job_data.certifications?.length > 0 && (
+                    <div>
+                      <h3 className="font-medium mb-2">Required Certifications</h3>
+                      <div className="flex flex-wrap gap-2">
+                        {selectedJob.job_data.certifications.map((cert) => (
+                          <span
+                            key={cert}
+                            className="px-3 py-1 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 text-sm"
+                          >
+                            {cert}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   <div>
                     <h3 className="font-medium mb-2">Description</h3>
                     <p className="text-gray-600 dark:text-gray-400 whitespace-pre-wrap">
