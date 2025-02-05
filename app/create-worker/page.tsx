@@ -62,7 +62,7 @@ export default function CreateWorker() {
         
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
-            <label htmlFor="name" className="block text-sm font-medium mb-2">
+            <label htmlFor="name" className="block text-sm font-medium text-gray-900 mb-2">
               Name
             </label>
             <input
@@ -70,15 +70,15 @@ export default function CreateWorker() {
               id="name"
               name="name"
               required
-              className="w-full px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-800 
-                       focus:outline-none focus:ring-2 focus:ring-gray-500 dark:focus:ring-gray-400
-                       bg-transparent"
+              className="w-full px-4 py-2 rounded-md border border-gray-200 
+                       focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500
+                       shadow-sm transition-colors duration-200"
               placeholder="Worker name"
             />
           </div>
 
           <div>
-            <label htmlFor="description" className="block text-sm font-medium mb-2">
+            <label htmlFor="description" className="block text-sm font-medium text-gray-900 mb-2">
               Description
             </label>
             <textarea
@@ -86,16 +86,46 @@ export default function CreateWorker() {
               name="description"
               required
               rows={6}
-              className="w-full px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-800 
-                       focus:outline-none focus:ring-2 focus:ring-gray-500 dark:focus:ring-gray-400
-                       bg-transparent"
-              placeholder="What does the worker do?"
+              className="w-full px-4 py-2 rounded-md border border-gray-200 
+                       focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500
+                       shadow-sm transition-colors duration-200"
+              placeholder="Describe your capabilities, experience, and specialties..."
+            />
+          </div>
+
+          <div>
+            <label htmlFor="skills" className="block text-sm font-medium text-gray-900 mb-2">
+              Skills (comma-separated)
+            </label>
+            <input
+              type="text"
+              id="skills"
+              name="skills"
+              className="w-full px-4 py-2 rounded-md border border-gray-200 
+                       focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500
+                       shadow-sm transition-colors duration-200"
+              placeholder="e.g., Data Analysis, Python, Report Writing"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="certifications" className="block text-sm font-medium text-gray-900 mb-2">
+              Certifications (comma-separated)
+            </label>
+            <input
+              type="text"
+              id="certifications"
+              name="certifications"
+              className="w-full px-4 py-2 rounded-md border border-gray-200 
+                       focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500
+                       shadow-sm transition-colors duration-200"
+              placeholder="e.g., AWS Solutions Architect, PMP, CISSP"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label htmlFor="hourlyRate" className="block text-sm font-medium mb-2">
+              <label htmlFor="hourlyRate" className="block text-sm font-medium text-gray-900 mb-2">
                 Hourly Rate
               </label>
               <input
@@ -105,22 +135,22 @@ export default function CreateWorker() {
                 required
                 min="0"
                 step="0.01"
-                className="w-full px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-800 
-                         focus:outline-none focus:ring-2 focus:ring-gray-500 dark:focus:ring-gray-400
-                         bg-transparent"
+                className="w-full px-4 py-2 rounded-md border border-gray-200 
+                         focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500
+                         shadow-sm transition-colors duration-200"
               />
             </div>
             <div>
-              <label htmlFor="currency" className="block text-sm font-medium mb-2">
+              <label htmlFor="currency" className="block text-sm font-medium text-gray-900 mb-2">
                 Currency
               </label>
               <select
                 id="currency"
                 name="currency"
                 required
-                className="w-full px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-800 
-                         focus:outline-none focus:ring-2 focus:ring-gray-500 dark:focus:ring-gray-400
-                         bg-transparent"
+                className="w-full px-4 py-2 rounded-md border border-gray-200 
+                         focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500
+                         shadow-sm transition-colors duration-200"
               >
                 <option value="USD">USD</option>
                 <option value="EUR">EUR</option>
@@ -129,44 +159,13 @@ export default function CreateWorker() {
             </div>
           </div>
 
-          <div>
-            <label htmlFor="skills" className="block text-sm font-medium mb-2">
-              Skills (comma-separated)
-            </label>
-            <input
-              type="text"
-              id="skills"
-              name="skills"
-              className="w-full px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-800 
-                       focus:outline-none focus:ring-2 focus:ring-gray-500 dark:focus:ring-gray-400
-                       bg-transparent"
-              placeholder="e.g., Data Analysis, Phone Calls, Lead Sourcing, etc."
-            />
-            <p className="mt-1 text-sm text-gray-500">Optional</p>
-          </div>
-
-          <div>
-            <label htmlFor="certifications" className="block text-sm font-medium mb-2">
-              Certifications (comma-separated)
-            </label>
-            <input
-              type="text"
-              id="certifications"
-              name="certifications"
-              className="w-full px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-800 
-                       focus:outline-none focus:ring-2 focus:ring-gray-500 dark:focus:ring-gray-400
-                       bg-transparent"
-              placeholder="e.g., AWS Solutions Architect, PMP, CISSP"
-            />
-            <p className="mt-1 text-sm text-gray-500">Optional</p>
-          </div>
-
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full px-4 py-3 bg-black dark:bg-white text-white dark:text-black 
-                     rounded-lg hover:bg-gray-800 dark:hover:bg-gray-100 
-                     transition-colors font-medium mt-8 disabled:opacity-50"
+            className="w-full px-4 py-3 bg-indigo-600 text-white 
+                     rounded-md hover:bg-indigo-700 
+                     transition-colors duration-200 font-medium
+                     disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isSubmitting ? 'Creating...' : 'Create Worker Profile'}
           </button>
