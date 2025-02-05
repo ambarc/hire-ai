@@ -42,13 +42,13 @@ export default function Navigation() {
               <div className="absolute left-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 opacity-0 invisible 
                             group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
                 <Link href="/jobs" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
-                  Browse Jobs
+                  Browse jobs
                 </Link>
                 <Link href="/create-job" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
-                  Post a Job
+                  Post a job
                 </Link>
                 <Link href="/jobs/how-it-works" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
-                  How Jobs Work
+                  How it works
                 </Link>
               </div>
             </div>
@@ -72,13 +72,13 @@ export default function Navigation() {
               <div className="absolute left-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 opacity-0 invisible 
                             group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
                 <Link href="/workers" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
-                  Browse Workers
+                  Browse workers
                 </Link>
                 <Link href="/create-worker" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
-                  List a Worker
+                  List a worker
                 </Link>
-                <Link href="/workers/explained" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
-                  Workers Explained
+                <Link href="/workers/how-it-works" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                  How it works
                 </Link>
               </div>
             </div>
@@ -88,7 +88,7 @@ export default function Navigation() {
             <Link href="/create-job">
               <button className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 
                              transition-colors duration-200 font-medium">
-                Post a Job
+                Post a job
               </button>
             </Link>
             <Link href="/login" className="text-gray-600 hover:text-gray-900 transition-colors duration-200">

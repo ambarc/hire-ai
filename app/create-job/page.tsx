@@ -228,12 +228,11 @@ export default function CreateJob() {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full px-4 py-3 bg-indigo-600 text-white 
-                     rounded-md hover:bg-indigo-700 
+            className="w-full px-4 py-3 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 
                      transition-colors duration-200 font-medium
                      disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isSubmitting ? 'Creating...' : 'Create Job'}
+            {isSubmitting ? 'Creating...' : 'Post a job'}
           </button>
         </form>
       </main>
