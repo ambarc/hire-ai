@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
+import Navigation from '../components/Navigation';
 
 export default function CreateJob() {
   const router = useRouter();
@@ -50,58 +50,7 @@ export default function CreateJob() {
 
   return (
     <div className="min-h-screen bg-white">
-      <nav className="border-b border-gray-100">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16 items-center">
-            <div className="flex-shrink-0">
-              <Link href="/" className="flex items-center space-x-3 transition-colors duration-200 hover:text-indigo-600">
-                <svg
-                  className="w-8 h-8 text-indigo-600"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <circle cx="12" cy="12" r="10" />
-                  <path d="M12 16v-4" />
-                  <path d="M12 8h.01" />
-                </svg>
-                <span className="text-xl font-bold">AIHire</span>
-              </Link>
-            </div>
-
-            <div className="flex items-center space-x-4">
-              <Link 
-                href="/jobs" 
-                className="px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-900"
-              >
-                Jobs
-              </Link>
-              <Link 
-                href="/workers" 
-                className="px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-900"
-              >
-                Workers
-              </Link>
-              <Link href="/create-job">
-                <button className="px-4 py-2 bg-white text-black rounded-lg hover:bg-gray-100 
-                               transition-colors font-medium">
-                  Add a job
-                </button>
-              </Link>
-              <Link href="/create-worker">
-                <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 
-                               transition-colors font-medium">
-                  List a Worker
-                </button>
-              </Link>
-            </div>
-          </div>
-        </div>
-      </nav>
-
+      <Navigation />
       <main className="max-w-2xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-8">Create a Job</h1>
         
