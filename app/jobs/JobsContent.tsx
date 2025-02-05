@@ -32,6 +32,13 @@ export default function JobsContent() {
     ? jobs.find(job => job.id === jobId) 
     : jobs[0];
 
+  // Add new useEffect for title
+  useEffect(() => {
+    document.title = selectedJob 
+      ? `Hire AI - ${selectedJob.title}`
+      : 'Hire AI';
+  }, [selectedJob]);
+
   if (loading) {
     return <div>Loading...</div>; // Add proper loading state UI
   }
