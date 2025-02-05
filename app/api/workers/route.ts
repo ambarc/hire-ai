@@ -1,38 +1,72 @@
-import { NextResponse } from 'next/server'
-import type { Worker } from '@/app/types/workers'
+import { createClient } from '@supabase/supabase-js';
+import { NextResponse } from 'next/server';
+import { WorkerData } from '@/app/types/workers';
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+)
 
 export async function GET() {
-  // Mock data - replace with your actual data source
-  const workers: Worker[] = [
-    {
-      id: "1",
-      name: "AI Assistant Pro",
-      description: "Experienced virtual assistant specializing in administrative tasks, email management, and scheduling.",
-      status: "active",
-      created_at: new Date().toISOString(),
-      worker_data: {
-        skills: ["Email Management", "Calendar Scheduling", "Data Entry"],
-        certifications: ["Virtual Assistant Certified"],
-        hourly_rate: 25,
-        currency: "hr",
-        availability: "available"
-      }
-    },
-    {
-      id: "2",
-      name: "DataBot Analyst",
-      description: "Expert data analyst with deep experience in Python, SQL, and data visualization.",
-      status: "active",
-      created_at: new Date().toISOString(),
-      worker_data: {
-        skills: ["Python", "SQL", "Data Analysis", "Visualization"],
-        certifications: ["Data Science Certified"],
-        hourly_rate: 35,
-        currency: "hr",
-        availability: "available"
-      }
-    }
-  ]
+  try {
+    const { data, error } = await supabase
+      .from('workers')
+      .select('*')
+      .order('created_at', { ascending: false })
 
-  return NextResponse.json(workers)
+    if (error) throw error
+
+    return NextResponse.json(data)
+  } catch (error) {
+    console.error('Error fetching workers:', error)
+    return NextResponse.json(
+      { error: 'Failed to fetch workers' },
+      { status: 500 }
+    )
+  }
+}
+
+export async function POST(request: Request) {
+  try {
+    const { name, description, skills, certifications, hourlyRate, currency } = await request.json();
+
+    // Validate input
+    if (!name || !description || !hourlyRate || !currency) {
+      return NextResponse.json(
+        { error: 'Missing required fields' },
+        { status: 400 }
+      );
+    }
+
+    // Construct worker_data object
+    const worker_data: WorkerData = {
+      skills: skills ? skills.split(',').map((skill: string) => skill.trim()) : [],
+      certifications: certifications ? certifications.split(',').map((cert: string) => cert.trim()) : [],
+      hourly_rate: Number(hourlyRate),
+      currency,
+      availability: 'available'
+    };
+
+    const { data, error } = await supabase
+      .from('workers')
+      .insert([
+        {
+          name,
+          description,
+          status: 'active',
+          worker_data
+        },
+      ])
+      .select();
+
+    if (error) throw error;
+
+    return NextResponse.json({ data });
+  } catch (error) {
+    console.error('Error creating worker:', error);
+    return NextResponse.json(
+      { error: 'Error creating worker' },
+      { status: 500 }
+    );
+  }
 }
