@@ -1,4 +1,5 @@
-import { BillingType } from './billing';
+// Job Term Type
+export type JobTerm = 'ongoing' | 'project';
 
 // Reward Strategy Types
 export interface RewardPerTaskCompletion {
@@ -34,11 +35,21 @@ export interface Job {
   posterName: string;
   skills: string[];
   certifications?: string[];
-  billingType: BillingType;
+  billingType: 'hourly' | 'monthly' | 'task';
   rate: number;
   currency: string;
-  term: 'ongoing' | 'project';
+  term: JobTerm;
   estimatedDuration?: string;
+  job_data?: {
+    poster_name: string;
+    skills: string[];
+    certifications?: string[];
+    billing_type: 'hourly' | 'monthly' | 'task';
+    rate: number;
+    currency: string;
+    term: JobTerm;
+    estimated_duration?: string;
+  };
 }
 
 // interface FixedReward {
