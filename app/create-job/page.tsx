@@ -1,13 +1,15 @@
 'use client';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
+import Navigation from '../components/Navigation';
+import { BillingType } from '../types/billing';
 
 export default function CreateJob() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
-  const [rewardType, setRewardType] = useState<'fixed' | 'per_task'>('fixed');
+  const [billingType, setBillingType] = useState<BillingType>('hourly');
+  const [term, setTerm] = useState<'ongoing' | 'project'>('ongoing');
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -21,10 +23,11 @@ export default function CreateJob() {
       skills: formData.get('skills'),
       certifications: formData.get('certifications'),
       posterName: formData.get('posterName'),
-      rewardType,
-      rewardAmount: formData.get('rewardAmount'),
+      billingType,
+      rate: formData.get('rate'),
       currency: formData.get('currency'),
-      estimatedTasks: formData.get('estimatedTasks'),
+      term,
+      estimatedDuration: formData.get('estimatedDuration'),
     };
 
     try {
@@ -50,58 +53,7 @@ export default function CreateJob() {
 
   return (
     <div className="min-h-screen bg-white">
-      <nav className="border-b border-gray-100">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16 items-center">
-            <div className="flex-shrink-0">
-              <Link href="/" className="flex items-center space-x-3 transition-colors duration-200 hover:text-indigo-600">
-                <svg
-                  className="w-8 h-8 text-indigo-600"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <circle cx="12" cy="12" r="10" />
-                  <path d="M12 16v-4" />
-                  <path d="M12 8h.01" />
-                </svg>
-                <span className="text-xl font-bold">AIHire</span>
-              </Link>
-            </div>
-
-            <div className="flex items-center space-x-4">
-              <Link 
-                href="/jobs" 
-                className="px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-900"
-              >
-                Jobs
-              </Link>
-              <Link 
-                href="/workers" 
-                className="px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-900"
-              >
-                Workers
-              </Link>
-              <Link href="/create-job">
-                <button className="px-4 py-2 bg-white text-black rounded-lg hover:bg-gray-100 
-                               transition-colors font-medium">
-                  Add a job
-                </button>
-              </Link>
-              <Link href="/create-worker">
-                <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 
-                               transition-colors font-medium">
-                  List a Worker
-                </button>
-              </Link>
-            </div>
-          </div>
-        </div>
-      </nav>
-
+      <Navigation />
       <main className="max-w-2xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-8">Create a Job</h1>
         
@@ -127,6 +79,60 @@ export default function CreateJob() {
               placeholder="e.g., Data Analysis Assistant"
             />
           </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-900 mb-2">
+              Job Type
+            </label>
+            <div className="grid grid-cols-2 gap-4">
+              <button
+                type="button"
+                onClick={() => setTerm('ongoing')}
+                className={`p-4 text-left border rounded-lg transition-all duration-200
+                          ${term === 'ongoing' 
+                            ? 'border-indigo-600 bg-indigo-50 ring-2 ring-indigo-600 ring-offset-2' 
+                            : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                          }`}
+              >
+                <div className="font-medium text-gray-900">Ongoing role</div>
+                <div className="text-sm text-gray-500 mt-1">
+                  Full-time, continuous work
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setTerm('project')}
+                className={`p-4 text-left border rounded-lg transition-all duration-200
+                          ${term === 'project' 
+                            ? 'border-indigo-600 bg-indigo-50 ring-2 ring-indigo-600 ring-offset-2' 
+                            : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                          }`}
+              >
+                <div className="font-medium text-gray-900">Project-based</div>
+                <div className="text-sm text-gray-500 mt-1">
+                  Ends when goals are met
+                </div>
+              </button>
+            </div>
+          </div>
+
+          {term === 'project' && (
+            <div>
+              <label htmlFor="estimatedDuration" className="block text-sm font-medium text-gray-900 mb-2">
+                Estimated Duration
+              </label>
+              <input
+                type="text"
+                id="estimatedDuration"
+                name="estimatedDuration"
+                placeholder="e.g., 2 weeks, 3 months"
+                className="w-full px-4 py-2 rounded-md border border-gray-200 
+                         focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500
+                         shadow-sm transition-colors duration-200"
+              />
+            </div>
+          )}
 
           <div>
             <label htmlFor="description" className="block text-sm font-medium text-gray-900 mb-2">
@@ -162,43 +168,67 @@ export default function CreateJob() {
 
           <div>
             <label className="block text-sm font-medium text-gray-900 mb-2">
-              Reward Type
+              Payment Type
             </label>
-            <div className="flex gap-4">
-              <label className="flex items-center">
-                <input
-                  type="radio"
-                  name="rewardType"
-                  value="fixed"
-                  checked={rewardType === 'fixed'}
-                  onChange={() => setRewardType('fixed')}
-                  className="mr-2"
-                />
-                Fixed Rate
-              </label>
-              <label className="flex items-center">
-                <input
-                  type="radio"
-                  name="rewardType"
-                  value="per_task"
-                  checked={rewardType === 'per_task'}
-                  onChange={() => setRewardType('per_task')}
-                  className="mr-2"
-                />
-                Per Task
-              </label>
+            <div className="grid grid-cols-3 gap-4">
+              <button
+                type="button"
+                onClick={() => setBillingType('hourly')}
+                className={`p-4 text-left border rounded-lg transition-all duration-200
+                          ${billingType === 'hourly' 
+                            ? 'border-indigo-600 bg-indigo-50 ring-2 ring-indigo-600 ring-offset-2' 
+                            : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                          }`}
+              >
+                <div className="font-medium text-gray-900">Hourly rate</div>
+                <div className="text-sm text-gray-500 mt-1">
+                  Pay per hour worked
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setBillingType('monthly')}
+                className={`p-4 text-left border rounded-lg transition-all duration-200
+                          ${billingType === 'monthly' 
+                            ? 'border-indigo-600 bg-indigo-50 ring-2 ring-indigo-600 ring-offset-2' 
+                            : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                          }`}
+              >
+                <div className="font-medium text-gray-900">Monthly rate</div>
+                <div className="text-sm text-gray-500 mt-1">
+                  Fixed monthly fee
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setBillingType('task')}
+                className={`p-4 text-left border rounded-lg transition-all duration-200
+                          ${billingType === 'task' 
+                            ? 'border-indigo-600 bg-indigo-50 ring-2 ring-indigo-600 ring-offset-2' 
+                            : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                          }`}
+              >
+                <div className="font-medium text-gray-900">Per task</div>
+                <div className="text-sm text-gray-500 mt-1">
+                  Pay per completed task
+                </div>
+              </button>
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label htmlFor="rewardAmount" className="block text-sm font-medium text-gray-900 mb-2">
-                {rewardType === 'fixed' ? 'Total Amount' : 'Amount Per Task'}
+              <label htmlFor="rate" className="block text-sm font-medium text-gray-900 mb-2">
+                {billingType === 'hourly' ? 'Hourly Rate' : 
+                 billingType === 'monthly' ? 'Monthly Rate' : 
+                 'Rate per Task'}
               </label>
               <input
                 type="number"
-                id="rewardAmount"
-                name="rewardAmount"
+                id="rate"
+                name="rate"
                 required
                 min="0"
                 step="0.01"
@@ -225,24 +255,6 @@ export default function CreateJob() {
               </select>
             </div>
           </div>
-
-          {rewardType === 'per_task' && (
-            <div>
-              <label htmlFor="estimatedTasks" className="block text-sm font-medium text-gray-900 mb-2">
-                Estimated Number of Tasks
-              </label>
-              <input
-                type="number"
-                id="estimatedTasks"
-                name="estimatedTasks"
-                required
-                min="1"
-                className="w-full px-4 py-2 rounded-md border border-gray-200 
-                         focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500
-                         shadow-sm transition-colors duration-200"
-              />
-            </div>
-          )}
 
           <div>
             <label htmlFor="skills" className="block text-sm font-medium text-gray-900 mb-2">
@@ -279,12 +291,11 @@ export default function CreateJob() {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full px-4 py-3 bg-indigo-600 text-white 
-                     rounded-md hover:bg-indigo-700 
+            className="w-full px-4 py-3 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 
                      transition-colors duration-200 font-medium
                      disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isSubmitting ? 'Creating...' : 'Create Job'}
+            {isSubmitting ? 'Creating...' : 'Post a job'}
           </button>
         </form>
       </main>

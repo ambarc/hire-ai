@@ -2,12 +2,14 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
+import Navigation from '../components/Navigation'
+import { BillingType } from '../types/billing'
 
 export default function CreateWorker() {
   const router = useRouter()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState('')
+  const [billingType, setBillingType] = useState<BillingType>('hourly')
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -20,7 +22,7 @@ export default function CreateWorker() {
       description: formData.get('description'),
       skills: formData.get('skills'),
       certifications: formData.get('certifications'),
-      hourlyRate: formData.get('hourlyRate'),
+      rate: formData.get('rate'),
       currency: formData.get('currency'),
     }
 
@@ -34,9 +36,7 @@ export default function CreateWorker() {
       })
 
       if (!response.ok) {
-        const errorData = await response.json()
-        console.error('Server response:', errorData)
-        throw new Error(`Failed to create worker: ${errorData.error || response.statusText}`)
+        throw new Error('Failed to create worker')
       }
 
       router.push('/workers')
@@ -50,59 +50,7 @@ export default function CreateWorker() {
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Navigation */}
-      <nav className="border-b border-gray-100">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16 items-center">
-            <div className="flex-shrink-0">
-              <Link href="/" className="flex items-center space-x-3 transition-colors duration-200 hover:text-indigo-600">
-                <svg
-                  className="w-8 h-8 text-indigo-600"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <circle cx="12" cy="12" r="10" />
-                  <path d="M12 16v-4" />
-                  <path d="M12 8h.01" />
-                </svg>
-                <span className="text-xl font-bold">AIHire</span>
-              </Link>
-            </div>
-
-            <div className="flex items-center space-x-6">
-              <Link 
-                href="/jobs" 
-                className="text-gray-600 hover:text-gray-900 transition-colors duration-200"
-              >
-                Jobs
-              </Link>
-              <Link 
-                href="/workers" 
-                className="text-gray-600 hover:text-gray-900 transition-colors duration-200"
-              >
-                Workers
-              </Link>
-              <Link href="/create-job">
-                <button className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 
-                               transition-colors duration-200 font-medium">
-                  Add a job
-                </button>
-              </Link>
-              <Link href="/create-worker">
-                <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 
-                               transition-colors font-medium">
-                  List a Worker
-                </button>
-              </Link>
-            </div>
-          </div>
-        </div>
-      </nav>
-
+      <Navigation />
       <main className="max-w-2xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-8">Create a Worker Profile</h1>
         
@@ -114,7 +62,7 @@ export default function CreateWorker() {
         
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
-            <label htmlFor="name" className="block text-sm font-medium mb-2">
+            <label htmlFor="name" className="block text-sm font-medium text-gray-900 mb-2">
               Name
             </label>
             <input
@@ -122,15 +70,15 @@ export default function CreateWorker() {
               id="name"
               name="name"
               required
-              className="w-full px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-800 
-                       focus:outline-none focus:ring-2 focus:ring-gray-500 dark:focus:ring-gray-400
-                       bg-transparent"
+              className="w-full px-4 py-2 rounded-md border border-gray-200 
+                       focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500
+                       shadow-sm transition-colors duration-200"
               placeholder="Worker name"
             />
           </div>
 
           <div>
-            <label htmlFor="description" className="block text-sm font-medium mb-2">
+            <label htmlFor="description" className="block text-sm font-medium text-gray-900 mb-2">
               Description
             </label>
             <textarea
@@ -138,41 +86,125 @@ export default function CreateWorker() {
               name="description"
               required
               rows={6}
-              className="w-full px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-800 
-                       focus:outline-none focus:ring-2 focus:ring-gray-500 dark:focus:ring-gray-400
-                       bg-transparent"
-              placeholder="What does the worker do?"
+              className="w-full px-4 py-2 rounded-md border border-gray-200 
+                       focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500
+                       shadow-sm transition-colors duration-200"
+              placeholder="Describe your capabilities, experience, and specialties..."
             />
+          </div>
+
+          <div>
+            <label htmlFor="skills" className="block text-sm font-medium text-gray-900 mb-2">
+              Skills (comma-separated)
+            </label>
+            <input
+              type="text"
+              id="skills"
+              name="skills"
+              className="w-full px-4 py-2 rounded-md border border-gray-200 
+                       focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500
+                       shadow-sm transition-colors duration-200"
+              placeholder="e.g., Data Analysis, Python, Report Writing"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="certifications" className="block text-sm font-medium text-gray-900 mb-2">
+              Certifications (comma-separated)
+            </label>
+            <input
+              type="text"
+              id="certifications"
+              name="certifications"
+              className="w-full px-4 py-2 rounded-md border border-gray-200 
+                       focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500
+                       shadow-sm transition-colors duration-200"
+              placeholder="e.g., AWS Solutions Architect, PMP, CISSP"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-900 mb-2">
+              Billing Type
+            </label>
+            <div className="grid grid-cols-3 gap-4">
+              <button
+                type="button"
+                onClick={() => setBillingType('hourly')}
+                className={`p-4 text-left border rounded-lg transition-all duration-200
+                          ${billingType === 'hourly' 
+                            ? 'border-indigo-600 bg-indigo-50 ring-2 ring-indigo-600 ring-offset-2' 
+                            : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                          }`}
+              >
+                <div className="font-medium text-gray-900">Hourly rate</div>
+                <div className="text-sm text-gray-500 mt-1">
+                  Charge per hour worked
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setBillingType('monthly')}
+                className={`p-4 text-left border rounded-lg transition-all duration-200
+                          ${billingType === 'monthly' 
+                            ? 'border-indigo-600 bg-indigo-50 ring-2 ring-indigo-600 ring-offset-2' 
+                            : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                          }`}
+              >
+                <div className="font-medium text-gray-900">Monthly rate</div>
+                <div className="text-sm text-gray-500 mt-1">
+                  Fixed monthly fee
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setBillingType('task')}
+                className={`p-4 text-left border rounded-lg transition-all duration-200
+                          ${billingType === 'task' 
+                            ? 'border-indigo-600 bg-indigo-50 ring-2 ring-indigo-600 ring-offset-2' 
+                            : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                          }`}
+              >
+                <div className="font-medium text-gray-900">Per task</div>
+                <div className="text-sm text-gray-500 mt-1">
+                  Charge per completed task
+                </div>
+              </button>
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label htmlFor="hourlyRate" className="block text-sm font-medium mb-2">
-                Hourly Rate
+              <label htmlFor="rate" className="block text-sm font-medium text-gray-900 mb-2">
+                {billingType === 'hourly' ? 'Hourly Rate' : 
+                 billingType === 'monthly' ? 'Monthly Rate' : 
+                 'Rate per Task'}
               </label>
               <input
                 type="number"
-                id="hourlyRate"
-                name="hourlyRate"
+                id="rate"
+                name="rate"
                 required
                 min="0"
                 step="0.01"
-                className="w-full px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-800 
-                         focus:outline-none focus:ring-2 focus:ring-gray-500 dark:focus:ring-gray-400
-                         bg-transparent"
+                className="w-full px-4 py-2 rounded-md border border-gray-200 
+                         focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500
+                         shadow-sm transition-colors duration-200"
               />
             </div>
             <div>
-              <label htmlFor="currency" className="block text-sm font-medium mb-2">
+              <label htmlFor="currency" className="block text-sm font-medium text-gray-900 mb-2">
                 Currency
               </label>
               <select
                 id="currency"
                 name="currency"
                 required
-                className="w-full px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-800 
-                         focus:outline-none focus:ring-2 focus:ring-gray-500 dark:focus:ring-gray-400
-                         bg-transparent"
+                className="w-full px-4 py-2 rounded-md border border-gray-200 
+                         focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500
+                         shadow-sm transition-colors duration-200"
               >
                 <option value="USD">USD</option>
                 <option value="EUR">EUR</option>
@@ -181,46 +213,14 @@ export default function CreateWorker() {
             </div>
           </div>
 
-          <div>
-            <label htmlFor="skills" className="block text-sm font-medium mb-2">
-              Skills (comma-separated)
-            </label>
-            <input
-              type="text"
-              id="skills"
-              name="skills"
-              className="w-full px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-800 
-                       focus:outline-none focus:ring-2 focus:ring-gray-500 dark:focus:ring-gray-400
-                       bg-transparent"
-              placeholder="e.g., Data Analysis, Phone Calls, Lead Sourcing, etc."
-            />
-            <p className="mt-1 text-sm text-gray-500">Optional</p>
-          </div>
-
-          <div>
-            <label htmlFor="certifications" className="block text-sm font-medium mb-2">
-              Certifications (comma-separated)
-            </label>
-            <input
-              type="text"
-              id="certifications"
-              name="certifications"
-              className="w-full px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-800 
-                       focus:outline-none focus:ring-2 focus:ring-gray-500 dark:focus:ring-gray-400
-                       bg-transparent"
-              placeholder="e.g., AWS Solutions Architect, PMP, CISSP"
-            />
-            <p className="mt-1 text-sm text-gray-500">Optional</p>
-          </div>
-
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full px-4 py-3 bg-black dark:bg-white text-white dark:text-black 
-                     rounded-lg hover:bg-gray-800 dark:hover:bg-gray-100 
-                     transition-colors font-medium mt-8 disabled:opacity-50"
+            className="w-full px-4 py-3 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 
+                     transition-colors duration-200 font-medium
+                     disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isSubmitting ? 'Creating...' : 'Create Worker Profile'}
+            {isSubmitting ? 'Creating...' : 'List a worker'}
           </button>
         </form>
       </main>

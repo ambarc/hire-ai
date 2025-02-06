@@ -1,3 +1,5 @@
+import { BillingType } from './billing';
+
 export interface WorkerData {
     skills: string[];
     certifications: string[];
@@ -10,7 +12,14 @@ export interface WorkerData {
     id: string;
     name: string;
     description: string;
-    status: 'active' | 'inactive';
-    created_at: string;
-    worker_data: WorkerData;
+    skills: string[];
+    certifications?: string[];
+    billingType: BillingType;
+    rate: number;
+    currency: string;
+    worker_data: {
+      availability: 'available' | 'busy';
+      skills: string[];
+      certifications?: string[];
+    };
   }
