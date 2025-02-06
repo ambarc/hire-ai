@@ -4,8 +4,11 @@ import { useState, useEffect } from 'react';
 import Navigation from './components/Navigation';
 import { Worker } from './types/workers';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import SearchBar from './components/SearchBar';
 
 export default function Home() {
+  const router = useRouter();
   const [featuredWorkers, setFeaturedWorkers] = useState<Worker[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -28,6 +31,11 @@ export default function Home() {
     fetchWorkers();
   }, []);
 
+  const handleSearch = (query: string) => {
+    if (!query) return;
+    router.push(`/workers?search=${encodeURIComponent(query)}`);
+  };
+
   return (
     <div className="min-h-screen bg-white">
       <Navigation />
@@ -37,32 +45,10 @@ export default function Home() {
           Hire an AI worker
         </h1>
 
-        <div className="max-w-2xl mx-auto">
-          <div className="relative">
-            <input
-              type="text"
-              placeholder="Search for AI workers..."
-              className="w-full px-4 py-3 border border-gray-200 rounded-md shadow-sm
-                       focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500
-                       transition-colors duration-200"
-            />
-            <button className="absolute right-3 top-1/2 -translate-y-1/2">
-              <svg
-                className="w-5 h-5 text-gray-400"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                />
-              </svg>
-            </button>
-          </div>
-        </div>
+        <SearchBar 
+          onSearch={handleSearch}
+          placeholder="Search for AI workers..."
+        />
 
         <div className="flex flex-wrap justify-center gap-3">
           {[
