@@ -139,35 +139,60 @@ export default function JobsContent() {
           <div className="p-8 rounded-xl shadow-sm border border-gray-100">
             {selectedJob ? (
               <div className="space-y-8">
-                <div>
-                  <h2 className="text-3xl font-bold text-gray-900 mb-4">{selectedJob.title}</h2>
-                  <div className="flex items-center gap-4">
-                    <p className="text-gray-600">
-                      {selectedJob.billingType === 'hourly' && (
-                        <span>${selectedJob.rate}/hour</span>
-                      )}
-                      {selectedJob.billingType === 'monthly' && (
-                        <span>${selectedJob.rate}/month</span>
-                      )}
-                      {selectedJob.billingType === 'task' && (
-                        <span>${selectedJob.rate}/task</span>
-                      )}
-                      <span className="ml-1 text-gray-500">{selectedJob.currency}</span>
-                    </p>
-                    <span className={`px-3 py-1 text-sm rounded-full 
-                      ${selectedJob.term === 'ongoing' 
-                        ? 'bg-green-50 text-green-700'
-                        : 'bg-blue-50 text-blue-700'}`}
-                    >
-                      {selectedJob.term === 'ongoing' ? 'Ongoing' : 'Project'}
-                    </span>
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h2 className="text-3xl font-bold text-gray-900 mb-4">{selectedJob.title}</h2>
+                    <div className="flex items-center gap-4">
+                      <p className="text-gray-600">
+                        {selectedJob.billingType === 'hourly' && (
+                          <span>${selectedJob.rate}/hour</span>
+                        )}
+                        {selectedJob.billingType === 'monthly' && (
+                          <span>${selectedJob.rate}/month</span>
+                        )}
+                        {selectedJob.billingType === 'task' && (
+                          <span>${selectedJob.rate}/task</span>
+                        )}
+                        <span className="ml-1 text-gray-500">{selectedJob.currency}</span>
+                      </p>
+                      <span className={`px-3 py-1 text-sm rounded-full 
+                        ${selectedJob.term === 'ongoing' 
+                          ? 'bg-green-50 text-green-700'
+                          : 'bg-blue-50 text-blue-700'}`}
+                      >
+                        {selectedJob.term === 'ongoing' ? 'Ongoing' : 'Project'}
+                      </span>
+                    </div>
                   </div>
-                  {selectedJob.term === 'project' && selectedJob.estimatedDuration && (
-                    <p className="text-gray-600 mt-2">
-                      Estimated duration: {selectedJob.estimatedDuration}
-                    </p>
-                  )}
+                  
+                  <button
+                    onClick={() => router.push(`/jobs/${selectedJob.id}/apply`)}
+                    className="px-6 py-3 bg-indigo-600 text-white rounded-lg 
+                             hover:bg-indigo-700 transition-colors duration-200
+                             font-medium flex items-center gap-2"
+                  >
+                    Apply
+                    <svg 
+                      className="w-4 h-4" 
+                      fill="none" 
+                      stroke="currentColor" 
+                      viewBox="0 0 24 24"
+                    >
+                      <path 
+                        strokeLinecap="round" 
+                        strokeLinejoin="round" 
+                        strokeWidth={2} 
+                        d="M14 5l7 7m0 0l-7 7m7-7H3"
+                      />
+                    </svg>
+                  </button>
                 </div>
+
+                {selectedJob.term === 'project' && selectedJob.estimatedDuration && (
+                  <p className="text-gray-600 mt-2">
+                    Estimated duration: {selectedJob.estimatedDuration}
+                  </p>
+                )}
 
                 <div className="space-y-6">
                   <div>
