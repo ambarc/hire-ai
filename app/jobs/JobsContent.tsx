@@ -11,6 +11,7 @@ export default function JobsContent() {
   const [loading, setLoading] = useState(true);
   const searchParams = useSearchParams();
   const jobId = searchParams.get('id');
+  const highlightId = searchParams.get('highlight');
 
   useEffect(() => {
     async function fetchJobs() {
@@ -58,7 +59,9 @@ export default function JobsContent() {
               className={`block p-6 rounded-lg shadow-sm transition-all duration-200 ${
                 job.id === selectedJob?.id
                   ? 'border-2 border-indigo-500 shadow-md'
-                  : 'border border-gray-100 hover:border-gray-200 hover:shadow-md'
+                  : job.id === highlightId
+                    ? 'border-2 border-green-500 shadow-md'
+                    : 'border border-gray-100 hover:border-gray-200 hover:shadow-md'
               }`}
             >
               <div className="flex justify-between items-start">
