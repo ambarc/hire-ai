@@ -3,11 +3,13 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Navigation from '../components/Navigation'
+import { BillingType } from '../types/billing'
 
 export default function CreateWorker() {
   const router = useRouter()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState('')
+  const [billingType, setBillingType] = useState<BillingType>('hourly')
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -20,7 +22,7 @@ export default function CreateWorker() {
       description: formData.get('description'),
       skills: formData.get('skills'),
       certifications: formData.get('certifications'),
-      hourlyRate: formData.get('hourlyRate'),
+      rate: formData.get('rate'),
       currency: formData.get('currency'),
     }
 
@@ -34,9 +36,7 @@ export default function CreateWorker() {
       })
 
       if (!response.ok) {
-        const errorData = await response.json()
-        console.error('Server response:', errorData)
-        throw new Error(`Failed to create worker: ${errorData.error || response.statusText}`)
+        throw new Error('Failed to create worker')
       }
 
       router.push('/workers')
@@ -123,15 +123,69 @@ export default function CreateWorker() {
             />
           </div>
 
+          <div>
+            <label className="block text-sm font-medium text-gray-900 mb-2">
+              Billing Type
+            </label>
+            <div className="grid grid-cols-3 gap-4">
+              <button
+                type="button"
+                onClick={() => setBillingType('hourly')}
+                className={`p-4 text-left border rounded-lg transition-all duration-200
+                          ${billingType === 'hourly' 
+                            ? 'border-indigo-600 bg-indigo-50 ring-2 ring-indigo-600 ring-offset-2' 
+                            : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                          }`}
+              >
+                <div className="font-medium text-gray-900">Hourly rate</div>
+                <div className="text-sm text-gray-500 mt-1">
+                  Charge per hour worked
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setBillingType('monthly')}
+                className={`p-4 text-left border rounded-lg transition-all duration-200
+                          ${billingType === 'monthly' 
+                            ? 'border-indigo-600 bg-indigo-50 ring-2 ring-indigo-600 ring-offset-2' 
+                            : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                          }`}
+              >
+                <div className="font-medium text-gray-900">Monthly rate</div>
+                <div className="text-sm text-gray-500 mt-1">
+                  Fixed monthly fee
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setBillingType('task')}
+                className={`p-4 text-left border rounded-lg transition-all duration-200
+                          ${billingType === 'task' 
+                            ? 'border-indigo-600 bg-indigo-50 ring-2 ring-indigo-600 ring-offset-2' 
+                            : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                          }`}
+              >
+                <div className="font-medium text-gray-900">Per task</div>
+                <div className="text-sm text-gray-500 mt-1">
+                  Charge per completed task
+                </div>
+              </button>
+            </div>
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label htmlFor="hourlyRate" className="block text-sm font-medium text-gray-900 mb-2">
-                Hourly Rate
+              <label htmlFor="rate" className="block text-sm font-medium text-gray-900 mb-2">
+                {billingType === 'hourly' ? 'Hourly Rate' : 
+                 billingType === 'monthly' ? 'Monthly Rate' : 
+                 'Rate per Task'}
               </label>
               <input
                 type="number"
-                id="hourlyRate"
-                name="hourlyRate"
+                id="rate"
+                name="rate"
                 required
                 min="0"
                 step="0.01"

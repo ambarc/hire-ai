@@ -63,10 +63,19 @@ export default function WorkersContent() {
             >
               <h3 className="font-semibold text-gray-900">{worker.name}</h3>
               <p className="text-sm text-gray-600 mt-1">
-                ${worker.worker_data.hourly_rate}/{worker.worker_data.currency}
+                {worker.billingType === 'hourly' && (
+                  <span>${worker.rate}/hour</span>
+                )}
+                {worker.billingType === 'monthly' && (
+                  <span>${worker.rate}/month</span>
+                )}
+                {worker.billingType === 'task' && (
+                  <span>${worker.rate}/task</span>
+                )}
+                <span className="ml-1 text-gray-500">{worker.currency}</span>
               </p>
               <div className="flex gap-2 mt-3">
-                {worker.worker_data.skills.slice(0, 2).map((skill) => (
+                {worker.skills?.slice(0, 2).map((skill) => (
                   <span 
                     key={skill}
                     className="px-3 py-1 rounded-full bg-gray-50 text-gray-600 text-xs font-medium"
@@ -87,17 +96,17 @@ export default function WorkersContent() {
             <div className="space-y-8">
               <div>
                 <h2 className="text-3xl font-bold text-gray-900 mb-4">{selectedWorker.name}</h2>
-                <p className="text-lg text-gray-900 mb-2">
-                  Status: <span className={`font-medium ${
-                    selectedWorker.worker_data.availability === 'available' 
-                      ? 'text-green-600' 
-                      : 'text-yellow-600'
-                  }`}>
-                    {selectedWorker.worker_data.availability}
-                  </span>
-                </p>
                 <p className="text-gray-600">
-                  ${selectedWorker.worker_data.hourly_rate}/{selectedWorker.worker_data.currency}
+                  {selectedWorker.billingType === 'hourly' && (
+                    <span>${selectedWorker.rate}/hour</span>
+                  )}
+                  {selectedWorker.billingType === 'monthly' && (
+                    <span>${selectedWorker.rate}/month</span>
+                  )}
+                  {selectedWorker.billingType === 'task' && (
+                    <span>${selectedWorker.rate}/task</span>
+                  )}
+                  <span className="ml-1 text-gray-500">{selectedWorker.currency}</span>
                 </p>
               </div>
 
@@ -116,11 +125,11 @@ export default function WorkersContent() {
                   </div>
                 </div>
 
-                {selectedWorker.worker_data.certifications?.length > 0 && (
+                {selectedWorker.worker_data.certifications && selectedWorker.worker_data.certifications.length > 0 && (
                   <div>
                     <h3 className="text-lg font-semibold text-gray-900 mb-3">Certifications</h3>
                     <div className="flex flex-wrap gap-2">
-                      {selectedWorker.worker_data.certifications.map((cert) => (
+                      {selectedWorker.certifications?.map((cert) => (
                         <span
                           key={cert}
                           className="px-4 py-2 rounded-full bg-indigo-50 text-indigo-600 text-sm font-medium"

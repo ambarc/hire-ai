@@ -1,3 +1,5 @@
+import { BillingType } from './billing';
+
 // Reward Strategy Types
 export interface RewardPerTaskCompletion {
   type: 'per_task';
@@ -19,10 +21,9 @@ export interface RewardStrategy {
 
 // Main Job Data Type
 export interface JobData {
+  poster_name: string;
   skills: string[];
-  certifications: string[];
-  poster_display_name: string;
-  bounty: RewardStrategy;
+  certifications?: string[];
 }
 
 // Full Job Type (including database fields)
@@ -30,9 +31,14 @@ export interface Job {
   id: string;
   title: string;
   description: string;
-  status: 'open' | 'closed';
-  created_at: string;
-  job_data: JobData;
+  posterName: string;
+  skills: string[];
+  certifications?: string[];
+  billingType: BillingType;
+  rate: number;
+  currency: string;
+  term: 'ongoing' | 'project';
+  estimatedDuration?: string;
 }
 
 // interface FixedReward {

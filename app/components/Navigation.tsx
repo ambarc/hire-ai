@@ -91,9 +91,36 @@ export default function Navigation() {
                 Post a job
               </button>
             </Link>
-            <Link href="/login" className="text-gray-600 hover:text-gray-900 transition-colors duration-200">
-              Login
-            </Link>
+            
+            {/* Avatar Dropdown */}
+            <div className="relative group">
+              <button className="flex items-center justify-center w-8 h-8 rounded-full bg-gray-200 
+                               hover:bg-gray-300 transition-colors duration-200">
+                <svg 
+                  className="w-5 h-5 text-gray-500" 
+                  fill="none" 
+                  viewBox="0 0 24 24" 
+                  stroke="currentColor"
+                >
+                  <path 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round" 
+                    strokeWidth={2} 
+                    d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" 
+                  />
+                </svg>
+              </button>
+
+              <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 opacity-0 invisible 
+                            group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                <Link href="/login" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                  Sign in
+                </Link>
+                <Link href="/signup" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                  Create account
+                </Link>
+              </div>
+            </div>
           </div>
         </div>
       </div>

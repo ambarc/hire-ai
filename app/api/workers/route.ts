@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import * as dotenv from 'dotenv';
+import { BillingType } from '@/app/types/billing';
 
 // Load environment variables from .env.local
 if (process.env.NODE_ENV !== 'production') {
@@ -21,7 +22,24 @@ export async function GET() {
 
     if (error) throw error
 
-    return NextResponse.json(data)
+    // Transform the data to match our frontend types
+    const workers = data.map(worker => ({
+      id: worker.id,
+      name: worker.name,
+      description: worker.description,
+      billingType: worker.billing_type as BillingType,
+      rate: worker.rate,
+      currency: worker.currency,
+      skills: worker.worker_data.skills,
+      certifications: worker.worker_data.certifications,
+      worker_data: {
+        availability: worker.worker_data.availability,
+        skills: worker.worker_data.skills,
+        certifications: worker.worker_data.certifications,
+      }
+    }));
+
+    return NextResponse.json(workers)
   } catch (error) {
     console.error('Error fetching workers:', error)
     return NextResponse.json(
@@ -33,48 +51,19 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
-    console.log('1. Received request body:', body);
-
-    const { name, description, skills, certifications, hourlyRate, currency } = body;
-    console.log('2. Destructured values:', { name, description, skills, certifications, hourlyRate, currency });
-
-    // Validate input with more detailed errors
-    if (!name || !description || !hourlyRate || !currency) {
-      const missingFields = [];
-      if (!name) missingFields.push('name');
-      if (!description) missingFields.push('description');
-      if (!hourlyRate) missingFields.push('hourlyRate');
-      if (!currency) missingFields.push('currency');
-      
-      console.error('3. Validation failed - Missing fields:', missingFields);
-      return NextResponse.json(
-        { error: `Missing required fields: ${missingFields.join(', ')}` },
-        { status: 400 }
-      );
-    }
-
-    // Construct worker_data object
-    const worker_data = {
-      skills: skills ? skills.split(',').map((skill: string) => skill.trim()) : [],
-      certifications: certifications ? certifications.split(',').map((cert: string) => cert.trim()) : [],
-      hourly_rate: Number(hourlyRate),
-      currency,
-      availability: 'available'
-    };
-    console.log('4. Constructed worker_data:', worker_data);
-
-    // Log Supabase connection details (safely)
-    console.log('5. Supabase URL exists:', !!process.env.NEXT_PUBLIC_SUPABASE_URL);
-    console.log('5. Supabase key exists:', !!process.env.SUPABASE_SERVICE_ROLE_KEY);
-
-    // Log the insert operation
-    console.log('6. Attempting to insert:', {
+    const {
       name,
       description,
-      status: 'active',
-      worker_data
-    });
+      skills,
+      certifications,
+      billingType,
+      rate,
+      currency,
+    } = await request.json();
+
+    // Convert comma-separated strings to arrays
+    const skillsArray = skills ? skills.split(',').map((s: string) => s.trim()) : [];
+    const certsArray = certifications ? certifications.split(',').map((c: string) => c.trim()) : [];
 
     const { data, error } = await supabase
       .from('workers')
@@ -82,28 +71,26 @@ export async function POST(request: Request) {
         {
           name,
           description,
-          status: 'active',
-          worker_data
-        },
+          billing_type: billingType,
+          rate,
+          currency,
+          worker_data: {
+            skills: skillsArray,
+            certifications: certsArray,
+            availability: 'available'
+          }
+        }
       ])
-      .select();
+      .select()
+      .single();
 
-    if (error) {
-      console.error('7. Supabase error:', error);
-      throw error;
-    }
+    if (error) throw error;
+    return NextResponse.json(data);
 
-    console.log('8. Successfully inserted data:', data);
-    return NextResponse.json({ data });
-  } catch (error: unknown) {
-    console.error('9. Detailed error:', {
-      message: (error as Error).message,
-      details: (error as { details?: string })?.details,
-      hint: (error as { hint?: string })?.hint,
-      code: (error as { code?: string })?.code
-    });
+  } catch (error) {
+    console.error('Error creating worker:', error);
     return NextResponse.json(
-      { error: `Error creating worker: ${(error as Error).message || String(error)}` },
+      { error: 'Error creating worker' },
       { status: 500 }
     );
   }
