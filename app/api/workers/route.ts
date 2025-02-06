@@ -56,9 +56,9 @@ export async function POST(request: Request) {
       description,
       skills,
       certifications,
-      billingType,
-      rate,
+      hourlyRate,
       currency,
+      billingType,
     } = await request.json();
 
     // Convert comma-separated strings to arrays
@@ -71,12 +71,12 @@ export async function POST(request: Request) {
         {
           name,
           description,
-          billing_type: billingType,
-          rate,
-          currency,
           worker_data: {
             skills: skillsArray,
             certifications: certsArray,
+            hourly_rate: Number(hourlyRate),
+            currency,
+            billing_type: billingType || 'hourly',
             availability: 'available'
           }
         }
