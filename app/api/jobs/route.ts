@@ -38,15 +38,15 @@ export async function POST(request: Request) {
         {
           title,
           description,
-          billing_type: billingType,
-          rate,
-          currency,
-          term,
-          estimated_duration: estimatedDuration,
           job_data: {
             poster_name: posterName,
             skills: skillsArray,
             certifications: certsArray,
+            billing_type: billingType,
+            rate,
+            currency,
+            term,
+            estimated_duration: estimatedDuration
           }
         }
       ])
@@ -82,11 +82,11 @@ export async function GET() {
       posterName: job.job_data.poster_name,
       skills: job.job_data.skills || [],
       certifications: job.job_data.certifications || [],
-      billingType: job.billing_type as BillingType,
-      rate: job.rate,
-      currency: job.currency,
-      term: job.term,
-      estimatedDuration: job.estimated_duration
+      billingType: job.job_data.billing_type as BillingType,
+      rate: job.job_data.rate,
+      currency: job.job_data.currency,
+      term: job.job_data.term,
+      estimatedDuration: job.job_data.estimated_duration
     }));
 
     return NextResponse.json(jobs);

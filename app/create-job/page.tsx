@@ -43,7 +43,9 @@ export default function CreateJob() {
         throw new Error('Failed to create job');
       }
 
-      router.push('/');
+      const result = await response.json();
+      router.push(`/jobs?highlight=${result.id}`);
+
     } catch (err) {
       setError(`Failed to create job. Please try again. ${err}`);
     } finally {
