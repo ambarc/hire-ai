@@ -31,6 +31,9 @@ export async function GET() {
         skills: worker.worker_data.skills,
         certifications: worker.worker_data.certifications,
         tagline: worker.worker_data.tagline,
+        billing_type: worker.worker_data.billing_type,
+        rate: worker.worker_data.rate,
+        currency: worker.worker_data.currency
       }
     }));
 
