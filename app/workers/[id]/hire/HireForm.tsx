@@ -40,7 +40,7 @@ export default function HireForm({ worker }: { worker: Worker }) {
         throw new Error(errorData.error || 'Failed to submit hire request');
       }
 
-      const data = await response.json();
+      await response.json();
       router.push(`/workers?id=${worker.id}&hired=true`);
     } catch (error) {
       console.error('Failed to submit hire request:', error);
@@ -157,11 +157,8 @@ export default function HireForm({ worker }: { worker: Worker }) {
                        focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500
                        shadow-sm transition-colors duration-200"
             />
-            <span className="text-gray-500">per {worker.worker_data.billing_type}</span>
+            <span className="text-gray-500">per {worker.worker_data.billing_type === 'monthly' ? 'month' : worker.worker_data.billing_type === 'hourly' ? 'hour' : 'task'}</span>
           </div>
-          <p className="text-sm text-orange-600 mt-1">
-            Note: Proposing a different rate may affect the worker's decision.
-          </p>
         </div>
       )}
 
