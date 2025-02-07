@@ -105,7 +105,7 @@ export default function Home() {
                     {worker.description}
                   </p>
                   <div className="flex flex-wrap gap-2">
-                    {worker.skills?.slice(0, 2)?.map((skill) => (
+                    {worker.worker_data.skills?.slice(0, 2)?.map((skill: string) => (
                       <span
                         key={skill}
                         className="px-3 py-1 rounded-full bg-gray-50 text-gray-600 text-xs font-medium"
