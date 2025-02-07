@@ -8,7 +8,7 @@ export interface WorkerData {
     currency: string;
 }
   
-  export interface Worker {
+export interface Worker {
     id: string;
     name: string;
     description: string;

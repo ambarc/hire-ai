@@ -96,18 +96,13 @@ export default function WorkersContent() {
       </div>
 
       <div className="flex">
-        {/* Left Navigation Panel */}
+        {/* Left Navigation Panel - List View */}
         <div className="w-1/3 pr-8 border-r border-gray-100">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">
-            {searchQuery ? 'Search Results' : 'Available Workers'}
-          </h2>
+          <h2 className="text-2xl font-bold text-gray-900 mb-6">Available Workers</h2>
           <div className="space-y-4">
             {workers.map((worker) => (
               <Link 
-                href={`/workers?${new URLSearchParams({
-                  ...(searchQuery ? { search: searchQuery } : {}),
-                  id: worker.id
-                })}`}
+                href={`/workers?id=${worker.id}`}
                 key={worker.id}
                 className={`block p-6 rounded-lg shadow-sm transition-all duration-200 ${
                   worker.id === selectedWorker?.id
