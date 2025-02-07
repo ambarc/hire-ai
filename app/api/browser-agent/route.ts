@@ -12,6 +12,8 @@ export const activeSessions: Record<string, {
   taskData?: any;
   lastScreenshot?: string;
   currentUrl?: string;
+  agentResponse?: string;
+  recordingGif?: string;
 }> = {};
 
 export async function POST(request: Request) {

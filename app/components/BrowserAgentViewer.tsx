@@ -17,6 +17,8 @@ interface SessionStatus {
   error?: string;
   created_at: string;
   completed_at?: string;
+  agent_response?: string;
+  recording_gif?: string;
 }
 
 export default function BrowserAgentViewer({ 
@@ -143,12 +145,40 @@ export default function BrowserAgentViewer({
       )}
       
       {/* Result Display */}
-      {status?.result && (
+      {(status?.agent_response || status?.result) && (
         <div className="p-4 bg-green-50 rounded-lg">
-          <h4 className="text-sm font-medium text-green-800 mb-1">Result:</h4>
-          <pre className="text-sm text-green-700 whitespace-pre-wrap">
-            {typeof status.result === 'string' ? status.result : JSON.stringify(status.result, null, 2)}
-          </pre>
+          <h4 className="text-sm font-medium text-green-800 mb-2">Agent Response:</h4>
+          <div className="prose prose-sm max-w-none">
+            {/* Display agent's text response */}
+            {status.agent_response && (
+              <div className="mb-4">
+                <p className="text-green-700 whitespace-pre-wrap">{status.agent_response}</p>
+              </div>
+            )}
+            
+            {/* Display recording if available */}
+            {status.recording_gif && (
+              <div className="mt-4 border rounded-lg overflow-hidden">
+                <img 
+                  src={status.recording_gif} 
+                  alt="Browser session recording" 
+                  className="w-full h-auto"
+                />
+              </div>
+            )}
+
+            {/* Display raw result in collapsible section */}
+            {status.result && (
+              <details className="mt-4">
+                <summary className="text-sm text-green-600 cursor-pointer hover:text-green-700">
+                  View technical details
+                </summary>
+                <pre className="mt-2 p-2 bg-green-100 rounded text-xs text-green-800 overflow-auto">
+                  {JSON.stringify(status.result, null, 2)}
+                </pre>
+              </details>
+            )}
+          </div>
           {status.completed_at && (
             <p className="text-xs text-green-600 mt-2">
               Completed: {new Date(status.completed_at).toLocaleTimeString()}

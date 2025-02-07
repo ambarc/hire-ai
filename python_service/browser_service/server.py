@@ -70,6 +70,8 @@ class BrowserSession:
         self.created_at = datetime.now().isoformat()
         self.completed_at = None
         self.current_url = None
+        self.agent_response = None
+        self.recording_gif = None
 
     async def start(self, session_id: str):
         self.session_id = session_id
@@ -107,25 +109,44 @@ class BrowserSession:
                 llm=llm,
                 browser=self.browser,
                 sensitive_data={},  # Add any sensitive data if needed
-                task=task
+                task=task,
+                # enable_vision=True
             )
 
             try:
-                # Run the agent
+                # Run the agent and get result
                 result = await self.agent.run()
                 
+                # Get the final action result which should contain the summary
+                final_action = str(result) # result.all_results[-1] if result.all_results else None
+                
+                # Store the result directly
+                self.agent_response = str(result) # final_action.extracted_content if final_action else str(result)
                 self.status = "completed"
-                self.task_data = result
-                self.result = result
+                self.result = self.agent_response
                 self.completed_at = datetime.now().isoformat()
+
+                # Get the recording from agent_history.gif
+                recording_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'agent_history.gif')
+                print('recording_path', recording_path)
+                if os.path.exists(recording_path):
+                    print(f"Reading recording from: {recording_path}")
+                    with open(recording_path, 'rb') as f:
+                        gif_data = f.read()
+                        self.recording_gif = f"data:image/gif;base64,{base64.b64encode(gif_data).decode()}"
+                        print("Successfully encoded recording as base64")
+                else:
+                    print(f"Recording not found at: {recording_path}")
 
                 await broadcast_page_update(self.session_id, "prompt_completed", {
                     "status": self.status,
-                    "result": result,
+                    "result": self.result,
+                    "agent_response": self.agent_response,
+                    "recording_gif": self.recording_gif,
                     "completed_at": self.completed_at
                 })
 
-                return result
+                return self.result
 
             except Exception as e:
                 print(f"Error executing prompt: {str(e)}")
@@ -150,17 +171,18 @@ class BrowserSession:
             })
             raise
 
-    def get_status(self) -> SessionStatus:
-        print('returning status', self.status)
-        return SessionStatus(
-            status=self.status,
-            prompt=self.current_prompt,
-            url=self.current_url,
-            result=self.result,
-            error=self.error,
-            created_at=self.created_at,
-            completed_at=self.completed_at
-        )
+    def get_status(self) -> dict:
+        return {
+            "status": self.status,
+            "prompt": self.current_prompt,
+            "url": self.current_url,
+            "result": self.result,
+            "error": self.error,
+            "created_at": self.created_at,
+            "completed_at": self.completed_at,
+            "agent_response": self.agent_response,
+            "recording_gif": self.recording_gif
+        }
 
     async def close(self):
         try:
@@ -199,13 +221,13 @@ async def create_session(data: SessionCreate):
             print('returning result', result)
             return {
                 "session_id": session_id,
-                "status": browser.get_status().dict()
+                "status": browser.get_status()
             }
 
         print('returning status')
         return {
             "session_id": session_id,
-            "status": browser.get_status().dict()
+            "status": browser.get_status()
         }
     except Exception as e:
         print(f"Error creating browser session: {str(e)}")
@@ -217,7 +239,7 @@ async def get_session(session_id: str):
         raise HTTPException(status_code=404, detail="Session not found")
     
     browser = sessions[session_id]
-    return browser.get_status().dict()
+    return browser.get_status()
 
 @app.delete("/api/browser-agent/{session_id}")
 async def delete_session(session_id: str):

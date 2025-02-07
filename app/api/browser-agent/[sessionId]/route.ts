@@ -36,8 +36,14 @@ export async function GET(
     session.taskData = data.task_data;
     session.lastScreenshot = data.last_screenshot;
     session.currentUrl = data.current_url;
+    session.agentResponse = data.agent_response;
+    session.recordingGif = data.recording_gif;
 
-    return NextResponse.json(session);
+    return NextResponse.json({
+      ...session,
+      agent_response: data.agent_response,
+      recording_gif: data.recording_gif
+    });
   } catch (error) {
     console.error('Error fetching browser session:', error);
     return NextResponse.json(
