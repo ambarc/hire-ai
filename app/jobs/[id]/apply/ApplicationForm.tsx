@@ -127,7 +127,7 @@ export default function ApplicationForm({ job }: { job: Job }) {
                        focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500
                        shadow-sm transition-colors duration-200"
             />
-            <span className="text-gray-500">per {job.job_data.billing_type === 'monthly' ? 'month' : 'hour'}</span>
+            <span className="text-gray-500">per {job.job_data.billing_type === 'monthly' ? 'month' : job.job_data.billing_type === 'hourly' ? 'hour' : 'task'}</span>
           </div>
           <p className="text-sm text-orange-600 mt-1">
             Note: Proposing a new rate may reduce your chances of getting the job.

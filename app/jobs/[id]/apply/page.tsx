@@ -67,7 +67,7 @@ export default async function ApplyToJob({
             <div className="space-y-2">
               <p className="text-gray-600">
                 <span className="font-medium">Rate:</span>{' '}
-                ${job.job_data.rate}/{job.job_data.billing_type === 'monthly' ? 'month' : 'hour'} {job.job_data.currency}
+                ${job.job_data.rate}/{job.job_data.billing_type === 'monthly' ? 'month' : job.job_data.billing_type === 'hourly' ? 'hour' : 'task'}
               </p>
               <p className="text-gray-600">
                 <span className="font-medium">Term:</span>{' '}
