@@ -2,13 +2,25 @@
 export type DataSource = {
     type: "browser" | "document" | "api";
     identifier: string; // URL, file path, or API endpoint
-    config?: Record<string, any>; // Additional configs like headers, selectors, etc.
+    config?: {
+      selector?: string;
+      simulatedDuration?: number;
+      mode?: 'video' | 'browser-use';
+      prompt?: string; // Instructions for browser-use session
+    };
   };
   
   export type DataDestination = {
     type: "browser" | "document" | "api";
     identifier: string; // URL, file path, or API endpoint
     config?: Record<string, any>;
+  };
+  
+  export type BrowserUseResult = {
+    type: 'browser-use';
+    data: any;
+    screenshot?: string;
+    url: string;
   };
   
   export type Transformation = {
@@ -38,15 +50,21 @@ export type DataSource = {
         runTime: "programmatic",
         source: {
           type: "browser",
-          identifier: "https://example.com/completed-forms",
+          identifier: "https://youtube.com",
           config: { 
-            selector: "#completed-forms",
-            simulatedDuration: 10000 // 10 seconds simulation
+            mode: 'browser-use',
+            prompt: "Search for 30 second videos, play one of the first few. Exit when you're done playing.",
+            selector: "#completed-forms"
           },
         },
         function: async (input: any) => {
-          // Simulate waiting for the video to complete
-          await new Promise(resolve => setTimeout(resolve, input.config.simulatedDuration));
+          if (input.type === 'browser-use') {
+            return {
+              success: true,
+              message: "Form data extracted successfully",
+              data: input.data
+            };
+          }
           return { success: true, message: "Form data extracted successfully" };
         },
         destination: {

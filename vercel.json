@@ -1,0 +1,24 @@
+{
+  "buildCommand": "next build",
+  "devCommand": "next dev",
+  "installCommand": "npm install",
+  "framework": "nextjs",
+  "functions": {
+    "api/browser-agent/index.py": {
+      "runtime": "python3.9",
+      "memory": 1024,
+      "maxDuration": 60
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/api/browser-agent/:path*",
+      "destination": "/api/browser-agent/index.py"
+    }
+  ],
+  "build": {
+    "env": {
+      "PLAYWRIGHT_BROWSERS_PATH": "0"
+    }
+  }
+} 

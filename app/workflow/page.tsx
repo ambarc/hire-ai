@@ -39,7 +39,15 @@ export default function WorkflowPage() {
       // If it's a browser source, just create the session and wait for video completion
       if (transformation.source.type === 'browser') {
         const response = await fetch('/api/browser-agent', {
-          method: 'POST'
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            mode: transformation.source.config?.mode || 'video',
+            url: transformation.source.identifier,
+            prompt: transformation.source.config?.prompt
+          })
         });
         const data = await response.json();
         
