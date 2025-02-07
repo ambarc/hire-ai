@@ -75,18 +75,13 @@ export default function WorkersContent() {
       </div>
 
       <div className="flex">
-        {/* Left Navigation Panel */}
+        {/* Left Navigation Panel - List View */}
         <div className="w-1/3 pr-8 border-r border-gray-100">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">
-            {searchQuery ? 'Search Results' : 'Available Workers'}
-          </h2>
+          <h2 className="text-2xl font-bold text-gray-900 mb-6">Available Workers</h2>
           <div className="space-y-4">
             {workers.map((worker) => (
               <Link 
-                href={`/workers?${new URLSearchParams({
-                  ...(searchQuery ? { search: searchQuery } : {}),
-                  id: worker.id
-                })}`}
+                href={`/workers?id=${worker.id}`}
                 key={worker.id}
                 className={`block p-6 rounded-lg shadow-sm transition-all duration-200 ${
                   worker.id === selectedWorker?.id
@@ -95,6 +90,9 @@ export default function WorkersContent() {
                 }`}
               >
                 <h3 className="font-semibold text-gray-900">{worker.name}</h3>
+                {worker.worker_data.tagline && (
+                  <p className="text-sm text-gray-600 mt-1">{worker.worker_data.tagline}</p>
+                )}
                 <p className="text-sm text-gray-600 mt-1">
                   {worker.billingType === 'hourly' && (
                     <span>${worker.rate}/hour</span>
@@ -128,7 +126,10 @@ export default function WorkersContent() {
             {selectedWorker ? (
               <div className="space-y-8">
                 <div>
-                  <h2 className="text-3xl font-bold text-gray-900 mb-4">{selectedWorker.name}</h2>
+                  <h2 className="text-3xl font-bold text-gray-900">{selectedWorker.name}</h2>
+                  {selectedWorker.worker_data.tagline && (
+                    <p className="text-lg text-gray-600 mt-2">{selectedWorker.worker_data.tagline}</p>
+                  )}
                   <p className="text-gray-600">
                     {selectedWorker.billingType === 'hourly' && (
                       <span>${selectedWorker.rate}/hour</span>
