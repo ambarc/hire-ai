@@ -138,14 +138,40 @@ export default function WorkersContent() {
             {selectedWorker ? (
               <div className="space-y-8">
                 <div>
-                  <h2 className="text-3xl font-bold text-gray-900">{selectedWorker.name}</h2>
-                  {selectedWorker.worker_data.tagline && (
-                    <p className="text-lg text-gray-600 mt-2">{selectedWorker.worker_data.tagline}</p>
-                  )}
-                  <div className="flex items-center gap-4 mt-3">
-                    <p className="text-gray-600">
-                      <span>{formatRate(selectedWorker)}</span>
-                    </p>
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h2 className="text-3xl font-bold text-gray-900">{selectedWorker.name}</h2>
+                      {selectedWorker.worker_data.tagline && (
+                        <p className="text-lg text-gray-600 mt-2">{selectedWorker.worker_data.tagline}</p>
+                      )}
+                    </div>
+
+                    <div className="text-right">
+                      <button
+                        onClick={() => router.push(`/workers/${selectedWorker.id}/hire`)}
+                        className="px-6 py-3 bg-indigo-600 text-white rounded-lg 
+                                  hover:bg-indigo-700 transition-colors duration-200
+                                  font-medium flex items-center gap-2 ml-auto"
+                      >
+                        Hire
+                        <svg 
+                          className="w-4 h-4" 
+                          fill="none" 
+                          stroke="currentColor" 
+                          viewBox="0 0 24 24"
+                        >
+                          <path 
+                            strokeLinecap="round" 
+                            strokeLinejoin="round" 
+                            strokeWidth={2} 
+                            d="M14 5l7 7m0 0l-7 7m7-7H3"
+                          />
+                        </svg>
+                      </button>
+                      <p className="text-gray-600 mt-2 text-sm font-medium text-center">
+                        {formatRate(selectedWorker)}
+                      </p>
+                    </div>
                   </div>
                 </div>
 
