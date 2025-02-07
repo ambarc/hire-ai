@@ -1,7 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import * as dotenv from 'dotenv';
-import { BillingType } from '@/app/types/billing';
 
 // Load environment variables from .env.local
 if (process.env.NODE_ENV !== 'production') {
@@ -74,22 +73,8 @@ export async function GET() {
 
     if (error) throw error;
 
-    // Transform the data to match our frontend types
-    const jobs = data.map(job => ({
-      id: job.id,
-      title: job.title,
-      description: job.description,
-      posterName: job.job_data.poster_name,
-      skills: job.job_data.skills || [],
-      certifications: job.job_data.certifications || [],
-      billingType: job.job_data.billing_type as BillingType,
-      rate: job.job_data.rate,
-      currency: job.job_data.currency,
-      term: job.job_data.term,
-      estimatedDuration: job.job_data.estimated_duration
-    }));
-
-    return NextResponse.json(jobs);
+    // No need to transform the data since it already matches our type
+    return NextResponse.json(data);
   } catch (error) {
     console.error('Error fetching jobs:', error);
     return NextResponse.json(

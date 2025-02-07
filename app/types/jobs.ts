@@ -25,6 +25,11 @@ export interface JobData {
   poster_name: string;
   skills: string[];
   certifications?: string[];
+  billing_type: 'hourly' | 'monthly' | 'task';
+  rate: number;
+  currency: string;
+  term: JobTerm;
+  estimated_duration?: string;
 }
 
 // Full Job Type (including database fields)
@@ -32,35 +37,7 @@ export interface Job {
   id: string;
   title: string;
   description: string;
-  posterName: string;
-  skills: string[];
-  certifications?: string[];
-  billingType: 'hourly' | 'monthly' | 'task';
-  rate: number;
-  currency: string;
-  term: JobTerm;
-  estimatedDuration?: string;
-  job_data?: {
-    poster_name: string;
-    skills: string[];
-    certifications?: string[];
-    billing_type: 'hourly' | 'monthly' | 'task';
-    rate: number;
-    currency: string;
-    term: JobTerm;
-    estimated_duration?: string;
-  };
+  job_data: JobData;
 }
 
-// interface FixedReward {
-//   type: 'fixed';
-//   total_amount: number;
-//   currency: string;
-// }
-
-// interface PerTaskReward {
-//   type: 'per_task';
-//   amount_per_task: number;
-//   currency: string;
-//   estimated_tasks: number;
-// } 
+// Removing commented out interfaces since they seem to be unused 

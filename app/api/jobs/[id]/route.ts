@@ -1,5 +1,5 @@
+import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { NextResponse } from 'next/server';
 import * as dotenv from 'dotenv';
 
 if (process.env.NODE_ENV !== 'production') {
@@ -11,13 +11,10 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-export async function GET(
-  request: Request,
-  context: { params: Promise<{ id: string }> }
-) {
+export async function GET(request: NextRequest) {
   try {
-    const resolvedParams = await context.params;
-    const jobId = resolvedParams.id;
+    const { pathname } = new URL(request.url);
+    const jobId = pathname.split('/').pop();
     
     const { data, error } = await supabase
       .from('jobs')
@@ -26,13 +23,7 @@ export async function GET(
       .single();
 
     if (error) throw error;
-    if (!data) {
-      return NextResponse.json(
-        { error: 'Job not found' },
-        { status: 404 }
-      );
-    }
-
+    
     return NextResponse.json(data);
   } catch (error) {
     console.error('Error fetching job:', error);

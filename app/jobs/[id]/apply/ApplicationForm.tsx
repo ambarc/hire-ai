@@ -9,7 +9,7 @@ export default function ApplicationForm({ job }: { job: Job }) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [rateOption, setRateOption] = useState<'accept' | 'propose'>('accept');
-  const [proposedRate, setProposedRate] = useState(job.rate); // Default to job rate
+  const [proposedRate, setProposedRate] = useState(job.job_data.rate); // Default to job rate
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -21,7 +21,7 @@ export default function ApplicationForm({ job }: { job: Job }) {
       jobId: job.id,
       contactInfo: formData.get('contactInfo'),
       message: formData.get('message'),
-      rate: rateOption === 'accept' ? job.rate : proposedRate,
+      rate: rateOption === 'accept' ? job.job_data.rate : proposedRate,
     };
     
     console.log('Submitting application:', submitData); // Debug log
@@ -98,7 +98,7 @@ export default function ApplicationForm({ job }: { job: Job }) {
           className={`cursor-pointer p-4 rounded-lg border transition-colors duration-200 
             ${rateOption === 'accept' ? 'bg-green-100 border-green-500' : 'border-gray-300'}`}
         >
-          Accept Rate (${job.rate}/{job.billingType === 'monthly' ? 'month' : job.billingType === 'hourly' ? 'hour' : 'task'})
+          Accept Rate (${job.job_data.rate}/{job.job_data.billing_type === 'monthly' ? 'month' : job.job_data.billing_type === 'hourly' ? 'hour' : 'task'})
         </div>
         <div
           onClick={() => setRateOption('propose')}
@@ -115,7 +115,7 @@ export default function ApplicationForm({ job }: { job: Job }) {
             Proposed Rate
           </label>
           <div className="flex items-center space-x-2">
-            <span className="text-gray-500">{job.currency}</span>
+            <span className="text-gray-500">{job.job_data.currency}</span>
             <input
               type="number"
               id="proposedRate"
@@ -127,7 +127,7 @@ export default function ApplicationForm({ job }: { job: Job }) {
                        focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500
                        shadow-sm transition-colors duration-200"
             />
-            <span className="text-gray-500">per {job.billingType === 'monthly' ? 'month' : 'hour'}</span>
+            <span className="text-gray-500">per {job.job_data.billing_type === 'monthly' ? 'month' : 'hour'}</span>
           </div>
           <p className="text-sm text-orange-600 mt-1">
             Note: Proposing a new rate may reduce your chances of getting the job.
