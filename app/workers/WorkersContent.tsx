@@ -6,6 +6,26 @@ import { Worker } from '@/app/types/workers'
 import { useSearchParams, useRouter } from 'next/navigation';
 import SearchBar from '../components/SearchBar';
 
+function formatRate(worker: Worker) {
+  if (!worker.worker_data?.rate || !worker.worker_data?.billing_type) {
+    return 'Rate not available';
+  }
+
+  const { billing_type, rate, currency } = worker.worker_data;
+  const currencySymbol = currency === 'USD' ? '$' : currency;
+  
+  switch (billing_type) {
+    case 'hourly':
+      return `${currencySymbol}${rate}/hour`;
+    case 'monthly':
+      return `${currencySymbol}${rate}/month`;
+    case 'task':
+      return `${currencySymbol}${rate}/task`;
+    default:
+      return `${currencySymbol}${rate}`;
+  }
+}
+
 export default function WorkersContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -28,6 +48,7 @@ export default function WorkersContent() {
           throw new Error(`Failed to fetch: ${response.statusText}`);
         }
         const data = await response.json();
+        console.log('Worker data received:', data);
         setWorkers(data);
       } catch (error) {
         console.error('Failed to fetch workers:', error);
@@ -93,20 +114,11 @@ export default function WorkersContent() {
                 {worker.worker_data.tagline && (
                   <p className="text-sm text-gray-600 mt-1">{worker.worker_data.tagline}</p>
                 )}
-                <p className="text-sm text-gray-600 mt-1">
-                  {worker.billingType === 'hourly' && (
-                    <span>${worker.rate}/hour</span>
-                  )}
-                  {worker.billingType === 'monthly' && (
-                    <span>${worker.rate}/month</span>
-                  )}
-                  {worker.billingType === 'task' && (
-                    <span>${worker.rate}/task</span>
-                  )}
-                  <span className="ml-1 text-gray-500">{worker.currency}</span>
-                </p>
+                <div className="text-sm text-gray-600 mt-2">
+                  <span>{formatRate(worker)}</span>
+                </div>
                 <div className="flex gap-2 mt-3">
-                  {worker.skills?.slice(0, 2).map((skill) => (
+                  {worker.worker_data.skills?.slice(0, 2).map((skill) => (
                     <span 
                       key={skill}
                       className="px-3 py-1 rounded-full bg-gray-50 text-gray-600 text-xs font-medium"
@@ -130,18 +142,11 @@ export default function WorkersContent() {
                   {selectedWorker.worker_data.tagline && (
                     <p className="text-lg text-gray-600 mt-2">{selectedWorker.worker_data.tagline}</p>
                   )}
-                  <p className="text-gray-600">
-                    {selectedWorker.billingType === 'hourly' && (
-                      <span>${selectedWorker.rate}/hour</span>
-                    )}
-                    {selectedWorker.billingType === 'monthly' && (
-                      <span>${selectedWorker.rate}/month</span>
-                    )}
-                    {selectedWorker.billingType === 'task' && (
-                      <span>${selectedWorker.rate}/task</span>
-                    )}
-                    <span className="ml-1 text-gray-500">{selectedWorker.currency}</span>
-                  </p>
+                  <div className="flex items-center gap-4 mt-3">
+                    <p className="text-gray-600">
+                      <span>{formatRate(selectedWorker)}</span>
+                    </p>
+                  </div>
                 </div>
 
                 <div className="space-y-6">
@@ -156,7 +161,7 @@ export default function WorkersContent() {
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900 mb-3">Certifications</h3>
                       <div className="flex flex-wrap gap-2">
-                        {selectedWorker.certifications?.map((cert) => (
+                        {selectedWorker.worker_data.certifications?.map((cert) => (
                           <span
                             key={cert}
                             className="px-4 py-2 rounded-full bg-indigo-50 text-indigo-600 text-sm font-medium"

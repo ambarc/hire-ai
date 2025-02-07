@@ -161,7 +161,6 @@ export default function JobsContent() {
                 </div>
                 <div className="text-sm text-gray-600 mt-2">
                   <span>{formatRate(job)}</span>
-                  <span className="ml-1 text-gray-500">{job.job_data.currency}</span>
                 </div>
                 <div className="flex gap-2 mt-3">
                   {job.job_data.skills?.slice(0, 2).map((skill: string) => (
@@ -189,7 +188,6 @@ export default function JobsContent() {
                     <div className="flex items-center gap-4">
                       <p className="text-gray-600">
                         <span>{formatRate(selectedJob)}</span>
-                        <span className="ml-1 text-gray-500">{selectedJob.job_data.currency}</span>
                       </p>
                       <span className={`px-3 py-1 text-sm rounded-full 
                         ${selectedJob.job_data.term === 'ongoing' 

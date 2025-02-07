@@ -111,7 +111,7 @@ export default function Home() {
                     <div className="absolute bottom-0 left-0 right-0 h-6 bg-gradient-to-t from-white to-transparent" />
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    {worker.worker_data.skills?.slice(0, 2)?.map((skill) => (
+                    {worker.worker_data.skills?.slice(0, 2)?.map((skill: string) => (
                       <span
                         key={skill}
                         className="px-3 py-1 rounded-full bg-gray-50 text-gray-600 text-xs font-medium"

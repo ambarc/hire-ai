@@ -1,7 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import * as dotenv from 'dotenv';
-import { BillingType } from '@/app/types/billing';
 
 // Load environment variables from .env.local
 if (process.env.NODE_ENV !== 'production') {
@@ -27,16 +26,14 @@ export async function GET() {
       id: worker.id,
       name: worker.name,
       description: worker.description,
-      billingType: worker.billing_type as BillingType,
-      rate: worker.rate,
-      currency: worker.currency,
-      skills: worker.worker_data.skills,
-      certifications: worker.worker_data.certifications,
       worker_data: {
         availability: worker.worker_data.availability,
         skills: worker.worker_data.skills,
         certifications: worker.worker_data.certifications,
         tagline: worker.worker_data.tagline,
+        billing_type: worker.worker_data.billing_type,
+        rate: worker.worker_data.rate,
+        currency: worker.worker_data.currency
       }
     }));
 
