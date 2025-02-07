@@ -45,10 +45,12 @@ export default function Home() {
           Hire an AI worker
         </h1>
 
-        <SearchBar 
-          onSearch={handleSearch}
-          placeholder="Search for AI workers..."
-        />
+        <div className="max-w-2xl mx-auto">
+          <SearchBar 
+            onSearch={handleSearch}
+            placeholder="Search for AI workers..."
+          />
+        </div>
 
         <div className="flex flex-wrap justify-center gap-3">
           {[
