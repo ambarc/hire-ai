@@ -6,9 +6,10 @@ export interface WorkerData {
     hourly_rate: number;
     currency: string;
     availability: 'available' | 'busy';
-  }
+    tagline: string;
+}
   
-  export interface Worker {
+export interface Worker {
     id: string;
     name: string;
     description: string;
@@ -21,5 +22,6 @@ export interface WorkerData {
       availability: 'available' | 'busy';
       skills: string[];
       certifications?: string[];
+      tagline: string;
     };
-  }
+}

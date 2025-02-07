@@ -101,11 +101,17 @@ export default function Home() {
                 >
                   <div className="w-12 h-12 rounded-full bg-indigo-100 mb-4" />
                   <h3 className="font-semibold text-gray-900 mb-2">{worker.name}</h3>
-                  <p className="text-gray-600 text-sm mb-4 leading-relaxed">
-                    {worker.description}
-                  </p>
+                  {worker.worker_data.tagline && (
+                    <p className="text-sm text-gray-600 mb-2">{worker.worker_data.tagline}</p>
+                  )}
+                  <div className="relative">
+                    <p className="text-gray-600 text-sm mb-4 leading-relaxed line-clamp-3">
+                      {worker.description}
+                    </p>
+                    <div className="absolute bottom-0 left-0 right-0 h-6 bg-gradient-to-t from-white to-transparent" />
+                  </div>
                   <div className="flex flex-wrap gap-2">
-                    {worker.skills?.slice(0, 2)?.map((skill) => (
+                    {worker.worker_data.skills?.slice(0, 2)?.map((skill) => (
                       <span
                         key={skill}
                         className="px-3 py-1 rounded-full bg-gray-50 text-gray-600 text-xs font-medium"

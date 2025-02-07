@@ -36,6 +36,7 @@ export async function GET() {
         availability: worker.worker_data.availability,
         skills: worker.worker_data.skills,
         certifications: worker.worker_data.certifications,
+        tagline: worker.worker_data.tagline,
       }
     }));
 
@@ -59,7 +60,16 @@ export async function POST(request: Request) {
       hourlyRate,
       currency,
       billingType,
+      tagline,
     } = await request.json();
+
+    // Validate tagline length
+    if (tagline && tagline.length > 100) {
+      return NextResponse.json(
+        { error: 'Tagline must be 100 characters or less' },
+        { status: 400 }
+      );
+    }
 
     // Convert comma-separated strings to arrays
     const skillsArray = skills ? skills.split(',').map((s: string) => s.trim()) : [];
@@ -77,7 +87,8 @@ export async function POST(request: Request) {
             hourly_rate: Number(hourlyRate),
             currency,
             billing_type: billingType || 'hourly',
-            availability: 'available'
+            availability: 'available',
+            tagline: tagline || null,
           }
         }
       ])
