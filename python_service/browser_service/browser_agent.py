@@ -66,10 +66,11 @@ class BrowserSession:
         return self.page.url
 
     async def close(self):
-        if self.browser:
-            await self.browser.close()
-        if self._playwright:
-            await self._playwright.stop()
+        return
+        # if self.browser:
+        #     await self.browser.close()
+        # if self._playwright:
+        #     await self._playwright.stop()
 
 # Convert route handlers to regular async functions
 async def create_session(data: SessionCreate):

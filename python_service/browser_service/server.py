@@ -47,6 +47,15 @@ class SessionCreate(BaseModel):
 class Command(BaseModel):
     command: str
 
+class SessionStatus(BaseModel):
+    status: str
+    prompt: Optional[str]
+    url: Optional[str]
+    result: Optional[Any]
+    error: Optional[str]
+    created_at: str
+    completed_at: Optional[str] = None
+
 class BrowserSession:
     def __init__(self):
         self.agent = None
@@ -56,6 +65,11 @@ class BrowserSession:
         self.task_data = {}
         self.last_screenshot = None
         self.current_prompt = None
+        self.result = None
+        self.error = None
+        self.created_at = datetime.now().isoformat()
+        self.completed_at = None
+        self.current_url = None
 
     async def start(self, session_id: str):
         self.session_id = session_id
@@ -77,6 +91,7 @@ class BrowserSession:
         """Execute a prompt using browser-use's Agent"""
         try:
             self.current_prompt = prompt
+            self.current_url = url
             self.status = "executing_prompt"
             await broadcast_page_update(self.session_id, "status", {
                 "status": self.status,
@@ -101,25 +116,13 @@ class BrowserSession:
                 
                 self.status = "completed"
                 self.task_data = result
-
-                # Get the final screenshot and URL if available
-                # screenshot = None
-                # final_url = None
-                # if self.browser and self.browser.page:
-                #     try:
-                #         screenshot_bytes = await self.browser.page.screenshot()
-                #         if screenshot_bytes:
-                #             buffered = BytesIO(screenshot_bytes)
-                #             screenshot = base64.b64encode(buffered.getvalue()).decode()
-                #         final_url = self.browser.page.url
-                #     except Exception as e:
-                #         print(f"Error capturing final state: {str(e)}")
+                self.result = result
+                self.completed_at = datetime.now().isoformat()
 
                 await broadcast_page_update(self.session_id, "prompt_completed", {
                     "status": self.status,
-                    # "screenshot": screenshot,
-                    # "url": final_url or url,
-                    "result": result
+                    "result": result,
+                    "completed_at": self.completed_at
                 })
 
                 return result
@@ -127,19 +130,37 @@ class BrowserSession:
             except Exception as e:
                 print(f"Error executing prompt: {str(e)}")
                 self.status = "error"
+                self.error = str(e)
+                self.completed_at = datetime.now().isoformat()
                 await broadcast_page_update(self.session_id, "error", {
-                    "error": f"Failed to execute prompt: {str(e)}",
-                    "status": self.status
+                    "error": str(e),
+                    "status": self.status,
+                    "completed_at": self.completed_at
                 })
                 raise
 
         except Exception as e:
             self.status = "error"
+            self.error = str(e)
+            self.completed_at = datetime.now().isoformat()
             await broadcast_page_update(self.session_id, "error", {
                 "error": str(e),
-                "status": self.status
+                "status": self.status,
+                "completed_at": self.completed_at
             })
             raise
+
+    def get_status(self) -> SessionStatus:
+        print('returning status', self.status)
+        return SessionStatus(
+            status=self.status,
+            prompt=self.current_prompt,
+            url=self.current_url,
+            result=self.result,
+            error=self.error,
+            created_at=self.created_at,
+            completed_at=self.completed_at
+        )
 
     async def close(self):
         try:
@@ -170,29 +191,24 @@ async def create_session(data: SessionCreate):
         browser = BrowserSession()
         await browser.start(session_id)
         
-        sessions[session_id] = {
-            "browser": browser,
-            "status": browser.status,
-            "prompt": data.prompt,
-            "created_at": datetime.now().isoformat()
-        }
+        sessions[session_id] = browser
 
         if data.url and data.prompt:
             # Execute the prompt with the agent
             result = await browser.execute_prompt(data.prompt, data.url)
+            print('returning result', result)
             return {
                 "session_id": session_id,
-                "status": browser.status,
-                "prompt": data.prompt,
-                "result": result
+                "status": browser.get_status().dict()
             }
 
+        print('returning status')
         return {
             "session_id": session_id,
-            "status": browser.status,
-            "prompt": data.prompt
+            "status": browser.get_status().dict()
         }
     except Exception as e:
+        print(f"Error creating browser session: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/browser-agent/{session_id}")
@@ -200,26 +216,22 @@ async def get_session(session_id: str):
     if session_id not in sessions:
         raise HTTPException(status_code=404, detail="Session not found")
     
-    browser = sessions[session_id]["browser"]
-    return {
-        "status": browser.status,
-        "task_data": browser.task_data,
-        "prompt": sessions[session_id]["prompt"],
-        "created_at": sessions[session_id]["created_at"]
-    }
+    browser = sessions[session_id]
+    return browser.get_status().dict()
 
 @app.delete("/api/browser-agent/{session_id}")
 async def delete_session(session_id: str):
-    if session_id not in sessions:
-        raise HTTPException(status_code=404, detail="Session not found")
+    return
+    # if session_id not in sessions:
+    #     raise HTTPException(status_code=404, detail="Session not found")
     
-    try:
-        browser = sessions[session_id]["browser"]
-        await browser.close()
-        del sessions[session_id]
-        return {"success": True}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    # try:
+    #     browser = sessions[session_id]
+    #     await browser.close()
+    #     del sessions[session_id]
+    #     return {"success": True}
+    # except Exception as e:
+    #     raise HTTPException(status_code=500, detail=str(e))
 
 @app.websocket("/api/browser-agent/ws/{session_id}")
 async def websocket_endpoint(websocket: WebSocket, session_id: str):
@@ -235,7 +247,7 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
         websocket_connections[session_id].append(websocket)
 
         # Send initial state
-        browser = sessions[session_id]["browser"]
+        browser = sessions[session_id]
         await websocket.send_json({
             "type": "status",
             "data": {
@@ -265,6 +277,35 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
             websocket_connections[session_id].remove(websocket)
             if not websocket_connections[session_id]:
                 del websocket_connections[session_id]
+
+@app.get("/api/browser-agent/{session_id}/status")
+async def get_session_status(session_id: str):
+    if session_id not in sessions:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    session = sessions[session_id]
+    return {
+        "status": session.status,
+        "task_data": session.task_data,
+        "last_screenshot": session.last_screenshot,
+        "current_url": session.current_url
+    }
+
+@app.post("/api/browser-agent/{session_id}/status")
+async def update_session_status(session_id: str, data: dict):
+    if session_id not in sessions:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    session = sessions[session_id]
+    if "status" in data:
+        session.status = data["status"]
+    
+    return {
+        "status": session.status,
+        "task_data": session.task_data,
+        "last_screenshot": session.last_screenshot,
+        "current_url": session.current_url
+    }
 
 if __name__ == "__main__":
     uvicorn.run(app, host="127.0.0.1", port=3001) 
