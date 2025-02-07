@@ -67,18 +67,32 @@ export default async function ApplyToJob({
             <div className="space-y-2">
               <p className="text-gray-600">
                 <span className="font-medium">Rate:</span>{' '}
-                ${job.rate}/{job.billingType === 'monthly' ? 'month' : 'hour'} {job.currency}
+                ${job.job_data.rate}/{job.job_data.billing_type === 'monthly' ? 'month' : job.job_data.billing_type === 'hourly' ? 'hour' : 'task'}
               </p>
               <p className="text-gray-600">
                 <span className="font-medium">Term:</span>{' '}
-                {job.term}
+                {job.job_data.term}
               </p>
-              {job.term === 'project' && job.estimatedDuration && (
+              {job.job_data.estimated_duration && (
                 <p className="text-gray-600">
                   <span className="font-medium">Estimated Duration:</span>{' '}
-                  {job.estimatedDuration}
+                  {job.job_data.estimated_duration}
                 </p>
               )}
+            </div>
+          </div>
+
+          <div className="prose max-w-none mb-8">
+            <h2 className="text-xl font-semibold mb-3">Required Skills</h2>
+            <div className="flex flex-wrap gap-2">
+              {job.job_data.skills.map((skill: string) => (
+                <span
+                  key={skill}
+                  className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm"
+                >
+                  {skill}
+                </span>
+              ))}
             </div>
           </div>
 

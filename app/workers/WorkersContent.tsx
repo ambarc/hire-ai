@@ -145,17 +145,10 @@ export default function WorkersContent() {
 
                 <div className="space-y-6">
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-3">Skills</h3>
-                    <div className="flex flex-wrap gap-2">
-                      {selectedWorker.worker_data.skills.map((skill) => (
-                        <span
-                          key={skill}
-                          className="px-4 py-2 rounded-full bg-gray-50 text-gray-600 text-sm font-medium"
-                        >
-                          {skill}
-                        </span>
-                      ))}
-                    </div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-3">About</h3>
+                    <p className="text-gray-600 leading-relaxed whitespace-pre-wrap">
+                      {selectedWorker.description}
+                    </p>
                   </div>
 
                   {selectedWorker.worker_data.certifications && selectedWorker.worker_data.certifications.length > 0 && (
@@ -175,10 +168,17 @@ export default function WorkersContent() {
                   )}
 
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-3">About</h3>
-                    <p className="text-gray-600 leading-relaxed whitespace-pre-wrap">
-                      {selectedWorker.description}
-                    </p>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-3">Skills</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedWorker.worker_data.skills.map((skill) => (
+                        <span
+                          key={skill}
+                          className="px-4 py-2 rounded-full bg-gray-50 text-gray-600 text-sm font-medium"
+                        >
+                          {skill}
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>

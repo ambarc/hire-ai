@@ -6,6 +6,22 @@ import { Job } from '@/app/types/jobs'
 import { useSearchParams, useRouter } from 'next/navigation';
 import SearchBar from '../components/SearchBar';
 
+// First, let's create a helper function at the top of the file to format the rate display
+function formatRate(job: Job) {
+  const { billing_type, rate } = job.job_data;
+  
+  switch (billing_type) {
+    case 'hourly':
+      return `$${rate}/hour`;
+    case 'monthly':
+      return `$${rate}/month`;
+    case 'task':
+      return `$${rate}/task`;
+    default:
+      return `$${rate}`;
+  }
+}
+
 export default function JobsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -100,27 +116,19 @@ export default function JobsContent() {
                 <div className="flex justify-between items-start">
                   <h3 className="font-semibold text-gray-900">{job.title}</h3>
                   <span className={`px-2 py-1 text-xs rounded-full 
-                    ${job.term === 'ongoing' 
+                    ${job.job_data.term === 'ongoing' 
                       ? 'bg-green-50 text-green-700'
                       : 'bg-blue-50 text-blue-700'}`}
                   >
-                    {job.term === 'ongoing' ? 'Ongoing' : 'Project'}
+                    {job.job_data.term === 'ongoing' ? 'Ongoing' : 'Project'}
                   </span>
                 </div>
                 <div className="text-sm text-gray-600 mt-2">
-                  {job.billingType === 'hourly' && (
-                    <span>${job.rate}/hour</span>
-                  )}
-                  {job.billingType === 'monthly' && (
-                    <span>${job.rate}/month</span>
-                  )}
-                  {job.billingType === 'task' && (
-                    <span>${job.rate}/task</span>
-                  )}
-                  <span className="ml-1 text-gray-500">{job.currency}</span>
+                  <span>{formatRate(job)}</span>
+                  <span className="ml-1 text-gray-500">{job.job_data.currency}</span>
                 </div>
                 <div className="flex gap-2 mt-3">
-                  {job.skills?.slice(0, 2).map((skill) => (
+                  {job.job_data.skills?.slice(0, 2).map((skill: string) => (
                     <span 
                       key={skill}
                       className="px-3 py-1 rounded-full bg-gray-50 text-gray-600 text-xs font-medium"
@@ -144,23 +152,15 @@ export default function JobsContent() {
                     <h2 className="text-3xl font-bold text-gray-900 mb-4">{selectedJob.title}</h2>
                     <div className="flex items-center gap-4">
                       <p className="text-gray-600">
-                        {selectedJob.billingType === 'hourly' && (
-                          <span>${selectedJob.rate}/hour</span>
-                        )}
-                        {selectedJob.billingType === 'monthly' && (
-                          <span>${selectedJob.rate}/month</span>
-                        )}
-                        {selectedJob.billingType === 'task' && (
-                          <span>${selectedJob.rate}/task</span>
-                        )}
-                        <span className="ml-1 text-gray-500">{selectedJob.currency}</span>
+                        <span>{formatRate(selectedJob)}</span>
+                        <span className="ml-1 text-gray-500">{selectedJob.job_data.currency}</span>
                       </p>
                       <span className={`px-3 py-1 text-sm rounded-full 
-                        ${selectedJob.term === 'ongoing' 
+                        ${selectedJob.job_data.term === 'ongoing' 
                           ? 'bg-green-50 text-green-700'
                           : 'bg-blue-50 text-blue-700'}`}
                       >
-                        {selectedJob.term === 'ongoing' ? 'Ongoing' : 'Project'}
+                        {selectedJob.job_data.term === 'ongoing' ? 'Ongoing' : 'Project'}
                       </span>
                     </div>
                   </div>
@@ -188,32 +188,25 @@ export default function JobsContent() {
                   </button>
                 </div>
 
-                {selectedJob.term === 'project' && selectedJob.estimatedDuration && (
+                {selectedJob.job_data.term === 'project' && selectedJob.job_data.estimated_duration && (
                   <p className="text-gray-600 mt-2">
-                    Estimated duration: {selectedJob.estimatedDuration}
+                    Estimated duration: {selectedJob.job_data.estimated_duration}
                   </p>
                 )}
 
                 <div className="space-y-6">
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-3">Required Skills</h3>
-                    <div className="flex flex-wrap gap-2">
-                      {selectedJob.skills?.map((skill) => (
-                        <span
-                          key={skill}
-                          className="px-4 py-2 rounded-full bg-gray-50 text-gray-600 text-sm font-medium"
-                        >
-                          {skill}
-                        </span>
-                      ))}
-                    </div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-3">Description</h3>
+                    <p className="text-gray-600 leading-relaxed whitespace-pre-wrap">
+                      {selectedJob.description}
+                    </p>
                   </div>
 
-                  {selectedJob.certifications && selectedJob.certifications.length > 0 && (
+                  {selectedJob.job_data.certifications && selectedJob.job_data.certifications.length > 0 && (
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900 mb-3">Required Certifications</h3>
                       <div className="flex flex-wrap gap-2">
-                        {selectedJob.certifications.map((cert) => (
+                        {selectedJob.job_data.certifications.map((cert: string) => (
                           <span
                             key={cert}
                             className="px-4 py-2 rounded-full bg-indigo-50 text-indigo-600 text-sm font-medium"
@@ -226,10 +219,17 @@ export default function JobsContent() {
                   )}
 
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-3">Description</h3>
-                    <p className="text-gray-600 leading-relaxed whitespace-pre-wrap">
-                      {selectedJob.description}
-                    </p>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-3">Required Skills</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedJob.job_data.skills?.map((skill: string) => (
+                        <span
+                          key={skill}
+                          className="px-4 py-2 rounded-full bg-gray-50 text-gray-600 text-sm font-medium"
+                        >
+                          {skill}
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>
