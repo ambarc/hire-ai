@@ -82,6 +82,20 @@ export default async function ApplyToJob({
             </div>
           </div>
 
+          <div className="prose max-w-none mb-8">
+            <h2 className="text-xl font-semibold mb-3">Required Skills</h2>
+            <div className="flex flex-wrap gap-2">
+              {job.job_data.skills.map((skill: string) => (
+                <span
+                  key={skill}
+                  className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm"
+                >
+                  {skill}
+                </span>
+              ))}
+            </div>
+          </div>
+
           <ApplicationForm job={job} />
         </div>
       </main>

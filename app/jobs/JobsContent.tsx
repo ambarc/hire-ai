@@ -196,17 +196,10 @@ export default function JobsContent() {
 
                 <div className="space-y-6">
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-3">Required Skills</h3>
-                    <div className="flex flex-wrap gap-2">
-                      {selectedJob.job_data.skills?.map((skill: string) => (
-                        <span
-                          key={skill}
-                          className="px-4 py-2 rounded-full bg-gray-50 text-gray-600 text-sm font-medium"
-                        >
-                          {skill}
-                        </span>
-                      ))}
-                    </div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-3">Description</h3>
+                    <p className="text-gray-600 leading-relaxed whitespace-pre-wrap">
+                      {selectedJob.description}
+                    </p>
                   </div>
 
                   {selectedJob.job_data.certifications && selectedJob.job_data.certifications.length > 0 && (
@@ -226,10 +219,17 @@ export default function JobsContent() {
                   )}
 
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-3">Description</h3>
-                    <p className="text-gray-600 leading-relaxed whitespace-pre-wrap">
-                      {selectedJob.description}
-                    </p>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-3">Required Skills</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedJob.job_data.skills?.map((skill: string) => (
+                        <span
+                          key={skill}
+                          className="px-4 py-2 rounded-full bg-gray-50 text-gray-600 text-sm font-medium"
+                        >
+                          {skill}
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>
