@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { Job } from '@/app/types/jobs'
 import { useSearchParams, useRouter } from 'next/navigation';
 import SearchBar from '../components/SearchBar';
-import WorkerCard from '@/app/components/WorkerCard';
 
 // First, let's create a helper function at the top of the file to format the rate display
 function formatRate(job: Job) {
@@ -23,28 +22,11 @@ function formatRate(job: Job) {
   }
 }
 
-// Add the Worker type near your other type definitions
-interface Worker {
-  id: string;
-  name: string;
-  description: string;
-  worker_data: {
-    tagline?: string;
-    skills: string[];
-    certifications: string[];
-    availability: string;
-  };
-  billingType: string;
-  rate: number;
-  currency: string;
-}
-
 export default function JobsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
-  const [workers, setWorkers] = useState<Worker[]>([]);
   
   const jobId = searchParams.get('id');
   const searchQuery = searchParams.get('search');
@@ -73,24 +55,6 @@ export default function JobsContent() {
 
     fetchJobs();
   }, [searchQuery]);
-
-  // Add this effect to fetch workers alongside your jobs fetch
-  useEffect(() => {
-    async function fetchWorkers() {
-      try {
-        const response = await fetch('/api/workers');
-        if (!response.ok) {
-          throw new Error('Failed to fetch workers');
-        }
-        const data = await response.json();
-        setWorkers(data);
-      } catch (error) {
-        console.error('Error fetching workers:', error);
-      }
-    }
-
-    fetchWorkers();
-  }, []);
 
   const selectedJob = jobId 
     ? jobs.find(job => job.id === jobId) 
@@ -271,18 +235,6 @@ export default function JobsContent() {
               <p className="text-gray-600">No job selected</p>
             )}
           </div>
-        </div>
-      </div>
-
-      {/* Workers Section */}
-      <div className="mt-8">
-        <h2 className="text-2xl font-bold text-gray-900 mb-6">
-          Available Workers
-        </h2>
-        <div className="space-y-4">
-          {workers.map((worker) => (
-            <WorkerCard key={worker.id} worker={worker} />
-          ))}
         </div>
       </div>
     </div>
