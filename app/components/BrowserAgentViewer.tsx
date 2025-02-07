@@ -25,7 +25,8 @@ export default function BrowserAgentViewer({
 
   useEffect(() => {
     // Set up WebSocket connection
-    const ws = new WebSocket(`ws://${window.location.host}/api/browser-agent/stream?sessionId=${sessionId}`);
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const ws = new WebSocket(`${protocol}//${window.location.host}/api/browser-agent/ws/${sessionId}`);
     wsRef.current = ws;
 
     ws.onopen = () => {
@@ -33,9 +34,16 @@ export default function BrowserAgentViewer({
       setIsConnected(true);
     };
 
-    ws.onclose = () => {
-      console.log('WebSocket disconnected');
+    ws.onclose = (event) => {
+      console.log('WebSocket disconnected', event.code, event.reason);
       setIsConnected(false);
+      // Try to reconnect after 3 seconds
+      setTimeout(() => {
+        if (wsRef.current?.readyState === WebSocket.CLOSED) {
+          const newWs = new WebSocket(`${protocol}//${window.location.host}/api/browser-agent/ws/${sessionId}`);
+          wsRef.current = newWs;
+        }
+      }, 3000);
     };
 
     ws.onerror = (error) => {
@@ -46,6 +54,7 @@ export default function BrowserAgentViewer({
     ws.onmessage = (event) => {
       try {
         const message = JSON.parse(event.data);
+        console.log('WebSocket message:', message); // Debug log
         switch (message.type) {
           case 'page_load':
           case 'navigation':
@@ -60,6 +69,12 @@ export default function BrowserAgentViewer({
             if (message.data.result?.type === 'complete') {
               onComplete?.(message.data.result);
             }
+            break;
+          case 'status':
+            setStatus(message.data.status);
+            break;
+          case 'error':
+            onError?.(new Error(message.data.error));
             break;
         }
       } catch (error) {
@@ -76,7 +91,9 @@ export default function BrowserAgentViewer({
 
     return () => {
       clearInterval(pingInterval);
-      ws.close();
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.close();
+      }
     };
   }, [sessionId, onError, onComplete]);
 

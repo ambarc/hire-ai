@@ -50,10 +50,10 @@ export type DataSource = {
         runTime: "programmatic",
         source: {
           type: "browser",
-          identifier: "https://youtube.com",
+          identifier: "reddit.com",
           config: { 
             mode: 'browser-use',
-            prompt: "Search for 30 second videos, play one of the first few. Exit when you're done playing.",
+            prompt: "Go to reddit.com. Summarize the top 5 posts on the front page. Return that as a summary.",
             selector: "#completed-forms"
           },
         },
