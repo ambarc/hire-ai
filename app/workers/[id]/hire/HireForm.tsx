@@ -18,16 +18,16 @@ export default function HireForm({ worker }: { worker: Worker }) {
 
     const formData = new FormData(e.currentTarget);
     const submitData = {
-      workerId: worker.id,
-      contactInfo: formData.get('contactInfo'),
-      projectDetails: formData.get('projectDetails'),
-      rate: rateOption === 'accept' ? worker.worker_data.rate : proposedRate,
-      startDate: formData.get('startDate'),
-      duration: formData.get('duration'),
+      worker_id: worker.id,
+      contact_info: formData.get('contactInfo'),
+      message: formData.get('projectDetails'),
+      proposed_rate: rateOption === 'accept' ? worker.worker_data.rate : proposedRate,
     };
     
+    console.log('Submitting offer data:', submitData);
+
     try {
-      const response = await fetch('/api/hire-requests', {
+      const response = await fetch('/api/offers', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -35,16 +35,21 @@ export default function HireForm({ worker }: { worker: Worker }) {
         body: JSON.stringify(submitData),
       });
 
+      const responseData = await response.json();
+      console.log('Server response:', response.status, responseData);
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to submit hire request');
+        throw new Error(responseData.error || `Server error: ${response.status}`);
       }
 
-      await response.json();
       router.push(`/workers?id=${worker.id}&hired=true`);
-    } catch (error) {
-      console.error('Failed to submit hire request:', error);
-      setError('Failed to submit hire request. Please try again.');
+    } catch (error: unknown) {
+      console.error('Detailed error:', error);
+      if (error instanceof Error) {
+        setError(error.message);
+      } else {
+        setError('Failed to submit offer. Please try again.');
+      }
       setSubmitting(false);
     }
   };
