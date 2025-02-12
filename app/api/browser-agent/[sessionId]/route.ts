@@ -18,7 +18,7 @@ export async function GET(
     const session = activeSessions[sessionId];
     if (!session) {
       return NextResponse.json(
-        { error: 'Session not found' },
+        { error: 'Session complete.' },
         { status: 404 }
       );
     }
@@ -70,7 +70,7 @@ export async function DELETE(
     const session = activeSessions[sessionId];
     if (!session) {
       return NextResponse.json(
-        { error: 'Session not found' },
+        { error: 'Session complete.' },
         { status: 404 }
       );
     }

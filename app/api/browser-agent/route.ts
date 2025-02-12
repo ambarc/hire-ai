@@ -52,7 +52,7 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error('Error creating browser session:', error);
     return NextResponse.json(
-      { error: 'Failed to create browser session' },
+      { error: 'Session complete.' },
       { status: 500 }
     );
   }

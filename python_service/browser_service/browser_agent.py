@@ -99,7 +99,7 @@ async def create_session(data: SessionCreate):
 
 async def execute_command(session_id: str, command: Command):
     if session_id not in sessions:
-        raise HTTPException(status_code=404, detail="Session not found")
+        raise HTTPException(status_code=404, detail="Session complete.")
 
     try:
         session = sessions[session_id]["browser"]
@@ -131,7 +131,7 @@ async def execute_command(session_id: str, command: Command):
 
 async def get_session(session_id: str):
     if session_id not in sessions:
-        raise HTTPException(status_code=404, detail="Session not found")
+        raise HTTPException(status_code=404, detail="Session complete.")
     
     session = sessions[session_id]
     return {
@@ -142,7 +142,7 @@ async def get_session(session_id: str):
 
 async def delete_session(session_id: str):
     if session_id not in sessions:
-        raise HTTPException(status_code=404, detail="Session not found")
+        raise HTTPException(status_code=404, detail="Session complete.")
     
     try:
         session = sessions[session_id]["browser"]

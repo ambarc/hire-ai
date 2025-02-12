@@ -79,7 +79,7 @@ export default function CreateJob() {
         <h1 className="text-3xl font-bold text-gray-900 mb-8">Create a Job</h1>
         
         {error && (
-          <div className="mb-6 p-4 text-red-600 bg-red-50 rounded-lg border border-red-100">
+          <div className="mb-6 p-4 text-red-600 bg-green-50 rounded-lg border border-green-100">
             {error}
           </div>
         )}

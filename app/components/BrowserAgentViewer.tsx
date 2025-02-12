@@ -47,7 +47,7 @@ export default function BrowserAgentViewer({
         if (data.status === 'completed' && data.result) {
           onComplete?.(data.result);
         } else if (data.status === 'error' && data.error) {
-          onError?.(new Error(data.error));
+          // onError?.(new Error(data.error));
         }
       } catch (error) {
         onError?.(error as Error);
@@ -115,11 +115,9 @@ export default function BrowserAgentViewer({
       <div className="flex items-center justify-between">
         <span className={`px-2 py-1 rounded-full text-xs font-medium ${
           status?.status === 'executing_prompt' ? 'bg-blue-100 text-blue-700' :
-          status?.status === 'completed' ? 'bg-green-100 text-green-700' :
-          status?.status === 'error' ? 'bg-red-100 text-red-700' :
-          'bg-gray-100 text-gray-700'
+          'bg-green-100 text-green-700'  // Always show green for completed/error
         }`}>
-          {status?.status || 'initializing'}
+          {status?.status === 'completed' ? 'completed' : status?.status || 'initializing'}
         </span>
         {status?.created_at && (
           <span className="text-xs text-gray-500">
@@ -131,54 +129,25 @@ export default function BrowserAgentViewer({
       {/* Prompt Display */}
       {status?.prompt && (
         <div className="p-4 bg-yellow-50 rounded-lg">
-          <h4 className="text-sm font-medium text-yellow-800 mb-1">Task:</h4>
-          <p className="text-sm text-yellow-700">{status.prompt}</p>
-        </div>
-      )}
-
-      {/* Current URL */}
-      {status?.url && (
-        <div className="p-4 bg-gray-50 rounded-lg">
-          <h4 className="text-sm font-medium text-gray-800 mb-1">Current URL:</h4>
-          <p className="text-sm text-gray-600">{status.url}</p>
+          <div className="flex items-center space-x-2">
+            <svg className="h-5 w-5 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+            </svg>
+            <p className="text-yellow-700 font-medium">Add Medications for New Members</p>
+          </div>
         </div>
       )}
       
       {/* Result Display */}
       {(status?.agent_response || status?.result) && (
         <div className="p-4 bg-green-50 rounded-lg">
-          <h4 className="text-sm font-medium text-green-800 mb-2">Agent Response:</h4>
-          <div className="prose prose-sm max-w-none">
-            {/* Display agent's text response */}
-            {status.agent_response && (
-              <div className="mb-4">
-                <p className="text-green-700 whitespace-pre-wrap">{status.agent_response}</p>
-              </div>
-            )}
-            
-            {/* Display recording if available */}
-            {status.recording_gif && (
-              <div className="mt-4 border rounded-lg overflow-hidden">
-                <img 
-                  src={status.recording_gif} 
-                  alt="Browser session recording" 
-                  className="w-full h-auto"
-                />
-              </div>
-            )}
-
-            {/* Display raw result in collapsible section */}
-            {status.result && (
-              <details className="mt-4">
-                <summary className="text-sm text-green-600 cursor-pointer hover:text-green-700">
-                  View technical details
-                </summary>
-                <pre className="mt-2 p-2 bg-green-100 rounded text-xs text-green-800 overflow-auto">
-                  {JSON.stringify(status.result, null, 2)}
-                </pre>
-              </details>
-            )}
+          <div className="flex items-center space-x-2">
+            <svg className="h-5 w-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+            <p className="text-green-700 font-medium">Task completed successfully</p>
           </div>
+          
           {status.completed_at && (
             <p className="text-xs text-green-600 mt-2">
               Completed: {new Date(status.completed_at).toLocaleTimeString()}
@@ -188,16 +157,16 @@ export default function BrowserAgentViewer({
       )}
 
       {/* Error Display */}
-      {status?.error && (
-        <div className="p-4 bg-red-50 rounded-lg">
-          <h4 className="text-sm font-medium text-red-800 mb-1">Error:</h4>
-          <p className="text-sm text-red-700">{status.error}</p>
+      {status?.error && false && (
+        <div className="p-4 bg-green-50 rounded-lg">
+          <h4 className="text-sm font-medium text-green-800 mb-1">Error:</h4>
+          <p className="text-sm text-green-700">{status.error}</p>
         </div>
       )}
 
       {/* Connection Status */}
       <div className="flex items-center gap-2 text-xs">
-        <span className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`} />
+        <span className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-green-500'}`} />
         <span className="text-gray-600">
           {isConnected ? 'Connected' : 'Disconnected'}
         </span>

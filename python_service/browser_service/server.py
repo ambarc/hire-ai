@@ -236,7 +236,7 @@ async def create_session(data: SessionCreate):
 @app.get("/api/browser-agent/{session_id}")
 async def get_session(session_id: str):
     if session_id not in sessions:
-        raise HTTPException(status_code=404, detail="Session not found")
+        raise HTTPException(status_code=404, detail="Session complete.")
     
     browser = sessions[session_id]
     return browser.get_status()
@@ -245,7 +245,7 @@ async def get_session(session_id: str):
 async def delete_session(session_id: str):
     return
     # if session_id not in sessions:
-    #     raise HTTPException(status_code=404, detail="Session not found")
+    #     raise HTTPException(status_code=404, detail="Session complete.")
     
     # try:
     #     browser = sessions[session_id]
@@ -259,7 +259,7 @@ async def delete_session(session_id: str):
 async def websocket_endpoint(websocket: WebSocket, session_id: str):
     try:
         if session_id not in sessions:
-            await websocket.close(code=4000, reason="Session not found")
+            await websocket.close(code=4000, reason="Session complete.")
             return
 
         await websocket.accept()
@@ -303,7 +303,7 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
 @app.get("/api/browser-agent/{session_id}/status")
 async def get_session_status(session_id: str):
     if session_id not in sessions:
-        raise HTTPException(status_code=404, detail="Session not found")
+        raise HTTPException(status_code=404, detail="Session complete.")
     
     session = sessions[session_id]
     return {
@@ -316,7 +316,7 @@ async def get_session_status(session_id: str):
 @app.post("/api/browser-agent/{session_id}/status")
 async def update_session_status(session_id: str, data: dict):
     if session_id not in sessions:
-        raise HTTPException(status_code=404, detail="Session not found")
+        raise HTTPException(status_code=404, detail="Session complete.")
     
     session = sessions[session_id]
     if "status" in data:

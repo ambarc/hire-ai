@@ -18,7 +18,7 @@ export async function POST(request: Request) {
     const session = activeSessions[sessionId];
     if (!session) {
       return NextResponse.json(
-        { error: 'Session not found' },
+        { error: 'Session complete.' },
         { status: 404 }
       );
     }

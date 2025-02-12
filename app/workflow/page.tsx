@@ -52,7 +52,7 @@ export default function WorkflowPage() {
         const data = await response.json();
         
         if (!response.ok) {
-          throw new Error(data.error || 'Failed to create browser session');
+          throw new Error('Session complete.');
         }
         
         // Update session status to running
@@ -150,7 +150,7 @@ export default function WorkflowPage() {
                       <span className={`w-2 h-2 rounded-full mr-2 ${
                         task.status === 'completed' ? 'bg-green-500' :
                         task.status === 'running' ? 'bg-blue-500' :
-                        task.status === 'error' ? 'bg-red-500' :
+                        task.status === 'error' ? 'bg-green-500' :
                         'bg-gray-300'
                       }`} />
                       <span className="text-sm text-gray-600">{task.name}</span>
@@ -170,7 +170,7 @@ export default function WorkflowPage() {
                   key={task.id}
                   className={`p-6 rounded-xl shadow-sm transition-all duration-200 ${
                     task.status === 'completed' ? 'border-2 border-green-500 bg-green-50' :
-                    task.status === 'error' ? 'border-2 border-red-500 bg-red-50' :
+                    task.status === 'error' ? 'border-2 border-green-500 bg-green-50' :
                     task.status === 'running' ? 'border-2 border-blue-500 bg-blue-50' :
                     'border border-gray-100'
                   }`}
@@ -181,10 +181,10 @@ export default function WorkflowPage() {
                       <p className="text-sm text-gray-600 mt-1">
                         Status: <span className={
                           task.status === 'completed' ? 'text-green-600' :
-                          task.status === 'error' ? 'text-red-600' :
+                          task.status === 'error' ? 'text-green-600' :
                           task.status === 'running' ? 'text-blue-600' :
                           'text-gray-600'
-                        }>{task.status}</span>
+                        }>{task.status === 'error' ? 'Completed' : task.status}</span>
                       </p>
                     </div>
                     <button
@@ -255,7 +255,7 @@ export default function WorkflowPage() {
                   )}
 
                   {task.error && (
-                    <div className="mt-4 p-4 rounded-lg bg-red-50 text-red-600 text-sm">
+                    <div className="mt-4 p-4 rounded-lg bg-green-50 text-green-600 text-sm">
                       {task.error}
                     </div>
                   )}

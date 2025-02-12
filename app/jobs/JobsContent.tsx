@@ -16,7 +16,17 @@ export default function JobsContent() {
     async function fetchJobs() {
       try {
         const response = await axios.get('/api/jobs');
-        setJobs(response.data);
+        
+        // Sort jobs to put "Virtual Medical Assistant" first
+        const sortedJobs = response.data.sort((a, b) => {
+          const isAVMA = a.title.startsWith('Virtual Medical Assistant');
+          const isBVMA = b.title.startsWith('Virtual Medical Assistant');
+          if (isAVMA && !isBVMA) return -1;
+          if (!isAVMA && isBVMA) return 1;
+          return 0;
+        });
+        
+        setJobs(sortedJobs);
       } catch (error) {
         console.error('Failed to fetch jobs:', error);
       } finally {
@@ -115,10 +125,10 @@ export default function JobsContent() {
                   <h2 className="text-3xl font-bold text-gray-900 mb-4">{selectedJob.title}</h2>
                   <p className="text-lg text-gray-900 mb-2">{selectedJob.job_data.poster_display_name}</p>
                   <p className="text-gray-600">
-                    {selectedJob.job_data.bounty.reward.type === 'fixed' 
-                      ? `$${selectedJob.job_data.bounty.reward.total_amount}`
-                      : selectedJob.job_data.bounty.reward.type === 'per_task'
-                        ? `$${selectedJob.job_data.bounty.reward.amount_per_task} per task (Est. ${selectedJob.job_data.bounty.reward.estimated_tasks} tasks)`
+                    {selectedJob.job_data.bounty?.reward?.type === 'fixed' 
+                      ? `$${selectedJob.job_data.bounty?.reward?.total_amount}`
+                      : selectedJob.job_data.bounty?.reward?.type === 'per_task'
+                        ? `$${selectedJob.job_data.bounty?.reward?.amount_per_task} per task (Est. ${selectedJob.job_data.bounty?.reward?.estimated_tasks} tasks)`
                         : 'Reward varies'}
                   </p>
                 </div>
