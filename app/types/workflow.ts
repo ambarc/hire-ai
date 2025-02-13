@@ -40,6 +40,42 @@ export type DataSource = {
     transformations: Transformation[];
   };
   
+  export type BrowserSessionState = {
+    status: 'initialized' | 'executing' | 'task_completed' | 'error';
+    current_url: string;
+    current_task: BrowserTask | null;
+    task_history: Array<{
+      task: BrowserTask;
+      result: BrowserTaskResult;
+      timestamp: string;
+    }>;
+    last_result?: BrowserTaskResult;
+    last_error?: string;
+  };
+  
+  export type FormField = {
+    label: string;
+    value: string | number | null;
+    type?: string;
+    section?: string;
+  };
+  
+  export type FormExtractionResult = {
+    fields: FormField[];
+    sections: {
+      [key: string]: FormField[];
+    };
+    metadata: {
+      formTitle?: string;
+      timestamp: string;
+      url: string;
+    };
+  };
+  
+  // make it do single tasks at a time.
+  // the more you can pull the data, the better it's going to be.
+  
+
   export const exampleWorkflow: Workflow = {
     id: "workflow-002",
     name: "Medications Ingestion",
@@ -47,110 +83,117 @@ export type DataSource = {
     transformations: [
       {
         id: "transformation-001",
-        name: "Extract Medications Data for New Patient",
+        name: "Extract Form Structure",
         runTime: "programmatic",
         source: {
           type: "browser",
           identifier: "http://localhost:8000/ingest",
           config: { 
             mode: 'browser-use',
-            prompt: `
-              1. First, extract all form data from the weight ingestion form as a structured JSON object. You're looking for the following fields. You might not find all of them. 
-              Header Information
-              Patient Name
-              DOB
-              Patient ID
-              Submission Date/Time
-              Vital Statistics
-              Height
-              Current Weight
-              BMI
-              Waist Circumference
-              Weight History
-              Highest Adult Weight
-              Lowest Adult Weight
-              Weight Gain Pattern
-              Previous Weight Loss Attempts
-              Medical History
-              Current Medical Conditions
-              Allergies & Intolerances
-              Current Medications
-              Family History
-              Lifestyle Assessment
-              Occupation
-              Work Schedule
-              Physical Activity:
-              Daily steps
-              Exercise routine
-              Physical limitations
-              Sleep Patterns:
-              Average hours
-              Sleep aids/devices
-              Sleep quality
-              Night-time habits
-              Eating Patterns
-              Meal Pattern:
-              Breakfast habits
-              Lunch habits
-              Dinner habits
-              Snacking habits
-              Eating Behaviors:
-              Eating triggers
-              Eating location
-              Eating pace
-              Portion sizes
-              Emotional eating patterns
-              Food Preferences & Restrictions:
-              Preferred foods
-              Disliked foods
-              Food allergies/intolerances
-              Psychological Factors
-              Mental Health History
-              Weight Loss Motivation:
-              Primary goals
-              Secondary goals
-              Motivation level
-              Barriers to Weight Loss
-              Support System
-              Household Composition
-              Social Support Network
-              Treatment Preferences
-              Interested Treatment Options
-              Goals:
-              Short-term goals
-              Long-term goals
-              Health improvement goals
-              Behavioral goals
-
-              2. Once you have these fields, Navigate to http://localhost:8000
-              3. Use the search bar to search for James Smith.
-              4. Click into the patient's profile.
-              5. Fill out the medication section -- enter 2 medications: Lisinopril 10mg Once daily, and Metformin 500mg Once daily.
-              6. Save changes in each section as you complete them
-              Return a summary of what was extracted and updated.
-            `,
-            // 5. Go through each section of the patient's profile (Demographics, Insurance, Clinical Notes, Problems, Medications, Allergies, Surgical History, Substance History, Work History, Weight History, Exercise History, Sleep History, Food Preferences)
-            // 6. For each section, fill in any relevant information from the extracted form data.
-            selector: "form",
-            simulatedDuration: 5000 // 5 seconds for browser startup simulation
-          },
+            tasks: [
+              {
+                type: 'browser-use',
+                action: 'analyze_form',
+                prompt: `Navigate to the form and analyze its structure. Extract all form fields and their current values.
+                        Organize fields into logical sections.
+                        Return a structured representation of the form including:
+                        - All field labels and values
+                        - Section groupings
+                        - Form metadata`,
+                expectedOutput: {
+                  type: 'json',
+                  schema: {
+                    fields: 'array',
+                    sections: 'object',
+                    metadata: 'object'
+                  }
+                }
+              }
+            ]
+          }
         },
-        function: async (input: any) => {
-          if (input.type === 'browser-use') {
+        function: async (input: BrowserTaskResult) => {
+          if (input.type === 'browser-use' && input.data) {
+            const formData = input.data as FormExtractionResult;
             return {
               success: true,
-              message: "Form data processed and patient updated successfully",
-              data: input.data
+              message: "Form structure extracted successfully",
+              data: formData,
+              nextTask: {
+                type: 'browser-use',
+                action: 'navigate_to_ehr',
+                prompt: 'Navigate to http://localhost:8000',
+                expectedOutput: {
+                  type: 'json',
+                  schema: {
+                    success: 'boolean',
+                    currentUrl: 'string'
+                  }
+                }
+              }
             };
           }
-          return { success: false, message: "Failed to process form data and update patient" };
+          return { success: false, message: "Failed to extract form structure" };
         },
         destination: {
           type: "api",
-          identifier: "http://localhost:8000/api/summary",
+          identifier: "http://localhost:8000/api/form-structure",
           config: {}
         },
       },
+      {
+        id: "transformation-002",
+        name: "Navigate to EHR",
+        runTime: "programmatic",
+        source: {
+          type: "browser",
+          identifier: "http://localhost:8000",
+          config: { 
+            mode: 'browser-use',
+            tasks: [
+              {
+                type: 'browser-use',
+                action: 'navigate_to_ehr',
+                prompt: 'Navigate to http://localhost:8000 and confirm successful navigation',
+                expectedOutput: {
+                  type: 'json',
+                  schema: {
+                    success: 'boolean',
+                    currentUrl: 'string'
+                  }
+                }
+              }
+            ]
+          }
+        },
+        function: async (input: BrowserTaskResult) => {
+          if (input.type === 'browser-use' && input.data?.success) {
+            return {
+              success: true,
+              message: "Successfully navigated to EHR",
+              data: input.data,
+              nextTask: {
+                type: 'browser-use',
+                action: 'search_patient',
+                prompt: 'Search for patient James Smith',
+                expectedOutput: {
+                  type: 'json',
+                  schema: {
+                    patientFound: 'boolean',
+                    searchResults: 'array'
+                  }
+                }
+              }
+            };
+          }
+          return { success: false, message: "Failed to navigate to EHR" };
+        },
+        destination: {
+          type: "api",
+          identifier: "http://localhost:8000/api/navigation-status",
+          config: {}
+        },
+      }
     ],
   };
   

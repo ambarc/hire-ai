@@ -80,10 +80,15 @@ class BrowserSession:
         # Initialize browser with proper configuration
         self.browser = Browser(
             config=BrowserConfig(
-                # NOTE: you need to close your chrome browser - so that this can open your browser in debug mode
                 chrome_instance_path='/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
             )
         )
+        
+        # Create a persistent browser context
+        self.context = await self.browser.new_context()
+        
+        # Create a controller with the contexts
+        self.controller = Controller([self.context])
         
         await broadcast_page_update(self.session_id, "status", {
             "status": self.status
@@ -186,11 +191,63 @@ class BrowserSession:
 
     async def close(self):
         try:
+            if hasattr(self, 'page'):
+                await self.page.close()
+            if hasattr(self, 'context'):
+                await self.context.close()
             if self.browser:
                 await self.browser.close()
             self.status = "closed"
         except Exception as e:
             self.status = "error"
+            raise
+
+    async def execute_task(self, task: dict):
+        """Execute a task using the browser"""
+        try:
+            self.status = "executing_task"
+            await broadcast_page_update(self.session_id, "status", {
+                "status": self.status,
+                "task": task
+            })
+
+            # Initialize browser and context if not already done
+            if not self.browser or not hasattr(self, 'context'):
+                await self.start(self.session_id)
+
+            # Create a new agent instance with the current task and controller
+            llm = ChatOpenAI(model="gpt-4")
+            self.agent = Agent(
+                llm=llm,
+                browser=self.browser,
+                controller=self.controller,  # Pass the controller for state management
+                sensitive_data={},
+                task=str(task)
+            )
+
+            # Execute the task using the agent
+            result = await self.agent.run()
+
+            self.status = "completed"
+            self.completed_at = datetime.now().isoformat()
+            
+            await broadcast_page_update(self.session_id, "task_completed", {
+                "status": self.status,
+                "result": result,
+                "completed_at": self.completed_at
+            })
+
+            return result
+
+        except Exception as e:
+            self.status = "error"
+            self.error = str(e)
+            self.completed_at = datetime.now().isoformat()
+            await broadcast_page_update(self.session_id, "error", {
+                "error": str(e),
+                "status": self.status,
+                "completed_at": self.completed_at
+            })
             raise
 
 async def broadcast_page_update(session_id: str, update_type: str, data: Any):
@@ -223,8 +280,7 @@ async def create_session(data: SessionCreate):
                 "session_id": session_id,
                 "status": browser.get_status()
             }
-
-        print('returning status')
+        print('returning status' + str(browser.get_status()))
         return {
             "session_id": session_id,
             "status": browser.get_status()
@@ -328,6 +384,22 @@ async def update_session_status(session_id: str, data: dict):
         "last_screenshot": session.last_screenshot,
         "current_url": session.current_url
     }
+
+@app.post("/api/browser-agent/{session_id}/execute")
+async def execute_task(session_id: str, task: dict):
+    if session_id not in sessions:
+        print('session not found')
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    try:
+        browser_session = sessions[session_id]
+        print('found session and executing task', browser_session, task)
+        result = await browser_session.execute_task(task)
+        #print('returning execution result', result)
+        return result
+    except Exception as e:
+        print(f"Error executing task: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
     uvicorn.run(app, host="127.0.0.1", port=3001) 

@@ -1,11 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { activeSessions } from '../route';
+import { BrowserTask } from '@/types/workflow';
+
+type Context = {
+  params: Promise<{ sessionId: string }> | { sessionId: string };
+};
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { sessionId: string } }
+  context: Context
 ) {
-  const sessionId = params.sessionId;
+  const { sessionId } = await context.params;
 
   if (!sessionId) {
     return NextResponse.json(
@@ -55,9 +60,9 @@ export async function GET(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { sessionId: string } }
+  context: Context
 ) {
-  const sessionId = params.sessionId;
+  const { sessionId } = await context.params;
 
   if (!sessionId) {
     return NextResponse.json(
@@ -90,6 +95,61 @@ export async function DELETE(
     console.error('Error deleting browser session:', error);
     return NextResponse.json(
       { error: 'Failed to delete browser session' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function POST(
+  request: NextRequest,
+  context: Context
+) {
+  const { sessionId } = await context.params;
+
+  if (!sessionId) {
+    return NextResponse.json(
+      { error: 'Session ID required' },
+      { status: 400 }
+    );
+  }
+
+  try {
+    const task = await request.json() as BrowserTask;
+    
+    // Forward task to Python service
+    const response = await fetch(`http://localhost:3001/api/browser-agent/${sessionId}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(task)
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to execute browser task');
+    }
+
+    const data = await response.json();
+    
+    // Update local session state
+    const session = activeSessions[sessionId] || {};
+    session.status = data.status;
+    session.taskData = data.task_data;
+    session.lastScreenshot = data.last_screenshot;
+    session.currentUrl = data.current_url;
+    session.agentResponse = data.agent_response;
+    session.recordingGif = data.recording_gif;
+    activeSessions[sessionId] = session;
+
+    return NextResponse.json({
+      ...session,
+      agent_response: data.agent_response,
+      recording_gif: data.recording_gif
+    });
+  } catch (error) {
+    console.error('Error executing browser task:', error);
+    return NextResponse.json(
+      { error: 'Failed to execute browser task' },
       { status: 500 }
     );
   }
