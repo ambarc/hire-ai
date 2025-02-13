@@ -77,22 +77,45 @@ class BrowserSession:
         self.session_id = session_id
         self.status = "started"
         
-        # Initialize browser with proper configuration
-        self.browser = Browser(
-            config=BrowserConfig(
-                chrome_instance_path='/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+        try:
+            # Initialize browser with proper configuration
+            self.browser = Browser(
+                config=BrowserConfig(
+                    chrome_instance_path='/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+                )
             )
-        )
-        
-        # Create a persistent browser context
-        self.context = await self.browser.new_context()
-        
-        # Create a controller with the contexts
-        self.controller = Controller([self.context])
-        
-        await broadcast_page_update(self.session_id, "status", {
-            "status": self.status
-        })
+            
+            # Create a persistent browser context
+            self.context = await self.browser.new_context()
+            
+            # Create a controller with the contexts
+            self.controller = Controller([self.context])
+            
+            await broadcast_page_update(self.session_id, "status", {
+                "status": self.status
+            })
+        except Exception as e:
+            print(f"Error in start(): {str(e)}")
+            raise
+
+    async def verify_browser_state(self):
+        """Verify and reinitialize browser state if needed"""
+        try:
+            # Test if browser is still responsive
+            if not self.browser or not self.context:
+                print("Browser or context missing, reinitializing...")
+                await self.start(self.session_id)
+                return
+            
+            # Try to access the context to verify it's still valid
+            try:
+                await self.context.pages()
+            except Exception as e:
+                print(f"Context verification failed: {str(e)}, reinitializing...")
+                await self.start(self.session_id)
+        except Exception as e:
+            print(f"Error in verify_browser_state(): {str(e)}")
+            raise
 
     async def execute_prompt(self, prompt: str, url: str):
         """Execute a prompt using browser-use's Agent"""
@@ -211,16 +234,15 @@ class BrowserSession:
                 "task": task
             })
 
-            # Initialize browser and context if not already done
-            if not self.browser or not hasattr(self, 'context'):
-                await self.start(self.session_id)
+            # Verify browser state before executing task
+            await self.verify_browser_state()
 
             # Create a new agent instance with the current task and controller
-            llm = ChatOpenAI(model="gpt-4")
+            llm = ChatOpenAI(model="gpt-4o")
             self.agent = Agent(
                 llm=llm,
                 browser=self.browser,
-                controller=self.controller,  # Pass the controller for state management
+                controller=self.controller,
                 sensitive_data={},
                 task=str(task)
             )
@@ -240,6 +262,7 @@ class BrowserSession:
             return result
 
         except Exception as e:
+            print(f"Error in execute_task(): {str(e)}")
             self.status = "error"
             self.error = str(e)
             self.completed_at = datetime.now().isoformat()
