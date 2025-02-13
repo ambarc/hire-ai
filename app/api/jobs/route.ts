@@ -1,6 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
-import { JobData } from '@/app/types/jobs';
 import * as dotenv from 'dotenv';
 
 // Load environment variables from .env.local
@@ -15,53 +14,47 @@ const supabase = createClient(
 
 export async function POST(request: Request) {
   try {
-    const { title, description, skills, certifications, posterName, rewardType, rewardAmount, currency, estimatedTasks } = await request.json();
+    const {
+      title,
+      description,
+      posterName,
+      skills,
+      certifications,
+      billingType,
+      rate,
+      currency,
+      term,
+      estimatedDuration,
+    } = await request.json();
 
-    // Validate input
-    if (!title || !description || !posterName || !rewardType || !rewardAmount || !currency) {
-      return NextResponse.json(
-        { error: 'Missing required fields' },
-        { status: 400 }
-      );
-    }
+    // Convert comma-separated strings to arrays
+    const skillsArray = skills ? skills.split(',').map((s: string) => s.trim()) : [];
+    const certsArray = certifications ? certifications.split(',').map((c: string) => c.trim()) : [];
 
-    // Construct job_data object
-    const job_data: JobData = {
-      skills: skills ? skills.split(',').map((skill: string) => skill.trim()) : [],
-      certifications: certifications ? certifications.split(',').map((cert: string) => cert.trim()) : [],
-      poster_display_name: posterName,
-      bounty: {
-        type: 'bounty',
-        reward: rewardType === 'per_task' 
-          ? {
-              type: 'per_task',
-              amount_per_task: Number(rewardAmount),
-              currency,
-              estimated_tasks: Number(estimatedTasks)
-            }
-          : {
-              type: 'fixed',
-              total_amount: Number(rewardAmount),
-              currency
-            }
-      }
-    };
-
-    // Insert into Supabase
     const { data, error } = await supabase
       .from('jobs')
       .insert([
         {
           title,
           description,
-          job_data
-        },
+          job_data: {
+            poster_name: posterName,
+            skills: skillsArray,
+            certifications: certsArray,
+            billing_type: billingType,
+            rate,
+            currency,
+            term,
+            estimated_duration: estimatedDuration
+          }
+        }
       ])
-      .select();
+      .select()
+      .single();
 
     if (error) throw error;
+    return NextResponse.json(data);
 
-    return NextResponse.json({ data });
   } catch (error) {
     console.error('Error creating job:', error);
     return NextResponse.json(
@@ -76,16 +69,17 @@ export async function GET() {
     const { data, error } = await supabase
       .from('jobs')
       .select('*')
-      .order('created_at', { ascending: false })
+      .order('created_at', { ascending: false });
 
-    if (error) throw error
+    if (error) throw error;
 
-    return NextResponse.json(data)
+    // No need to transform the data since it already matches our type
+    return NextResponse.json(data);
   } catch (error) {
-    console.error('Error fetching jobs:', error)
+    console.error('Error fetching jobs:', error);
     return NextResponse.json(
       { error: 'Failed to fetch jobs' },
       { status: 500 }
-    )
+    );
   }
 } 

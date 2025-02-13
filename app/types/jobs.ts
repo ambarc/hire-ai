@@ -1,3 +1,6 @@
+// Job Term Type
+export type JobTerm = 'ongoing' | 'project';
+
 // Reward Strategy Types
 export interface RewardPerTaskCompletion {
   type: 'per_task';
@@ -19,10 +22,14 @@ export interface RewardStrategy {
 
 // Main Job Data Type
 export interface JobData {
+  poster_name: string;
   skills: string[];
-  certifications: string[];
-  poster_display_name: string;
-  bounty: RewardStrategy;
+  certifications?: string[];
+  billing_type: 'hourly' | 'monthly' | 'task';
+  rate: number;
+  currency: string;
+  term: JobTerm;
+  estimated_duration?: string;
 }
 
 // Full Job Type (including database fields)
@@ -30,20 +37,7 @@ export interface Job {
   id: string;
   title: string;
   description: string;
-  status: 'open' | 'closed';
-  created_at: string;
   job_data: JobData;
 }
 
-// interface FixedReward {
-//   type: 'fixed';
-//   total_amount: number;
-//   currency: string;
-// }
-
-// interface PerTaskReward {
-//   type: 'per_task';
-//   amount_per_task: number;
-//   currency: string;
-//   estimated_tasks: number;
-// } 
+// Removing commented out interfaces since they seem to be unused 
