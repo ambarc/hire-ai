@@ -101,10 +101,24 @@ class BrowserSession:
     async def verify_browser_state(self):
         """Verify and reinitialize browser state if needed"""
         try:
-            # Test if browser is still responsive
+            # Check if browser and context exist
             if not self.browser or not self.context:
                 print("Browser or context missing, reinitializing...")
-                await self.start(self.session_id)
+                # Initialize browser with proper configuration
+                self.browser = Browser(
+                    config=BrowserConfig(
+                        chrome_instance_path='/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+                    )
+                )
+                
+                # Create a persistent browser context
+                self.context = await self.browser.new_context()
+                
+                # Create a controller with the contexts
+                self.controller = Controller([self.context])
+                
+                # If we had to reinitialize, we need a new agent too
+                self.agent = None
                 return
             
             # Try to access the context to verify it's still valid
@@ -112,7 +126,24 @@ class BrowserSession:
                 await self.context.pages()
             except Exception as e:
                 print(f"Context verification failed: {str(e)}, reinitializing...")
-                await self.start(self.session_id)
+                # Close existing resources if they exist
+                try:
+                    if self.context:
+                        await self.context.close()
+                    if self.browser:
+                        await self.browser.close()
+                except:
+                    pass
+                
+                # Reinitialize everything
+                self.browser = Browser(
+                    config=BrowserConfig(
+                        chrome_instance_path='/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+                    )
+                )
+                self.context = await self.browser.new_context()
+                self.controller = Controller([self.context])
+                self.agent = None
         except Exception as e:
             print(f"Error in verify_browser_state(): {str(e)}")
             raise
@@ -237,29 +268,55 @@ class BrowserSession:
             # Verify browser state before executing task
             await self.verify_browser_state()
 
-            # Create a new agent instance with the current task and controller
-            llm = ChatOpenAI(model="gpt-4o")
-            self.agent = Agent(
-                llm=llm,
-                browser=self.browser,
-                controller=self.controller,
-                sensitive_data={},
-                task=str(task)
-            )
+            # Use existing agent if available, or create a new one
+            if not self.agent:
+                llm = ChatOpenAI(model="gpt-4o", max_tokens=4096)
+                self.agent = Agent(
+                    llm=llm,
+                    browser=self.browser,
+                    sensitive_data={},
+                    task=str(task),
+                )
+            else:
+                # Update the existing agent's task
+                self.agent.task = str(task)
 
             # Execute the task using the agent
             result = await self.agent.run()
-
+            
+            # Convert the AgentHistoryList to string to get the final response
+            self.agent_response = str(result)
+            
             self.status = "completed"
+            self.result = self.agent_response
             self.completed_at = datetime.now().isoformat()
+
+            # Get the recording from agent_history.gif
+            recording_path = os.path.join(os.path.dirname(__file__), 'agent_history.gif')
+            if os.path.exists(recording_path):
+                print(f"Reading recording from: {recording_path}")
+                with open(recording_path, 'rb') as f:
+                    gif_data = f.read()
+                    self.recording_gif = f"data:image/gif;base64,{base64.b64encode(gif_data).decode()}"
+                    print("Successfully encoded recording as base64")
+            else:
+                print(f"Recording not found at: {recording_path}")
             
             await broadcast_page_update(self.session_id, "task_completed", {
                 "status": self.status,
-                "result": result,
+                "result": self.result,
+                "agent_response": self.agent_response,
+                "recording_gif": self.recording_gif,
                 "completed_at": self.completed_at
             })
 
-            return result
+            return {
+                "status": self.status,
+                "result": self.result,
+                "agent_response": self.agent_response,
+                "recording_gif": self.recording_gif,
+                "completed_at": self.completed_at
+            }
 
         except Exception as e:
             print(f"Error in execute_task(): {str(e)}")
