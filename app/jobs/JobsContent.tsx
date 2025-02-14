@@ -45,7 +45,17 @@ export default function JobsContent() {
           throw new Error(`Failed to fetch: ${response.statusText}`);
         }
         const data = await response.json();
-        setJobs(data);
+        
+        // Sort jobs to put "Virtual Medical Assistant" first
+        const sortedJobs = data.sort((a, b) => {
+          const isAVMA = a.title.startsWith('Virtual Medical Assistant');
+          const isBVMA = b.title.startsWith('Virtual Medical Assistant');
+          if (isAVMA && !isBVMA) return -1;
+          if (!isAVMA && isBVMA) return 1;
+          return 0;
+        });
+        
+        setJobs(sortedJobs);
       } catch (error) {
         console.error('Failed to fetch jobs:', error);
       } finally {
