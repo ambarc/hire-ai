@@ -224,7 +224,14 @@ class BrowserSession:
             # Set the page after agent creation
             self.agent.page = self.page
             
-            result = await self.agent.run()
+            agent_result = await self.agent.run()
+            
+            # Convert agent result to JSON-serializable format
+            result = {
+                "status": "success",
+                "actions": [str(action) for action in agent_result],  # Convert each action to string
+                "summary": str(agent_result)  # Get full summary as string
+            }
 
             # Store command in history
             self.command_history.append({
