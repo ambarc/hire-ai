@@ -43,8 +43,7 @@ class SessionState(BaseModel):
 
 class Command(BaseModel):
     """Command to be executed in a browser session"""
-    type: str  # 'navigate', 'click', 'type', 'custom'
-    data: Dict[str, Any]
+    prompt: str
     description: Optional[str] = None
 
 class BrowserSession:
@@ -200,8 +199,7 @@ class BrowserSession:
 
         try:
             self.current_command = self.command_queue.popleft()
-            command_type = self.current_command.type
-            command_data = self.current_command.data
+            prompt = self.current_command.prompt
 
             # Ensure we have an active browser context
             if not self.page:
@@ -213,36 +211,20 @@ class BrowserSession:
                 )
                 self.page = await self.context.new_page()
 
-            if command_type == "custom":
-                # Create a new agent with the existing browser context
-                llm = ChatOpenAI(
-                    model="gpt-4o",
-                    temperature=0
-                )
-                self.agent = Agent(  # Update session's current agent
-                    llm=llm,
-                    sensitive_data={},
-                    task=command_data.get("prompt", ""),
-                    page=self.page  # Pass existing browser context
-                )
-                result = await self.agent.run()
+            # Create a new agent with the existing browser context
+            llm = ChatOpenAI(
+                model="gpt-4o",
+                temperature=0
+            )
+            self.agent = Agent(  # Update session's current agent
+                llm=llm,
+                sensitive_data={},
+                task=prompt
+            )
+            # Set the page after agent creation
+            self.agent.page = self.page
             
-            elif command_type == "navigate":
-                await self.page.goto(command_data["url"])
-                result = {"status": "success", "url": command_data["url"]}
-            
-            elif command_type == "click":
-                element = await self.page.wait_for_selector(command_data["selector"])
-                await element.click()
-                result = {"status": "success", "action": "click", "selector": command_data["selector"]}
-            
-            elif command_type == "type":
-                element = await self.page.wait_for_selector(command_data["selector"])
-                await element.type(command_data["text"])
-                result = {"status": "success", "action": "type", "selector": command_data["selector"]}
-            
-            else:
-                result = {"status": "error", "message": f"Unknown command type: {command_type}"}
+            result = await self.agent.run()
 
             # Store command in history
             self.command_history.append({
@@ -361,47 +343,9 @@ async def get_debug_ui():
                 <h4>Send Command</h4>
                 <form onsubmit="sendCommand(event, '{state['session_id']}')">
                     <div class="form-group">
-                        <label for="command-type-{state['session_id']}">Command Type:</label>
-                        <select id="command-type-{state['session_id']}" onchange="updateCommandForm('{state['session_id']}')" class="command-select">
-                            <option value="navigate">Navigate</option>
-                            <option value="click">Click</option>
-                            <option value="type">Type</option>
-                            <option value="custom">Custom (AI Agent)</option>
-                        </select>
+                        <label for="prompt-{state['session_id']}">Task Prompt:</label>
+                        <textarea id="prompt-{state['session_id']}" placeholder="Enter task instructions here..."></textarea>
                     </div>
-                    
-                    <div id="navigate-fields-{state['session_id']}" class="command-fields">
-                        <div class="form-group">
-                            <label for="url-{state['session_id']}">URL:</label>
-                            <input type="text" id="url-{state['session_id']}" placeholder="https://example.com">
-                        </div>
-                    </div>
-                    
-                    <div id="click-fields-{state['session_id']}" class="command-fields" style="display:none">
-                        <div class="form-group">
-                            <label for="click-selector-{state['session_id']}">Selector:</label>
-                            <input type="text" id="click-selector-{state['session_id']}" placeholder="#submit-button">
-                        </div>
-                    </div>
-                    
-                    <div id="type-fields-{state['session_id']}" class="command-fields" style="display:none">
-                        <div class="form-group">
-                            <label for="type-selector-{state['session_id']}">Selector:</label>
-                            <input type="text" id="type-selector-{state['session_id']}" placeholder="#search-input">
-                        </div>
-                        <div class="form-group">
-                            <label for="type-text-{state['session_id']}">Text:</label>
-                            <input type="text" id="type-text-{state['session_id']}" placeholder="Text to type">
-                        </div>
-                    </div>
-                    
-                    <div id="custom-fields-{state['session_id']}" class="command-fields" style="display:none">
-                        <div class="form-group">
-                            <label for="prompt-{state['session_id']}">Prompt:</label>
-                            <textarea id="prompt-{state['session_id']}" placeholder="Enter AI task instructions"></textarea>
-                        </div>
-                    </div>
-                    
                     <button type="submit">Send Command</button>
                 </form>
             </div>
@@ -410,51 +354,10 @@ async def get_debug_ui():
     
     html += """
     <script>
-        function updateCommandForm(sessionId) {
-            const commandType = document.getElementById(`command-type-${sessionId}`).value;
-            const allFields = [
-                `navigate-fields-${sessionId}`,
-                `click-fields-${sessionId}`,
-                `type-fields-${sessionId}`,
-                `custom-fields-${sessionId}`
-            ];
-            
-            allFields.forEach(fieldId => {
-                document.getElementById(fieldId).style.display = 'none';
-            });
-            
-            document.getElementById(`${commandType}-fields-${sessionId}`).style.display = 'block';
-        }
-        
         async function sendCommand(event, sessionId) {
             event.preventDefault();
             const form = event.target;
-            const commandType = document.getElementById(`command-type-${sessionId}`).value;
-            let data = {};
-            
-            switch (commandType) {
-                case 'navigate':
-                    data = {
-                        url: document.getElementById(`url-${sessionId}`).value
-                    };
-                    break;
-                case 'click':
-                    data = {
-                        selector: document.getElementById(`click-selector-${sessionId}`).value
-                    };
-                    break;
-                case 'type':
-                    data = {
-                        selector: document.getElementById(`type-selector-${sessionId}`).value,
-                        text: document.getElementById(`type-text-${sessionId}`).value
-                    };
-                    break;
-                case 'custom':
-                    data = {
-                        prompt: document.getElementById(`prompt-${sessionId}`).value
-                    };
-                    break;
-            }
+            const prompt = document.getElementById(`prompt-${sessionId}`).value;
             
             try {
                 const response = await fetch(`/api/browser-agent/${sessionId}/command`, {
@@ -463,8 +366,7 @@ async def get_debug_ui():
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        type: commandType,
-                        data: data
+                        prompt: prompt
                     })
                 });
 
