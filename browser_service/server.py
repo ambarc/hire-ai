@@ -199,8 +199,7 @@ class BrowserSession:
 
         try:
             self.current_command = self.command_queue.popleft()
-            prompt = self.current_command.prompt
-
+            
             # Ensure we have an active browser context
             if not self.page:
                 self.playwright = await async_playwright().start()
@@ -211,17 +210,17 @@ class BrowserSession:
                 )
                 self.page = await self.context.new_page()
 
-            # Create a new agent with the existing browser context
+            # Create fresh agent for this task
             llm = ChatOpenAI(
                 model="gpt-4o",
                 temperature=0
             )
-            self.agent = Agent(  # Update session's current agent
+            self.agent = Agent(
                 llm=llm,
                 sensitive_data={},
-                task=prompt
+                task=self.current_command.prompt
             )
-            # Set the page after agent creation
+            # Give agent the current browser context
             self.agent.page = self.page
             
             agent_result = await self.agent.run()
@@ -229,13 +228,14 @@ class BrowserSession:
             # Convert agent result to JSON-serializable format
             result = {
                 "status": "success",
-                "actions": [str(action) for action in agent_result],  # Convert each action to string
-                "summary": str(agent_result)  # Get full summary as string
+                "actions": [str(action) for action in agent_result],
+                "summary": str(agent_result),
+                "current_url": await self.page.url()  # Capture final URL for reference
             }
 
             # Store command in history
             self.command_history.append({
-                "command": self.current_command.dict(),  # Convert to dict for serialization
+                "command": self.current_command.dict(),
                 "result": result,
                 "timestamp": datetime.now().isoformat()
             })
