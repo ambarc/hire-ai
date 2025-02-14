@@ -19,7 +19,7 @@ export const activeSessions: Record<string, {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { url, prompt } = body;
+    const { url, prompt, task } = body;
 
     // Forward to Python service
     const response = await fetch('http://localhost:3001/api/browser-agent', {
@@ -27,10 +27,17 @@ export async function POST(request: Request) {
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ url, prompt })
+      body: JSON.stringify({ 
+        url: url || task?.url,
+        prompt: prompt || task?.prompt,
+        task: task ? {
+          type: task.type || 'browser-use',
+          action: task.action,
+          prompt: task.prompt,
+          expectedOutput: task.expectedOutput
+        } : undefined
+      })
     });
-
-    console.log('response', response);
 
     if (!response.ok) {
       throw new Error('Failed to create browser session! response:' + response);
@@ -44,11 +51,20 @@ export async function POST(request: Request) {
       status: data.status,
       type: 'browser-use',
       createdAt: Date.now(),
-      prompt,
-      url
+      prompt: prompt || task?.prompt,
+      url: url || task?.url,
+      agentResponse: data.status.agent_response,
+      recordingGif: data.status.recording_gif
     };
 
-    return NextResponse.json({ sessionId, status: data.status, prompt, url });
+    return NextResponse.json({ 
+      sessionId, 
+      status: data.status, 
+      prompt: prompt || task?.prompt, 
+      url: url || task?.url,
+      agent_response: data.status.agent_response,
+      recording_gif: data.status.recording_gif
+    });
   } catch (error) {
     console.error('Error creating browser session:', error);
     return NextResponse.json(

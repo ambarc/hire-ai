@@ -43,6 +43,8 @@ websocket_connections: Dict[str, List[WebSocket]] = {}
 class SessionCreate(BaseModel):
     url: Optional[str] = None
     prompt: Optional[str] = None
+    task: Optional[dict] = None
+    workflow: Optional[dict] = None
 
 class Command(BaseModel):
     command: str
@@ -268,21 +270,40 @@ class BrowserSession:
             # Verify browser state before executing task
             await self.verify_browser_state()
 
+            # Extract the full prompt and URL from the task
+            task_prompt = task.get('prompt', '')
+            task_url = task.get('url', '')
+            
+            if not task_prompt:
+                raise ValueError("Task prompt is required")
+
+            print(f"Executing task with prompt: {task_prompt}")
+            print(f"Task URL: {task_url}")
+
+            # Set the task with URL context if provided
+            full_prompt = f"Go to {task_url}. Then {task_prompt}" if task_url else task_prompt
+
             # Use existing agent if available, or create a new one
             if not self.agent:
-                llm = ChatOpenAI(model="gpt-4o", max_tokens=4096)
+                llm = ChatOpenAI(
+                    model="gpt-4o",
+                    max_tokens=4096,
+                    temperature=0
+                )
                 self.agent = Agent(
                     llm=llm,
                     browser=self.browser,
                     sensitive_data={},
-                    task=str(task),
+                    task=full_prompt
                 )
             else:
                 # Update the existing agent's task
-                self.agent.task = str(task)
+                self.agent.task = full_prompt
 
             # Execute the task using the agent
+            print("Running agent...")
             result = await self.agent.run()
+            print(f"Agent result: {result}")
             
             # Convert the AgentHistoryList to string to get the final response
             self.agent_response = str(result)
@@ -352,15 +373,38 @@ async def create_session(data: SessionCreate):
         
         sessions[session_id] = browser
 
-        if data.url and data.prompt:
-            # Execute the prompt with the agent
-            result = await browser.execute_prompt(data.prompt, data.url)
-            print('returning result', result)
+        # Handle workflow execution
+        if data.workflow:
+            source = data.workflow.get('source', {})
+            if source.get('type') == 'browser' and source.get('config', {}).get('mode') == 'browser-use':
+                task = {
+                    'type': 'browser-use',
+                    'action': 'execute_workflow',
+                    'prompt': source['config'].get('prompt', '')
+                }
+                print(f"Executing workflow task: {task}")
+                result = await browser.execute_task(task)
+                return {
+                    "session_id": session_id,
+                    "status": browser.get_status()
+                }
+        # Handle direct task execution
+        elif data.task:
+            print(f"Executing task: {data.task}")
+            result = await browser.execute_task(data.task)
             return {
                 "session_id": session_id,
                 "status": browser.get_status()
             }
-        print('returning status' + str(browser.get_status()))
+        # Legacy support for direct prompt execution
+        elif data.url and data.prompt:
+            print(f"Executing prompt: {data.prompt}")
+            result = await browser.execute_prompt(data.prompt, data.url)
+            return {
+                "session_id": session_id,
+                "status": browser.get_status()
+            }
+            
         return {
             "session_id": session_id,
             "status": browser.get_status()
