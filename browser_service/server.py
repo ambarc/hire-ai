@@ -3,7 +3,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
-from typing import Optional, Dict, List
+from typing import Optional, Dict, List, Any
 import json
 from datetime import datetime
 import os
@@ -12,6 +12,7 @@ from browser_use import Agent
 from langchain_openai import ChatOpenAI
 import asyncio
 from playwright.async_api import async_playwright
+from collections import deque
 
 app = FastAPI()
 
@@ -40,6 +41,12 @@ class SessionState(BaseModel):
     updated_at: str
     browser_context_id: Optional[str] = None
 
+class Command(BaseModel):
+    """Command to be executed in a browser session"""
+    type: str  # 'navigate', 'click', 'type', 'custom'
+    data: Dict[str, Any]
+    description: Optional[str] = None
+
 class BrowserSession:
     def __init__(self):
         self.session_id: Optional[str] = None
@@ -56,6 +63,9 @@ class BrowserSession:
         self.playwright = None
         self.created_at = datetime.now().isoformat()
         self.updated_at = self.created_at
+        self.command_queue = deque()
+        self.current_command = None
+        self.command_history = []
 
     async def start(self, session_id: str):
         """Initialize browser session"""
@@ -161,17 +171,84 @@ class BrowserSession:
 
     def get_state(self):
         """Get full session state"""
-        return {
+        state = {
             "session_id": self.session_id,
             "status": self.status,
             "current_task": self.current_task,
-            "result": self.result,
             "error": self.error,
-            "recording_gif": self.recording_gif,
-            "completed_at": self.completed_at,
             "created_at": self.created_at,
-            "updated_at": self.updated_at
+            "updated_at": self.updated_at,
+            "command_queue_size": len(self.command_queue),
+            "current_command": self.current_command.dict() if self.current_command else None,
+            "command_history": self.command_history[-5:] # Return last 5 commands
         }
+        return state
+
+    async def add_command(self, command: Command) -> bool:
+        """Add a command to the session's queue"""
+        try:
+            self.command_queue.append(command)
+            return True
+        except Exception as e:
+            self.error = f"Failed to add command: {str(e)}"
+            return False
+
+    async def execute_next_command(self) -> Dict[str, Any]:
+        """Execute the next command in the queue"""
+        if not self.command_queue:
+            return {"status": "no_commands"}
+
+        try:
+            self.current_command = self.command_queue.popleft()
+            command_type = self.current_command.type
+            command_data = self.current_command.data
+
+            if command_type == "navigate":
+                await self.page.goto(command_data["url"])
+                result = {"status": "success", "url": command_data["url"]}
+            
+            elif command_type == "click":
+                element = await self.page.wait_for_selector(command_data["selector"])
+                await element.click()
+                result = {"status": "success", "action": "click", "selector": command_data["selector"]}
+            
+            elif command_type == "type":
+                element = await self.page.wait_for_selector(command_data["selector"])
+                await element.type(command_data["text"])
+                result = {"status": "success", "action": "type", "selector": command_data["selector"]}
+            
+            elif command_type == "custom":
+                # Use the agent to handle custom commands
+                self.agent.task = command_data.get("prompt", "")
+                result = await self.agent.run()
+            
+            else:
+                result = {"status": "error", "message": f"Unknown command type: {command_type}"}
+
+            self.command_history.append({
+                "command": self.current_command,
+                "result": result,
+                "timestamp": datetime.now().isoformat()
+            })
+            
+            return result
+
+        except Exception as e:
+            error_result = {
+                "status": "error",
+                "message": str(e),
+                "command": self.current_command.dict() if self.current_command else None
+            }
+            self.command_history.append({
+                "command": self.current_command,
+                "result": error_result,
+                "timestamp": datetime.now().isoformat()
+            })
+            return error_result
+
+    def get_command_history(self) -> List[Dict[str, Any]]:
+        """Get the history of executed commands"""
+        return self.command_history
 
 # Store active sessions in memory
 sessions: Dict[str, BrowserSession] = {}
@@ -259,10 +336,129 @@ async def get_debug_ui():
                 <span class="status {status_class}">{state['status']}</span>
             </h3>
             <pre>{json.dumps(state, indent=2)}</pre>
+            
+            <div class="command-form">
+                <h4>Send Command</h4>
+                <form onsubmit="sendCommand(event, '{state['session_id']}')">
+                    <div class="form-group">
+                        <label for="command-type-{state['session_id']}">Command Type:</label>
+                        <select id="command-type-{state['session_id']}" onchange="updateCommandForm('{state['session_id']}')" class="command-select">
+                            <option value="navigate">Navigate</option>
+                            <option value="click">Click</option>
+                            <option value="type">Type</option>
+                            <option value="custom">Custom (AI Agent)</option>
+                        </select>
+                    </div>
+                    
+                    <div id="navigate-fields-{state['session_id']}" class="command-fields">
+                        <div class="form-group">
+                            <label for="url-{state['session_id']}">URL:</label>
+                            <input type="text" id="url-{state['session_id']}" placeholder="https://example.com">
+                        </div>
+                    </div>
+                    
+                    <div id="click-fields-{state['session_id']}" class="command-fields" style="display:none">
+                        <div class="form-group">
+                            <label for="click-selector-{state['session_id']}">Selector:</label>
+                            <input type="text" id="click-selector-{state['session_id']}" placeholder="#submit-button">
+                        </div>
+                    </div>
+                    
+                    <div id="type-fields-{state['session_id']}" class="command-fields" style="display:none">
+                        <div class="form-group">
+                            <label for="type-selector-{state['session_id']}">Selector:</label>
+                            <input type="text" id="type-selector-{state['session_id']}" placeholder="#search-input">
+                        </div>
+                        <div class="form-group">
+                            <label for="type-text-{state['session_id']}">Text:</label>
+                            <input type="text" id="type-text-{state['session_id']}" placeholder="Text to type">
+                        </div>
+                    </div>
+                    
+                    <div id="custom-fields-{state['session_id']}" class="command-fields" style="display:none">
+                        <div class="form-group">
+                            <label for="prompt-{state['session_id']}">Prompt:</label>
+                            <textarea id="prompt-{state['session_id']}" placeholder="Enter AI task instructions"></textarea>
+                        </div>
+                    </div>
+                    
+                    <button type="submit">Send Command</button>
+                </form>
+            </div>
         </div>
         """
     
     html += """
+    <script>
+        function updateCommandForm(sessionId) {
+            const commandType = document.getElementById(`command-type-${sessionId}`).value;
+            const allFields = [
+                `navigate-fields-${sessionId}`,
+                `click-fields-${sessionId}`,
+                `type-fields-${sessionId}`,
+                `custom-fields-${sessionId}`
+            ];
+            
+            allFields.forEach(fieldId => {
+                document.getElementById(fieldId).style.display = 'none';
+            });
+            
+            document.getElementById(`${commandType}-fields-${sessionId}`).style.display = 'block';
+        }
+        
+        async function sendCommand(event, sessionId) {
+            event.preventDefault();
+            const form = event.target;
+            const commandType = document.getElementById(`command-type-${sessionId}`).value;
+            let data = {};
+            
+            switch (commandType) {
+                case 'navigate':
+                    data = {
+                        url: document.getElementById(`url-${sessionId}`).value
+                    };
+                    break;
+                case 'click':
+                    data = {
+                        selector: document.getElementById(`click-selector-${sessionId}`).value
+                    };
+                    break;
+                case 'type':
+                    data = {
+                        selector: document.getElementById(`type-selector-${sessionId}`).value,
+                        text: document.getElementById(`type-text-${sessionId}`).value
+                    };
+                    break;
+                case 'custom':
+                    data = {
+                        prompt: document.getElementById(`prompt-${sessionId}`).value
+                    };
+                    break;
+            }
+            
+            try {
+                const response = await fetch(`/api/browser-agent/${sessionId}/command`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        type: commandType,
+                        data: data
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to send command');
+                }
+
+                // Reload page to show updated state
+                location.reload();
+            } catch (error) {
+                alert('Error sending command: ' + error.message);
+            }
+        }
+    </script>
     </body>
     </html>
     """
@@ -349,4 +545,35 @@ async def list_sessions():
             "status": browser.get_status()
         }
         for session_id, browser in sessions.items()
-    ] 
+    ]
+
+@app.post("/api/browser-agent/{session_id}/command")
+async def send_command(session_id: str, command: Command):
+    """Send a command to an existing session"""
+    if session_id not in sessions:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    browser = sessions[session_id]
+    
+    # Add command to queue
+    success = await browser.add_command(command)
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to add command")
+    
+    # Execute command immediately
+    result = await browser.execute_next_command()
+    
+    return {
+        "status": "success",
+        "command_result": result,
+        "session_state": browser.get_state()
+    }
+
+@app.get("/api/browser-agent/{session_id}/commands")
+async def get_command_history(session_id: str):
+    """Get command history for a session"""
+    if session_id not in sessions:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    browser = sessions[session_id]
+    return browser.get_command_history() 
