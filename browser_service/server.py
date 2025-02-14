@@ -203,7 +203,31 @@ class BrowserSession:
             command_type = self.current_command.type
             command_data = self.current_command.data
 
-            if command_type == "navigate":
+            # Ensure we have an active browser context
+            if not self.page:
+                self.playwright = await async_playwright().start()
+                self.browser = await self.playwright.chromium.launch(headless=True)
+                self.context = await self.browser.new_context(
+                    record_video_dir="recordings",
+                    viewport={"width": 1280, "height": 720}
+                )
+                self.page = await self.context.new_page()
+
+            if command_type == "custom":
+                # Create a new agent with the existing browser context
+                llm = ChatOpenAI(
+                    model="gpt-4o",
+                    temperature=0
+                )
+                self.agent = Agent(  # Update session's current agent
+                    llm=llm,
+                    sensitive_data={},
+                    task=command_data.get("prompt", ""),
+                    page=self.page  # Pass existing browser context
+                )
+                result = await self.agent.run()
+            
+            elif command_type == "navigate":
                 await self.page.goto(command_data["url"])
                 result = {"status": "success", "url": command_data["url"]}
             
@@ -217,16 +241,12 @@ class BrowserSession:
                 await element.type(command_data["text"])
                 result = {"status": "success", "action": "type", "selector": command_data["selector"]}
             
-            elif command_type == "custom":
-                # Use the agent to handle custom commands
-                self.agent.task = command_data.get("prompt", "")
-                result = await self.agent.run()
-            
             else:
                 result = {"status": "error", "message": f"Unknown command type: {command_type}"}
 
+            # Store command in history
             self.command_history.append({
-                "command": self.current_command,
+                "command": self.current_command.dict(),  # Convert to dict for serialization
                 "result": result,
                 "timestamp": datetime.now().isoformat()
             })
@@ -240,7 +260,7 @@ class BrowserSession:
                 "command": self.current_command.dict() if self.current_command else None
             }
             self.command_history.append({
-                "command": self.current_command,
+                "command": self.current_command.dict() if self.current_command else None,
                 "result": error_result,
                 "timestamp": datetime.now().isoformat()
             })
