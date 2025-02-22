@@ -7,7 +7,7 @@ from typing import Optional, Dict, List, Any
 import json
 from datetime import datetime
 import os
-from browser_use import Agent
+from browser_use import Agent, Browser, BrowserConfig
 from langchain_openai import ChatOpenAI
 from collections import deque
 
@@ -31,10 +31,19 @@ class Command(BaseModel):
 class SessionCreate(BaseModel):
     command: Command = None
 
+def get_browser():
+    browser = Browser(
+        config=BrowserConfig(
+            chrome_instance_path='/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
+        )
+    )
+    return browser
+
 class BrowserSession:
     def __init__(self):
         self.session_id: Optional[str] = None
         self.status: str = "initialized"
+        self.browser: Optional[Browser] = None
         self.agent = None
         self.result = None
         self.error = None
@@ -47,7 +56,40 @@ class BrowserSession:
     async def start(self, session_id: str):
         """Initialize browser session"""
         self.session_id = session_id
+        # Create a persistent browser instance
+        self.browser = get_browser()
         self._update_state()
+
+    async def ensure_healthy_browser(self) -> bool:
+        """Ensure browser is healthy and reinitialize if needed"""
+        try:
+            if not self.browser:
+                print("Debug: No browser instance exists, creating new one")
+                self.browser = get_browser()
+                return True
+            
+            # Try to access browser to check health
+            print("Debug: Checking browser health")
+            async with await self.browser.new_context() as context:
+                page = await context.new_page()
+                await page.goto('about:blank')
+                await page.close()
+            print("Debug: Browser health check passed")
+            return True
+            
+        except Exception as e:
+            print(f"Debug: Browser health check failed: {str(e)}")
+            try:
+                # Clean up old browser
+                if self.browser:
+                    await self.browser.close()
+            except:
+                pass
+            
+            # Create new browser
+            print("Debug: Reinitializing browser")
+            self.browser = get_browser()
+            return True
 
     def _update_state(self):
         """Update session state"""
@@ -90,19 +132,26 @@ class BrowserSession:
             
             self.status = "running"
             self._update_state()
-            
-            # Check if browser context is still valid
-            print("Debug: Checking browser context validity")
 
+            
+            
+            # Ensure browser is healthy
+            print("Debug: Ensuring browser health")
+            if not await self.ensure_healthy_browser():
+                raise Exception("Failed to ensure healthy browser")
+
+            print("Debug: Creating new context for agent")
             print("Debug: Initializing agent")
             llm = ChatOpenAI(
                 model="gpt-4o",
                 temperature=0
             )
+            print("Debug: self browser" + str(self.browser))
             self.agent = Agent(
                 llm=llm,
                 sensitive_data={},
-                task=self.current_command.prompt
+                task=self.current_command.prompt,
+                browser=self.browser,
             )
 
             print("Debug: Running agent")
@@ -184,6 +233,15 @@ class BrowserSession:
     def get_command_history(self) -> List[Dict[str, Any]]:
         """Get the history of executed commands"""
         return self.command_history
+
+    async def cleanup(self):
+        """Clean up browser resources"""
+        if self.browser:
+            try:
+                await self.browser.close()
+            except Exception as e:
+                print(f"Error closing browser: {str(e)}")
+        self.browser = None
 
 # Store active sessions in memory
 sessions: Dict[str, BrowserSession] = {}
@@ -319,17 +377,17 @@ async def create_session(data: SessionCreate):
     """Create a new browser session"""
     try:
         session_id = f"session_{len(sessions)}"
-        browser = BrowserSession()
-        await browser.start(session_id)
-        sessions[session_id] = browser
+        browser_session = BrowserSession()
+        await browser_session.start(session_id)
+        sessions[session_id] = browser_session
         
         print("executing data" +  str(data))
         # If initial prompt provided, create and execute command
         if data.command:
             print(f"Creating session with prompt: {data.command.prompt}")
             command = Command(prompt=data.command.prompt)
-            await browser.add_command(command)
-            result = await browser.execute_next_command()
+            await browser_session.add_command(command)
+            result = await browser_session.execute_next_command()
         else:
             result = {"status": "initialized"}
         
@@ -347,20 +405,20 @@ async def send_command(session_id: str, command: Command):
     if session_id not in sessions:
         raise HTTPException(status_code=404, detail="Session not found")
     
-    browser = sessions[session_id]
+    browser_session = sessions[session_id]
     
     # Add command to queue
-    success = await browser.add_command(command)
+    success = await browser_session.add_command(command)
     if not success:
         raise HTTPException(status_code=500, detail="Failed to add command")
     
     # Execute command immediately
-    result = await browser.execute_next_command()
+    result = await browser_session.execute_next_command()
     
     return {
         "status": "success",
         "command_result": result,
-        "session_state": browser.get_state()
+        "session_state": browser_session.get_state()
     }
 
 @app.get("/api/browser-agent/{session_id}/commands")
@@ -369,8 +427,8 @@ async def get_command_history(session_id: str):
     if session_id not in sessions:
         raise HTTPException(status_code=404, detail="Session not found")
     
-    browser = sessions[session_id]
-    return browser.get_command_history()
+    browser_session = sessions[session_id]
+    return browser_session.get_command_history()
 
 @app.get("/api/browser-agent/{session_id}/state")
 async def get_session_state(session_id: str):
@@ -378,8 +436,8 @@ async def get_session_state(session_id: str):
     if session_id not in sessions:
         raise HTTPException(status_code=404, detail="Session not found")
     
-    browser = sessions[session_id]
-    return browser.get_state()
+    browser_session = sessions[session_id]
+    return browser_session.get_state()
 
 @app.delete("/api/browser-agent/{session_id}")
 async def end_session(session_id: str):
@@ -387,14 +445,8 @@ async def end_session(session_id: str):
     if session_id not in sessions:
         raise HTTPException(status_code=404, detail="Session not found")
     
-    browser = sessions[session_id]
-    if browser.context:
-        await browser.context.close()
-    if browser.browser:
-        await browser.browser.close()
-    if browser.playwright:
-        await browser.playwright.stop()
-    
+    browser_session = sessions[session_id]
+    await browser_session.cleanup()
     del sessions[session_id]
     return {"status": "success"}
 
