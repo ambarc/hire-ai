@@ -7,11 +7,8 @@ from typing import Optional, Dict, List, Any
 import json
 from datetime import datetime
 import os
-import base64
 from browser_use import Agent
 from langchain_openai import ChatOpenAI
-import asyncio
-from playwright.async_api import async_playwright
 from collections import deque
 
 app = FastAPI()
@@ -38,9 +35,6 @@ class BrowserSession:
     def __init__(self):
         self.session_id: Optional[str] = None
         self.status: str = "initialized"
-        self.browser = None
-        self.context = None
-        self.page = None
         self.agent = None
         self.result = None
         self.error = None
@@ -53,13 +47,6 @@ class BrowserSession:
     async def start(self, session_id: str):
         """Initialize browser session"""
         self.session_id = session_id
-        self.playwright = await async_playwright().start()
-        self.browser = await self.playwright.chromium.launch(headless=True)
-        self.context = await self.browser.new_context(
-            record_video_dir="recordings",
-            viewport={"width": 1280, "height": 720}
-        )
-        self.page = await self.context.new_page()
         self._update_state()
 
     def _update_state(self):
@@ -83,6 +70,7 @@ class BrowserSession:
         """Add a command to the session's queue"""
         try:
             self.command_queue.append(command)
+
             return True
         except Exception as e:
             self.error = f"Failed to add command: {str(e)}"
@@ -105,48 +93,6 @@ class BrowserSession:
             
             # Check if browser context is still valid
             print("Debug: Checking browser context validity")
-            try:
-                if self.page:
-                    print("Debug: Attempting to access page URL")
-                    await self.page.url()
-                    print("Debug: Page is valid")
-            except Exception as e:
-                print(f"Debug: Page validation failed: {str(e)}")
-                print("Debug: Reinitializing browser context")
-                # Page is invalid, clean up and reinitialize
-                if self.context:
-                    try:
-                        await self.context.close()
-                    except:
-                        pass
-                if self.browser:
-                    try:
-                        await self.browser.close()
-                    except:
-                        pass
-                if self.playwright:
-                    try:
-                        await self.playwright.stop()
-                    except:
-                        pass
-                
-                # Reset all browser-related attributes
-                self.page = None
-                self.context = None
-                self.browser = None
-                self.playwright = None
-
-            # Ensure active browser context
-            if not self.page:
-                print("Debug: Creating new browser context")
-                self.playwright = await async_playwright().start()
-                self.browser = await self.playwright.chromium.launch(headless=True)
-                self.context = await self.browser.new_context(
-                    record_video_dir="recordings",
-                    viewport={"width": 1280, "height": 720}
-                )
-                self.page = await self.context.new_page()
-                print("Debug: New browser context created successfully")
 
             print("Debug: Initializing agent")
             llm = ChatOpenAI(
@@ -158,16 +104,13 @@ class BrowserSession:
                 sensitive_data={},
                 task=self.current_command.prompt
             )
-            self.agent.page = self.page
-            
+
             print("Debug: Running agent")
             agent_result = await self.agent.run()
-            current_url = await self.page.url()
             
             print(f"Debug: Agent execution completed")
             print(f"Debug: Agent result type: {type(agent_result)}")
             print(f"Debug: Agent result: {agent_result}")
-            print(f"Debug: Current URL: {current_url}")
             
             # Process result
             actions = []
@@ -197,7 +140,6 @@ class BrowserSession:
                 "status": "success",
                 "actions": actions,
                 "summary": summary,
-                "current_url": current_url
             }
             print(f"Debug: Final result: {self.result}")
 
