@@ -26,25 +26,13 @@ os.makedirs(static_dir, exist_ok=True)
 # Mount static files directory using absolute path
 app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
-class SessionCreate(BaseModel):
-    url: Optional[str] = None
-    prompt: Optional[str] = None
-    task: Optional[dict] = None
-
-class SessionState(BaseModel):
-    session_id: str
-    status: str = "initialized"  # initialized, running, paused, completed, error
-    current_url: Optional[str] = None
-    current_task: Optional[dict] = None
-    last_error: Optional[str] = None
-    created_at: str
-    updated_at: str
-    browser_context_id: Optional[str] = None
-
 class Command(BaseModel):
     """Command to be executed in a browser session"""
     prompt: str
     description: Optional[str] = None
+
+class SessionCreate(BaseModel):
+    command: Command = None
 
 class BrowserSession:
     def __init__(self):
@@ -54,12 +42,8 @@ class BrowserSession:
         self.context = None
         self.page = None
         self.agent = None
-        self.current_task = None
         self.result = None
         self.error = None
-        self.recording_gif = None
-        self.completed_at = None
-        self.playwright = None
         self.created_at = datetime.now().isoformat()
         self.updated_at = self.created_at
         self.command_queue = deque()
@@ -78,102 +62,15 @@ class BrowserSession:
         self.page = await self.context.new_page()
         self._update_state()
 
-    async def pause(self):
-        """Pause the current session"""
-        if self.status == "running":
-            self.status = "paused"
-            self._update_state()
-            return True
-        return False
-
-    async def resume(self):
-        """Resume a paused session"""
-        if self.status == "paused":
-            self.status = "running"
-            self._update_state()
-            return True
-        return False
-
-    async def stop(self):
-        """Stop and cleanup the session"""
-        try:
-            if self.context:
-                await self.context.close()
-            if self.browser:
-                await self.browser.close()
-            if self.playwright:
-                await self.playwright.stop()
-            return True
-        except Exception as e:
-            print(f"Error stopping session: {str(e)}")
-            return False
-
-    async def execute_task(self, task: dict):
-        """Execute a task using the browser"""
-        try:
-            self.status = "running"
-            self.current_task = task
-            self._update_state()
-
-            # Create or update agent
-            if not self.agent:
-                llm = ChatOpenAI(
-                    model="gpt-4o",
-                    temperature=0
-                )
-                self.agent = Agent(
-                    llm=llm,
-                    sensitive_data={},
-                    task=task.get('prompt', '')
-                )
-            else:
-                self.agent.task = task.get('prompt', '')
-
-            # Execute the task
-            result = await self.agent.run()
-            self.result = str(result)
-            self.status = "completed"
-            self.completed_at = datetime.now().isoformat()
-
-            # Get recording
-            recording_path = os.path.join(os.path.dirname(__file__), 'agent_history.gif')
-            if os.path.exists(recording_path):
-                with open(recording_path, 'rb') as f:
-                    gif_data = f.read()
-                    self.recording_gif = f"data:image/gif;base64,{base64.b64encode(gif_data).decode()}"
-
-            self._update_state()
-            return self.get_status()
-
-        except Exception as e:
-            self.status = "error"
-            self.error = str(e)
-            self._update_state()
-            raise
-
     def _update_state(self):
         """Update session state"""
         self.updated_at = datetime.now().isoformat()
 
-    def get_status(self):
-        """Get current session status"""
-        return {
-            "status": self.status,
-            "current_task": self.current_task,
-            "result": self.result,
-            "error": self.error,
-            "recording_gif": self.recording_gif,
-            "completed_at": self.completed_at,
-            "created_at": self.created_at,
-            "updated_at": self.updated_at
-        }
-
     def get_state(self):
         """Get full session state"""
-        state = {
+        return {
             "session_id": self.session_id,
             "status": self.status,
-            "current_task": self.current_task,
             "error": self.error,
             "created_at": self.created_at,
             "updated_at": self.updated_at,
@@ -181,7 +78,6 @@ class BrowserSession:
             "current_command": self.current_command.dict() if self.current_command else None,
             "command_history": self.command_history[-5:] # Return last 5 commands
         }
-        return state
 
     async def add_command(self, command: Command) -> bool:
         """Add a command to the session's queue"""
@@ -194,14 +90,55 @@ class BrowserSession:
 
     async def execute_next_command(self) -> Dict[str, Any]:
         """Execute the next command in the queue"""
+        print("\n=== Starting execute_next_command ===")
         if not self.command_queue:
+            print("Debug: No commands in queue")
             return {"status": "no_commands"}
 
         try:
+            print("Debug: Retrieving next command from queue")
             self.current_command = self.command_queue.popleft()
+            print(f"Debug: Current command: {self.current_command}")
             
-            # Ensure we have an active browser context
+            self.status = "running"
+            self._update_state()
+            
+            # Check if browser context is still valid
+            print("Debug: Checking browser context validity")
+            try:
+                if self.page:
+                    print("Debug: Attempting to access page URL")
+                    await self.page.url()
+                    print("Debug: Page is valid")
+            except Exception as e:
+                print(f"Debug: Page validation failed: {str(e)}")
+                print("Debug: Reinitializing browser context")
+                # Page is invalid, clean up and reinitialize
+                if self.context:
+                    try:
+                        await self.context.close()
+                    except:
+                        pass
+                if self.browser:
+                    try:
+                        await self.browser.close()
+                    except:
+                        pass
+                if self.playwright:
+                    try:
+                        await self.playwright.stop()
+                    except:
+                        pass
+                
+                # Reset all browser-related attributes
+                self.page = None
+                self.context = None
+                self.browser = None
+                self.playwright = None
+
+            # Ensure active browser context
             if not self.page:
+                print("Debug: Creating new browser context")
                 self.playwright = await async_playwright().start()
                 self.browser = await self.playwright.chromium.launch(headless=True)
                 self.context = await self.browser.new_context(
@@ -209,8 +146,9 @@ class BrowserSession:
                     viewport={"width": 1280, "height": 720}
                 )
                 self.page = await self.context.new_page()
+                print("Debug: New browser context created successfully")
 
-            # Create fresh agent for this task
+            print("Debug: Initializing agent")
             llm = ChatOpenAI(
                 model="gpt-4o",
                 temperature=0
@@ -220,40 +158,86 @@ class BrowserSession:
                 sensitive_data={},
                 task=self.current_command.prompt
             )
-            # Give agent the current browser context
             self.agent.page = self.page
             
+            print("Debug: Running agent")
             agent_result = await self.agent.run()
+            current_url = await self.page.url()
             
-            # Convert agent result to JSON-serializable format
-            result = {
+            print(f"Debug: Agent execution completed")
+            print(f"Debug: Agent result type: {type(agent_result)}")
+            print(f"Debug: Agent result: {agent_result}")
+            print(f"Debug: Current URL: {current_url}")
+            
+            # Process result
+            actions = []
+            summary = ""
+            
+            print("Debug: Processing agent result")
+            if agent_result:
+                if isinstance(agent_result, (list, tuple)):
+                    print("Debug: Processing list/tuple result")
+                    actions = [str(action) for action in agent_result]
+                    summary = " ".join(actions)
+                elif isinstance(agent_result, str):
+                    print("Debug: Processing string result")
+                    summary = agent_result
+                    actions = [agent_result]
+                else:
+                    print(f"Debug: Processing unknown result type: {type(agent_result)}")
+                    try:
+                        summary = str(agent_result)
+                        actions = [summary]
+                    except Exception as e:
+                        print(f"Debug: Error converting result: {str(e)}")
+                        summary = f"Error converting result: {str(e)}"
+                        actions = []
+            
+            self.result = {
                 "status": "success",
-                "actions": [str(action) for action in agent_result],
-                "summary": str(agent_result),
-                "current_url": await self.page.url()  # Capture final URL for reference
+                "actions": actions,
+                "summary": summary,
+                "current_url": current_url
             }
+            print(f"Debug: Final result: {self.result}")
 
-            # Store command in history
+            # Update history
+            print("Debug: Updating command history")
             self.command_history.append({
                 "command": self.current_command.dict(),
-                "result": result,
+                "result": self.result,
                 "timestamp": datetime.now().isoformat()
             })
             
-            return result
+            self.error = None
+            self.status = "ready"
+            self._update_state()
+            
+            print("=== Completed execute_next_command successfully ===\n")
+            return self.result
 
         except Exception as e:
-            error_result = {
+            print(f"\nDebug: Error in execute_next_command: {str(e)}")
+            error_msg = str(e)
+            self.status = "error"
+            self.error = error_msg
+            
+            self.result = {
                 "status": "error",
-                "message": str(e),
+                "message": error_msg,
                 "command": self.current_command.dict() if self.current_command else None
             }
+            
+            print(f"Debug: Error result: {self.result}")
             self.command_history.append({
                 "command": self.current_command.dict() if self.current_command else None,
-                "result": error_result,
+                "result": self.result,
                 "timestamp": datetime.now().isoformat()
             })
-            return error_result
+            
+            self._update_state()
+            print("=== Completed execute_next_command with error ===\n")
+            return self.result
 
     def get_command_history(self) -> List[Dict[str, Any]]:
         """Get the history of executed commands"""
@@ -288,26 +272,24 @@ async def get_debug_ui():
             async function createSession(event) {
                 event.preventDefault();
                 const form = event.target;
-                const url = form.querySelector('#url').value;
                 const prompt = form.querySelector('#prompt').value;
 
                 try {
-                    const response = await fetch('/api/browser-agent', {
+                    const response = await fetch('/api/browser-agent/session', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'
                         },
                         body: JSON.stringify({
-                            task: {
-                                type: 'browser-use',
+                            command: {
                                 prompt: prompt,
-                                url: url
                             }
                         })
                     });
 
                     if (!response.ok) {
-                        throw new Error('Failed to create session');
+                        console.log(response)
+                        throw new Error('Failed to create session! ' + JSON.stringify(response));
                     }
 
                     // Reload page to show new session
@@ -324,10 +306,6 @@ async def get_debug_ui():
         <div class="create-form">
             <h2>Create New Session</h2>
             <form onsubmit="createSession(event)">
-                <div class="form-group">
-                    <label for="url">URL (optional):</label>
-                    <input type="text" id="url" placeholder="https://example.com">
-                </div>
                 <div class="form-group">
                     <label for="prompt">Task Prompt:</label>
                     <textarea id="prompt" placeholder="Enter task instructions here..."></textarea>
@@ -394,87 +372,32 @@ async def get_debug_ui():
     
     return HTMLResponse(content=html)
 
-@app.post("/api/browser-agent")
+@app.post("/api/browser-agent/session")
 async def create_session(data: SessionCreate):
     """Create a new browser session"""
     try:
         session_id = f"session_{len(sessions)}"
         browser = BrowserSession()
         await browser.start(session_id)
-        
         sessions[session_id] = browser
         
-        if data.task:
-            await browser.execute_task(data.task)
+        print("executing data" +  str(data))
+        # If initial prompt provided, create and execute command
+        if data.command:
+            print(f"Creating session with prompt: {data.command.prompt}")
+            command = Command(prompt=data.command.prompt)
+            await browser.add_command(command)
+            result = await browser.execute_next_command()
+        else:
+            result = {"status": "initialized"}
         
         return {
             "session_id": session_id,
-            "status": browser.get_status()
+            "status": result
         }
     except Exception as e:
+        print("getting create session error" + str(e))
         raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/api/browser-agent/{session_id}/task")
-async def add_task(session_id: str, task: dict):
-    """Add a task to an existing session"""
-    if session_id not in sessions:
-        raise HTTPException(status_code=404, detail="Session not found")
-    
-    browser = sessions[session_id]
-    result = await browser.execute_task(task)
-    return result
-
-@app.post("/api/browser-agent/{session_id}/pause")
-async def pause_session(session_id: str):
-    """Pause a session"""
-    if session_id not in sessions:
-        raise HTTPException(status_code=404, detail="Session not found")
-    
-    browser = sessions[session_id]
-    success = await browser.pause()
-    return {"success": success}
-
-@app.post("/api/browser-agent/{session_id}/resume")
-async def resume_session(session_id: str):
-    """Resume a paused session"""
-    if session_id not in sessions:
-        raise HTTPException(status_code=404, detail="Session not found")
-    
-    browser = sessions[session_id]
-    success = await browser.resume()
-    return {"success": success}
-
-@app.delete("/api/browser-agent/{session_id}")
-async def end_session(session_id: str):
-    """End a session"""
-    if session_id not in sessions:
-        raise HTTPException(status_code=404, detail="Session not found")
-    
-    browser = sessions[session_id]
-    success = await browser.stop()
-    if success:
-        del sessions[session_id]
-    return {"success": success}
-
-@app.get("/api/browser-agent/{session_id}/status")
-async def get_session_status(session_id: str):
-    """Get session status"""
-    if session_id not in sessions:
-        raise HTTPException(status_code=404, detail="Session not found")
-    
-    browser = sessions[session_id]
-    return browser.get_status()
-
-@app.get("/api/browser-agent/sessions")
-async def list_sessions():
-    """List all active sessions"""
-    return [
-        {
-            "session_id": session_id,
-            "status": browser.get_status()
-        }
-        for session_id, browser in sessions.items()
-    ]
 
 @app.post("/api/browser-agent/{session_id}/command")
 async def send_command(session_id: str, command: Command):
@@ -505,4 +428,41 @@ async def get_command_history(session_id: str):
         raise HTTPException(status_code=404, detail="Session not found")
     
     browser = sessions[session_id]
-    return browser.get_command_history() 
+    return browser.get_command_history()
+
+@app.get("/api/browser-agent/{session_id}/state")
+async def get_session_state(session_id: str):
+    """Get full session state"""
+    if session_id not in sessions:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    browser = sessions[session_id]
+    return browser.get_state()
+
+@app.delete("/api/browser-agent/{session_id}")
+async def end_session(session_id: str):
+    """End a session"""
+    if session_id not in sessions:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    browser = sessions[session_id]
+    if browser.context:
+        await browser.context.close()
+    if browser.browser:
+        await browser.browser.close()
+    if browser.playwright:
+        await browser.playwright.stop()
+    
+    del sessions[session_id]
+    return {"status": "success"}
+
+@app.get("/api/browser-agent/sessions")
+async def list_sessions():
+    """List all active sessions"""
+    return [
+        {
+            "session_id": session_id,
+            "state": browser.get_state()
+        }
+        for session_id, browser in sessions.items()
+    ] 
