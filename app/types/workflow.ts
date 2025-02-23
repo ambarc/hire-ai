@@ -9,13 +9,13 @@ export enum TaskStatus {
 // Task type enum
 export enum TaskType {
     READ_OBESITY_INTAKE_FORM = 'READ_OBESITY_INTAKE_FORM',
+    VALIDATE_DATA = 'VALIDATE_DATA',
     // Add more task types here as needed
 }
 
 // READ_OBESITY_INTAKE_FORM types
 interface ReadObesityIntakeFormData {
     url: string;
-    formSelector?: string;
 }
 
 interface ReadObesityIntakeFormResult {
@@ -47,23 +47,41 @@ interface ReadObesityIntakeFormResult {
     };
 }
 
+// VALIDATE_DATA types
+interface ValidateDataInput {
+    validationFn: (data: any) => boolean;
+}
+
+interface ValidateDataResult {
+    isValid: boolean;
+}
+
 // Discriminated unions for task inputs and outputs
 export type TaskInput = {
     type: TaskType.READ_OBESITY_INTAKE_FORM;
     data: ReadObesityIntakeFormData;
-} // | { type: OtherTaskType; data: OtherTaskData }
+} | {
+    type: TaskType.VALIDATE_DATA;
+    data: ValidateDataInput;
+}
 
 export type TaskOutput = {
     type: TaskType.READ_OBESITY_INTAKE_FORM;
     success: boolean;
     error?: string;
     data?: ReadObesityIntakeFormResult;
-} // | { type: OtherTaskType; success: boolean; error?: string; data?: OtherTaskResult }
+} | {
+    type: TaskType.VALIDATE_DATA;
+    success: boolean;
+    error?: string;
+    data?: ValidateDataResult;
+}
 
 // Task definition
 export interface Task {
     id: string;
     type: TaskType;
+    description: string;
     status: TaskStatus;
     input: TaskInput;
     output?: TaskOutput;
@@ -76,7 +94,7 @@ export interface Task {
 export interface Workflow {
     id: string;
     name: string;
-    description?: string;
+    description: string;
     tasks: Task[];
     status: TaskStatus;
     createdAt: string;
