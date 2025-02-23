@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import WorkflowForm from '../../components/WorkflowForm';
 import { Workflow } from '../../types/workflow';
@@ -11,11 +11,7 @@ export default function EditWorkflowPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    useEffect(() => {
-        fetchWorkflow();
-    }, []);
-
-    const fetchWorkflow = async () => {
+    const fetchWorkflow = useCallback(async () => {
         try {
             const response = await fetch(`/api/workflow/${params.id}`);
             if (!response.ok) throw new Error('Failed to fetch workflow');
@@ -26,7 +22,11 @@ export default function EditWorkflowPage() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [params.id]);
+
+    useEffect(() => {
+        fetchWorkflow();
+    }, [fetchWorkflow]);
 
     if (loading) {
         return (

@@ -49,7 +49,7 @@ interface ReadObesityIntakeFormResult {
 
 // VALIDATE_DATA types
 interface ValidateDataInput {
-    validationFn: (data: any) => boolean;
+    validationFn: (data: unknown) => boolean;
 }
 
 interface ValidateDataResult {
@@ -99,7 +99,7 @@ export interface Workflow {
     status: TaskStatus;
     createdAt: string;
     updatedAt: string;
-    metadata?: Record<string, any>;
+    metadata?: Record<string, unknown>;
 }
 
 // Helper types for type-safe task input/output access

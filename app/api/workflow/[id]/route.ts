@@ -5,10 +5,10 @@ const store = WorkflowStore.getInstance();
 
 export async function GET(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    context: { params: { id: string } }
 ) {
     try {
-        const workflow = await store.getWorkflow(params.id);
+        const workflow = await store.getWorkflow(context.params.id);
         if (!workflow) {
             return NextResponse.json(
                 { error: 'Workflow not found' },
@@ -27,13 +27,13 @@ export async function GET(
 
 export async function PUT(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    context: { params: { id: string } }
 ) {
     try {
         const updates = await request.json();
         
         // Ensure ID matches
-        updates.id = params.id;
+        updates.id = context.params.id;
         
         // Update timestamps
         updates.updatedAt = new Date().toISOString();
@@ -51,10 +51,10 @@ export async function PUT(
 
 export async function DELETE(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    context: { params: { id: string } }
 ) {
     try {
-        const success = await store.deleteWorkflow(params.id);
+        const success = await store.deleteWorkflow(context.params.id);
         if (!success) {
             return NextResponse.json(
                 { error: 'Workflow not found' },

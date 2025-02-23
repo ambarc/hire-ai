@@ -35,7 +35,11 @@ export async function POST(request: NextRequest) {
             id: randomUUID(),
             name: body.name,
             description: body.description,
-            tasks: body.tasks.map((task: any) => ({
+            tasks: body.tasks.map((task: {
+                id?: string;
+                name: string;
+                description?: string;
+            }) => ({
                 ...task,
                 id: task.id || randomUUID(),
                 status: TaskStatus.NOT_STARTED,

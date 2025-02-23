@@ -29,7 +29,6 @@ export default function WorkflowForm({ initialWorkflow }: WorkflowFormProps) {
             type: TaskType.READ_OBESITY_INTAKE_FORM,
             data: {
                 url: '',
-                formSelector: ''
             }
         }
     });
@@ -41,19 +40,19 @@ export default function WorkflowForm({ initialWorkflow }: WorkflowFormProps) {
             case TaskType.READ_OBESITY_INTAKE_FORM:
                 return {
                     type: TaskType.READ_OBESITY_INTAKE_FORM,
-                    data: { url: '', formSelector: '' }
+                    data: { url: '' }
                 };
             case TaskType.VALIDATE_DATA:
                 return {
                     type: TaskType.VALIDATE_DATA,
                     data: { 
-                        validationFn: (data: any) => true // Default validation function that always returns true
+                        validationFn: () => true
                     }
                 };
             default:
                 return {
                     type: TaskType.READ_OBESITY_INTAKE_FORM,
-                    data: { url: '', formSelector: '' }
+                    data: { url: '' }
                 };
         }
     };
@@ -84,7 +83,6 @@ export default function WorkflowForm({ initialWorkflow }: WorkflowFormProps) {
                 type: TaskType.READ_OBESITY_INTAKE_FORM,
                 data: {
                     url: '',
-                    formSelector: ''
                 }
             }
         });
@@ -150,28 +148,10 @@ export default function WorkflowForm({ initialWorkflow }: WorkflowFormProps) {
                                 onChange={e => onChange({
                                     type: TaskType.READ_OBESITY_INTAKE_FORM,
                                     data: {
-                                        ...input.data,
-                                        url: e.target.value,
-                                        formSelector: (input.data as any).formSelector || ''
+                                        url: e.target.value
                                     }
                                 })}
                                 className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm text-gray-700">Form Selector</label>
-                            <input
-                                type="text"
-                                value={input.type === TaskType.READ_OBESITY_INTAKE_FORM ? input.data.formSelector : ''}
-                                onChange={e => onChange({
-                                    type: TaskType.READ_OBESITY_INTAKE_FORM,
-                                    data: {
-                                        ...input.data,
-                                        formSelector: e.target.value
-                                    }
-                                })}
-                                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
-                                placeholder="CSS selector for the form"
                             />
                         </div>
                     </div>
@@ -199,11 +179,9 @@ export default function WorkflowForm({ initialWorkflow }: WorkflowFormProps) {
         switch (task.type) {
             case TaskType.READ_OBESITY_INTAKE_FORM:
                 return (
-                    <>
-                        <p className="text-sm text-gray-600">
-                            URL: {task.input.type === TaskType.READ_OBESITY_INTAKE_FORM && task.input.data.url}
-                        </p>
-                    </>
+                    <p className="text-sm text-gray-600">
+                        URL: {task.input.type === TaskType.READ_OBESITY_INTAKE_FORM && task.input.data.url}
+                    </p>
                 );
             
             case TaskType.VALIDATE_DATA:
@@ -291,7 +269,6 @@ export default function WorkflowForm({ initialWorkflow }: WorkflowFormProps) {
                                         type: TaskType.READ_OBESITY_INTAKE_FORM,
                                         data: {
                                             url: '',
-                                            formSelector: ''
                                         }
                                     }
                                 });
