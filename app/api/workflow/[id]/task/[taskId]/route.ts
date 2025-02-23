@@ -3,16 +3,18 @@ import { WorkflowStore } from '@/app/lib/workflow-store';
 
 const store = WorkflowStore.getInstance();
 
-export async function POST(
-    request: NextRequest,
-    { params }: { params: { id: string; taskId: string } }
-) {
+export async function POST(request: NextRequest) {
     try {
+        const { pathname } = new URL(request.url);
+        const parts = pathname.split('/');
+        const taskId = parts.pop();
+        const id = parts[parts.length - 2]; // Get the workflow ID, which is 2 segments before the end
+        
         const updates = await request.json();
         
         const workflow = await store.updateWorkflowTask(
-            params.id,
-            params.taskId,
+            id,
+            taskId,
             updates
         );
 

@@ -3,12 +3,12 @@ import { WorkflowStore } from '@/app/lib/workflow-store';
 
 const store = WorkflowStore.getInstance();
 
-export async function GET(
-    request: NextRequest,
-    context: { params: { id: string } }
-) {
+export async function GET(request: NextRequest) {
     try {
-        const workflow = await store.getWorkflow(context.params.id);
+        const { pathname } = new URL(request.url);
+        const id = pathname.split('/').pop();
+
+        const workflow = await store.getWorkflow(id);
         if (!workflow) {
             return NextResponse.json(
                 { error: 'Workflow not found' },
@@ -25,15 +25,15 @@ export async function GET(
     }
 }
 
-export async function PUT(
-    request: NextRequest,
-    context: { params: { id: string } }
-) {
+export async function PUT(request: NextRequest) {
     try {
+        const { pathname } = new URL(request.url);
+        const id = pathname.split('/').pop();
+
         const updates = await request.json();
         
         // Ensure ID matches
-        updates.id = context.params.id;
+        updates.id = id;
         
         // Update timestamps
         updates.updatedAt = new Date().toISOString();
@@ -49,12 +49,12 @@ export async function PUT(
     }
 }
 
-export async function DELETE(
-    request: NextRequest,
-    context: { params: { id: string } }
-) {
+export async function DELETE(request: NextRequest) {
     try {
-        const success = await store.deleteWorkflow(context.params.id);
+        const { pathname } = new URL(request.url);
+        const id = pathname.split('/').pop();
+
+        const success = await store.deleteWorkflow(id);
         if (!success) {
             return NextResponse.json(
                 { error: 'Workflow not found' },
