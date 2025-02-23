@@ -8,6 +8,13 @@ export async function GET(request: NextRequest) {
         const { pathname } = new URL(request.url);
         const id = pathname.split('/').pop();
 
+        if (!id) {
+            return NextResponse.json(
+                { error: 'Missing workflow ID' },
+                { status: 400 }
+            );
+        }
+
         const workflow = await store.getWorkflow(id);
         if (!workflow) {
             return NextResponse.json(
@@ -29,6 +36,13 @@ export async function PUT(request: NextRequest) {
     try {
         const { pathname } = new URL(request.url);
         const id = pathname.split('/').pop();
+        
+        if (!id) {
+            return NextResponse.json(
+                { error: 'Missing workflow ID' },
+                { status: 400 }
+            );
+        }
 
         const updates = await request.json();
         
@@ -53,6 +67,13 @@ export async function DELETE(request: NextRequest) {
     try {
         const { pathname } = new URL(request.url);
         const id = pathname.split('/').pop();
+        
+        if (!id) {
+            return NextResponse.json(
+                { error: 'Missing workflow ID' },
+                { status: 400 }
+            );
+        }
 
         const success = await store.deleteWorkflow(id);
         if (!success) {

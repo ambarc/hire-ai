@@ -10,6 +10,14 @@ export async function POST(request: NextRequest) {
         const taskId = parts.pop();
         const id = parts[parts.length - 2]; // Get the workflow ID, which is 2 segments before the end
         
+        // Add validation for taskId and id
+        if (!taskId || !id) {
+            return NextResponse.json(
+                { error: 'Invalid workflow or task ID' },
+                { status: 400 }
+            );
+        }
+        
         const updates = await request.json();
         
         const workflow = await store.updateWorkflowTask(
