@@ -185,8 +185,16 @@ export default function ExecuteWorkflowPage() {
                                         </div>
                                         <div className="flex-grow">
                                             <h3 className="font-medium">{task.type}</h3>
-                                            <div className="text-sm text-gray-500">
-                                                Status: {task.status || 'Pending'}
+                                            <div className="text-sm text-gray-500 space-y-1">
+                                                <div>Status: {task.status || 'Pending'}</div>
+                                                <div>ID: {task.id}</div>
+                                                {task.description && (
+                                                    <div>Description: {task.description}</div>
+                                                )}
+                                                <div>Created: {new Date(task.createdAt).toLocaleString()}</div>
+                                                {task.updatedAt && (
+                                                    <div>Last Updated: {new Date(task.updatedAt).toLocaleString()}</div>
+                                                )}
                                             </div>
                                         </div>
                                         {task.status === TaskStatus.COMPLETED && (
@@ -199,6 +207,14 @@ export default function ExecuteWorkflowPage() {
                                             <div className="text-blue-500">⟳</div>
                                         )}
                                     </div>
+                                    {task.input && (
+                                        <div className="mt-2 text-sm">
+                                            <div className="font-medium">Input:</div>
+                                            <pre className="bg-gray-100 p-2 rounded mt-1 overflow-x-auto">
+                                                {JSON.stringify(task.input, null, 2)}
+                                            </pre>
+                                        </div>
+                                    )}
                                     {task.output && (
                                         <div className="mt-2 text-sm">
                                             <div className="font-medium">Output:</div>
