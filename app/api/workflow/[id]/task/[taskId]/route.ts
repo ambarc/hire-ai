@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { WorkflowStore } from '@/app/lib/workflow-store';
+import { Task } from '../../../../../types/workflow';
 
 const store = WorkflowStore.getInstance();
 
@@ -36,6 +37,36 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(workflow);
     } catch (error) {
         console.error('Failed to update task:', error);
+        return NextResponse.json(
+            { error: 'Failed to update task' },
+            { status: 500 }
+        );
+    }
+}
+
+export async function PATCH(
+    request: Request,
+    { params }: { params: { id: string; taskId: string } }
+) {
+    try {
+        const updates: Partial<Task> = await request.json();
+        const store = WorkflowStore.getInstance();
+        
+        const updatedWorkflow = await store.updateWorkflowTask(
+            params.id,
+            params.taskId,
+            updates
+        );
+
+        if (!updatedWorkflow) {
+            return NextResponse.json(
+                { error: 'Workflow or task not found' },
+                { status: 404 }
+            );
+        }
+
+        return NextResponse.json(updatedWorkflow);
+    } catch (error) {
         return NextResponse.json(
             { error: 'Failed to update task' },
             { status: 500 }
