@@ -198,17 +198,20 @@ export default function WorkflowForm({ initialWorkflow }: WorkflowFormProps) {
                 );
             
             case TaskType.WRITE_MEDICATIONS:
+                const writeMedicationsInput = input.type === TaskType.WRITE_MEDICATIONS ? input.data : null;
+                if (!writeMedicationsInput) return null;
+
                 return (
                     <div className="space-y-3">
                         <div>
                             <label className="block text-sm text-gray-700">Source Type</label>
                             <select
-                                value={input.type === TaskType.WRITE_MEDICATIONS ? input.data.source.type : 'APPLICATION_MEMORY'}
+                                value={writeMedicationsInput.source.type}
                                 onChange={e => onChange({
                                     type: TaskType.WRITE_MEDICATIONS,
                                     data: {
                                         source: {
-                                            ...input.data.source,
+                                            ...writeMedicationsInput.source,
                                             type: e.target.value as 'APPLICATION_MEMORY' | 'BROWSER'
                                         },
                                         destination: {
@@ -223,17 +226,17 @@ export default function WorkflowForm({ initialWorkflow }: WorkflowFormProps) {
                             </select>
                         </div>
 
-                        {input.type === TaskType.WRITE_MEDICATIONS && input.data.source.type === 'APPLICATION_MEMORY' && (
+                        {writeMedicationsInput.source.type === 'APPLICATION_MEMORY' && (
                             <div>
                                 <label className="block text-sm text-gray-700">Application Memory Key</label>
                                 <input
                                     type="text"
-                                    value={input.data.source.applicationMemoryKey || ''}
+                                    value={writeMedicationsInput.source.applicationMemoryKey || ''}
                                     onChange={e => onChange({
                                         type: TaskType.WRITE_MEDICATIONS,
                                         data: {
                                             source: {
-                                                ...input.data.source,
+                                                ...writeMedicationsInput.source,
                                                 applicationMemoryKey: e.target.value
                                             },
                                             destination: {
@@ -247,17 +250,17 @@ export default function WorkflowForm({ initialWorkflow }: WorkflowFormProps) {
                             </div>
                         )}
 
-                        {input.type === TaskType.WRITE_MEDICATIONS && input.data.source.type === 'BROWSER' && (
+                        {writeMedicationsInput.source.type === 'BROWSER' && (
                             <div>
                                 <label className="block text-sm text-gray-700">Browser Location</label>
                                 <input
                                     type="text"
-                                    value={input.data.source.browserLocation || ''}
+                                    value={writeMedicationsInput.source.browserLocation || ''}
                                     onChange={e => onChange({
                                         type: TaskType.WRITE_MEDICATIONS,
                                         data: {
                                             source: {
-                                                ...input.data.source,
+                                                ...writeMedicationsInput.source,
                                                 browserLocation: e.target.value
                                             },
                                             destination: {
