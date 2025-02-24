@@ -10,6 +10,7 @@ import os
 from browser_use import Agent, Browser, BrowserConfig
 from langchain_openai import ChatOpenAI
 from collections import deque
+import uuid
 
 app = FastAPI()
 
@@ -27,6 +28,7 @@ class Command(BaseModel):
     """Command to be executed in a browser session"""
     prompt: str
     description: Optional[str] = None
+    id: Optional[str] = None
 
 class SessionCreate(BaseModel):
     command: Command = None
@@ -112,7 +114,6 @@ class BrowserSession:
         """Add a command to the session's queue"""
         try:
             self.command_queue.append(command)
-
             return True
         except Exception as e:
             self.error = f"Failed to add command: {str(e)}"
@@ -187,6 +188,7 @@ class BrowserSession:
             
             self.result = {
                 "status": "success",
+                "command_id": self.current_command.id,
                 "actions": actions,
                 "summary": summary,
             }
@@ -196,6 +198,7 @@ class BrowserSession:
             print("Debug: Updating command history")
             self.command_history.append({
                 "command": self.current_command.dict(),
+                "command_id": self.current_command.id,
                 "result": self.result,
                 "timestamp": datetime.now().isoformat()
             })
@@ -216,12 +219,14 @@ class BrowserSession:
             self.result = {
                 "status": "error",
                 "message": error_msg,
-                "command": self.current_command.dict() if self.current_command else None
+                "command": self.current_command.dict() if self.current_command else None,
+                "command_id": self.current_command.id if self.current_command else None
             }
             
             print(f"Debug: Error result: {self.result}")
             self.command_history.append({
                 "command": self.current_command.dict() if self.current_command else None,
+                "command_id": self.current_command.id if self.current_command else None,
                 "result": self.result,
                 "timestamp": datetime.now().isoformat()
             })
@@ -376,7 +381,7 @@ async def get_debug_ui():
 async def create_session(data: SessionCreate):
     """Create a new browser session"""
     try:
-        session_id = f"session_{len(sessions)}"
+        session_id = str(uuid.uuid4())
         browser_session = BrowserSession()
         await browser_session.start(session_id)
         sessions[session_id] = browser_session
@@ -386,6 +391,8 @@ async def create_session(data: SessionCreate):
         if data.command:
             print(f"Creating session with prompt: {data.command.prompt}")
             command = Command(prompt=data.command.prompt)
+            # Assign a UUID to the command
+            command.id = str(uuid.uuid4())
             await browser_session.add_command(command)
             result = await browser_session.execute_next_command()
         else:
@@ -393,7 +400,8 @@ async def create_session(data: SessionCreate):
         
         return {
             "session_id": session_id,
-            "status": result
+            "status": result,
+            "command_id": command.id if data.command else None
         }
     except Exception as e:
         print("getting create session error" + str(e))
@@ -407,17 +415,20 @@ async def send_command(session_id: str, command: Command):
     
     browser_session = sessions[session_id]
     
+    # Assign a UUID to the command if it doesn't have one
+    if not command.id:
+        command.id = str(uuid.uuid4())
+    
     # Add command to queue
-    success = await browser_session.add_command(command)
-    if not success:
-        raise HTTPException(status_code=500, detail="Failed to add command")
+    add_result = await browser_session.add_command(command)
     
     # Execute command immediately
-    result = await browser_session.execute_next_command()
+    exec_result = await browser_session.execute_next_command()
     
     return {
         "status": "success",
-        "command_result": result,
+        "command_id": command.id,
+        "command_result": exec_result,
         "session_state": browser_session.get_state()
     }
 
