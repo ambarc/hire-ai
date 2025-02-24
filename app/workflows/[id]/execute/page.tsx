@@ -141,6 +141,24 @@ export default function ExecuteWorkflowPage() {
         }
     }, [workflow, params.id]);
 
+    const executeTask = async (task: Task) => {
+        console.log('Executing task:', task);
+        
+        switch (task.type) {
+            case TaskType.READ_OBESITY_INTAKE_FORM:
+                console.log('Executing READ_OBESITY_INTAKE_FORM task');
+                break;
+            case TaskType.VALIDATE_DATA:
+                console.log('Executing VALIDATE_DATA task');
+                break;
+            case TaskType.WRITE_MEDICATIONS:
+                console.log('Executing WRITE_MEDICATIONS task');
+                break;
+            default:
+                console.error(`Unknown task type: ${task.type}`);
+        }
+    };
+
     useEffect(() => {
         getWorkflow()
             .then(() => {
@@ -184,9 +202,26 @@ export default function ExecuteWorkflowPage() {
                                             {index + 1}
                                         </div>
                                         <div className="flex-grow">
-                                            <h3 className="font-medium">{task.type}</h3>
-                                            <div className="text-sm text-gray-500">
-                                                Status: {task.status || 'Pending'}
+                                            <div className="flex items-center justify-between">
+                                                <h3 className="font-medium">{task.type}</h3>
+                                                <button
+                                                    onClick={() => executeTask(task)}
+                                                    className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+                                                    disabled={task.status === TaskStatus.COMPLETED || task.status === TaskStatus.IN_PROGRESS}
+                                                >
+                                                    Start Task
+                                                </button>
+                                            </div>
+                                            <div className="text-sm text-gray-500 space-y-1">
+                                                <div>Status: {task.status || 'Pending'}</div>
+                                                <div>ID: {task.id}</div>
+                                                {task.description && (
+                                                    <div>Description: {task.description}</div>
+                                                )}
+                                                <div>Created: {new Date(task.createdAt).toLocaleString()}</div>
+                                                {task.updatedAt && (
+                                                    <div>Last Updated: {new Date(task.updatedAt).toLocaleString()}</div>
+                                                )}
                                             </div>
                                         </div>
                                         {task.status === TaskStatus.COMPLETED && (
@@ -199,6 +234,14 @@ export default function ExecuteWorkflowPage() {
                                             <div className="text-blue-500">⟳</div>
                                         )}
                                     </div>
+                                    {task.input && (
+                                        <div className="mt-2 text-sm">
+                                            <div className="font-medium">Input:</div>
+                                            <pre className="bg-gray-100 p-2 rounded mt-1 overflow-x-auto">
+                                                {JSON.stringify(task.input, null, 2)}
+                                            </pre>
+                                        </div>
+                                    )}
                                     {task.output && (
                                         <div className="mt-2 text-sm">
                                             <div className="font-medium">Output:</div>
