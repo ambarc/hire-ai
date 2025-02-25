@@ -80,6 +80,8 @@ export default function ExecuteWorkflowPage() {
     const [status, setStatus] = useState<'loading' | 'idle' | 'executing' | 'completed' | 'error'>('loading');
     const [error, setError] = useState<string | null>(null);
     const [ingestExtractedText, setIngestExtractedText] = useState<string>('');
+    const [extractedMedications, setExtractedMedications] = useState<Medication[]>([]);
+    
     const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
     const [expandedTasks, setExpandedTasks] = useState<Record<string, boolean>>({});
 
@@ -210,6 +212,7 @@ export default function ExecuteWorkflowPage() {
                     
                     // Extract the text from the command result
                     const extractedText = commandResult.summary || '';
+                    console.log('extractedText', extractedText);
                     
                     // Save the extracted text to state variable
                     setIngestExtractedText(extractedText);
@@ -229,7 +232,7 @@ export default function ExecuteWorkflowPage() {
                     break;
                 }
 
-                case TaskType.WRITE_MEDICATIONS: {
+                case TaskType.WRITE_MEDICATIONS:
                     try {
                         const rawText = ingestExtractedText || '';
                         
@@ -260,7 +263,7 @@ export default function ExecuteWorkflowPage() {
                         }
                         
                         const medications = await extractResponse.json();
-                        
+                        setExtractedMedications(medications.medications ? medications.medications : []);
                         // Update task with the extracted medications
                         await updateTask(task.id, {
                             status: TaskStatus.COMPLETED,
@@ -276,7 +279,6 @@ export default function ExecuteWorkflowPage() {
                         throw error;
                     }
                     break;
-                }
 
                 case TaskType.WRITE_ALLERGIES: {
                     // Make generic extract API call to extract allergies
@@ -365,6 +367,42 @@ export default function ExecuteWorkflowPage() {
                     break;
                 }
 
+                case TaskType.WRITE_TO_ATHENA_BROWSER: {
+                    const writeToAthenaBrowserInput = task.input.type === TaskType.WRITE_TO_ATHENA_BROWSER ? task.input.data : null;
+                    if (!writeToAthenaBrowserInput) {
+                        return <p className="mt-2 text-sm text-gray-600">No input details available</p>;
+                    }
+
+                    return (
+                        <div className="mt-2 text-sm">
+                            <p className="font-medium text-gray-700">{writeToAthenaBrowserInput.field}</p>
+                            
+                            {writeToAthenaBrowserInput.field === 'medications' && extractedMedications.length > 0 && (
+                                <div className="mt-3 space-y-2">
+                                    <p className="text-xs font-medium text-gray-600">Medications to write:</p>
+                                    <ul className="divide-y divide-gray-100 rounded-md border border-gray-200">
+                                        {extractedMedications.map((med, index) => (
+                                            <li key={index} className="flex items-center gap-2 px-4 py-3 hover:bg-gray-50">
+                                                <span className="font-medium text-gray-900">{med.name}</span>
+                                                {med.dosage && (
+                                                    <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs text-blue-700">
+                                                        {med.dosage}
+                                                    </span>
+                                                )}
+                                                {med.frequency && (
+                                                    <span className="rounded-full bg-green-50 px-2 py-0.5 text-xs text-green-700">
+                                                        {med.frequency}
+                                                    </span>
+                                                )}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            )}
+                        </div>
+                    );
+                }
+
                 default:
                     throw new Error(`Unknown task type: ${task.type}`);
             }
@@ -415,6 +453,7 @@ export default function ExecuteWorkflowPage() {
                 }
                 return <p className="mt-2 text-sm text-gray-600">No input details available</p>;
             case TaskType.WRITE_ALLERGIES:
+                break;
             case TaskType.WRITE_INSURANCE:
                 if (task.input && 'source' in task.input.data) {
                     return (
@@ -424,6 +463,41 @@ export default function ExecuteWorkflowPage() {
                     );
                 }
                 return <p className="mt-2 text-sm text-gray-600">No input details available</p>;
+            case TaskType.WRITE_TO_ATHENA_BROWSER: {
+                const writeToAthenaBrowserInput = task.input.type === TaskType.WRITE_TO_ATHENA_BROWSER ? task.input.data : null;
+                if (!writeToAthenaBrowserInput) {
+                    return <p className="mt-2 text-sm text-gray-600">No input details available</p>;
+                }
+
+                return (
+                    <div className="mt-2 text-sm">
+                        <p className="font-medium text-gray-700">{writeToAthenaBrowserInput.field}</p>
+                        
+                        {writeToAthenaBrowserInput.field === 'medications' && extractedMedications.length > 0 && (
+                            <div className="mt-3 space-y-2">
+                                <p className="text-xs font-medium text-gray-600">Medications to write:</p>
+                                <ul className="divide-y divide-gray-100 rounded-md border border-gray-200">
+                                    {extractedMedications.map((med, index) => (
+                                        <li key={index} className="flex items-center gap-2 px-4 py-3 hover:bg-gray-50">
+                                            <span className="font-medium text-gray-900">{med.name}</span>
+                                            {med.dosage && (
+                                                <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs text-blue-700">
+                                                    {med.dosage}
+                                                </span>
+                                            )}
+                                            {med.frequency && (
+                                                <span className="rounded-full bg-green-50 px-2 py-0.5 text-xs text-green-700">
+                                                    {med.frequency}
+                                                </span>
+                                            )}
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+                    </div>
+                );
+            }
             default:
                 return <p className="mt-2 text-sm text-gray-600">No input details available</p>;
         }
@@ -493,6 +567,12 @@ export default function ExecuteWorkflowPage() {
                                 <p>Member ID: {task.output.data.insurance.memberId}</p>
                             </div>
                         )}
+                    </div>
+                );
+            case TaskType.WRITE_TO_ATHENA_BROWSER:
+                return (
+                    <div className="mt-2">
+                        <p className="font-medium text-sm text-gray-700">Status: {task.output.success ? 'Success' : 'Failed'}</p>
                     </div>
                 );
             default:
