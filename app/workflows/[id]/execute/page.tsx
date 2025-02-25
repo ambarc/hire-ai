@@ -1,156 +1,10 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { Workflow, Task, TaskStatus, TaskType } from '../../../types/workflow';
-import { Worker, WorkerContext } from '../../../types/worker';
-
+import { Workflow, Task, TaskStatus, TaskType, TaskOutput } from '../../../types/workflow';
+import { Medication } from '../../../types/clinical';
 import * as mockData from '../../../mock-data/test-scrape.json'
-
-// Create a mock worker (in real app, this would be managed by a worker service)
-const worker: Worker = {
-    id: 'worker-1',
-    status: 'idle',
-    async execute(context: WorkerContext) {
-        const { workflowId, log, updateTask, getWorkflow } = context;
-        const workflow = await getWorkflow();
-        
-        // Execute tasks in sequence
-        for (const task of workflow.tasks) {
-            log(`Starting execution of task: ${task.id} (${task.type})`);
-
-            try {
-                // Update task status to running
-                // await updateTask(task.id, { status: TaskStatus.IN_PROGRESS });
-
-                switch (task.type) {
-                    case TaskType.READ_OBESITY_INTAKE_FORM:
-                        console.log('Executing READ_OBESITY_INTAKE_FORM task');
-                        
-                        try {
-                          // Find the task index in the workflow tasks array
-                          const taskIndex = workflow.tasks.findIndex((t: Task) => t.id === task.id);
-                          if (taskIndex === -1) {
-                            throw new Error(`Task with ID ${task.id} not found in workflow`);
-                          }
-                          
-                          // Set task status to in progress
-                          workflow.tasks[taskIndex].status = TaskStatus.IN_PROGRESS;
-                          console.log('Setting task status to IN_PROGRESS for task', task);
-                          await updateTask(task.id, {
-                            status: TaskStatus.IN_PROGRESS,
-                          });
-                          
-                          // Define browser prompt
-                          const browserPrompt = "Go to localhost:8000/ingest and scroll well through the page. Return the text from the page.";
-                          
-                          // Send command to browser service - using correct API endpoint
-                          const commandResponse = await fetch('/api/browser-agent/session', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ 
-                              command: {
-                                prompt: browserPrompt
-                              }
-                            }),
-                          });
-                          
-                          if (!commandResponse.ok) {
-                            throw new Error(`Failed to send browser command: ${commandResponse.statusText}`);
-                          }
-                          
-                          const commandData = await commandResponse.json();
-                          const sessionId = commandData.session_id;
-                          const commandId = commandData.command_id;
-                          
-                          console.log(`Browser session created with ID: ${sessionId}, command ID: ${commandId}`);
-                          
-                          // Poll for command completion
-                          const maxAttempts = 30; // Prevent infinite polling
-                          let attempts = 0;
-                          let sessionState = null;
-                          
-                          while (attempts < maxAttempts) {
-                            await new Promise(resolve => setTimeout(resolve, 2000)); // Poll every 2 seconds
-                            
-                            const stateResponse = await fetch(`/api/browser-agent/${sessionId}/state`);
-                            
-                            if (!stateResponse.ok) {
-                              throw new Error(`Failed to get session state: ${stateResponse.statusText}`);
-                            }
-                            
-                            const stateData = await stateResponse.json();
-                            
-                            if (stateData.status !== 'running') {
-                              sessionState = stateData;
-                              break;
-                            }
-                            
-                            attempts++;
-                          }
-                          
-                          if (!sessionState) {
-                            throw new Error('Browser command timed out after multiple attempts');
-                          }
-                          
-                          // Store the entire session state in the rawText field
-                          const taskOutput: TaskOutput = {
-                            type: TaskType.READ_OBESITY_INTAKE_FORM,
-                            data: {
-                              rawText: JSON.stringify(sessionState),
-                            },
-                          };
-                          
-                          workflow.tasks[taskIndex].output = taskOutput;
-                          workflow.tasks[taskIndex].status = TaskStatus.COMPLETED;
-                          await updateTask(task.id, {
-                            status: TaskStatus.COMPLETED,
-                            output: taskOutput,
-                          });
-                          
-                          console.log('READ_OBESITY_INTAKE_FORM task completed successfully');
-                        } catch (error) {
-                          console.error('Error executing READ_OBESITY_INTAKE_FORM task:', error);
-                          
-                          // Find the task index in the workflow tasks array
-                          const taskIndex = workflow.tasks.findIndex(t => t.id === task.id);
-                          if (taskIndex !== -1) {
-                            workflow.tasks[taskIndex].output = {
-                              type: TaskType.READ_OBESITY_INTAKE_FORM,
-                              success: false,
-                              error: error instanceof Error ? error.message : String(error),
-                            };
-                            workflow.tasks[taskIndex].status = TaskStatus.FAILED;
-                          }
-                          
-                          await updateTask(task.id, {
-                            status: TaskStatus.FAILED,
-                            output: {
-                              type: TaskType.READ_OBESITY_INTAKE_FORM,
-                              success: false,
-                              error: error instanceof Error ? error.message : String(error),
-                            },
-                          });
-                        }
-                        
-                        break;
-
-                    default:
-                        throw new Error(`Unknown task type!!! ${task.type}`);
-                }
-
-                log(`Task ${task.id} completed successfully`);
-            } catch (error) {
-                log(`Error in task ${task.id}: ${error.message}`);
-                await updateTask(task.id, {
-                    status: TaskStatus.FAILED,
-                    error: error.message
-                });
-                throw error;
-            }
-        }
-    }
-};
 
 export default function ExecuteWorkflowPage() {
     const params = useParams();
@@ -184,7 +38,7 @@ export default function ExecuteWorkflowPage() {
             const updatedWorkflow = await response.json();
             setWorkflow(updatedWorkflow);
         } catch (error) {
-            addLog(`Failed to update task: ${error.message}`);
+            addLog(`Failed to update task: ${error}`);
             throw error;
         }
     };
@@ -262,7 +116,7 @@ export default function ExecuteWorkflowPage() {
                         
                         // Check if the command has completed
                         const commandHistory = stateData.command_history || [];
-                        const completedCommand = commandHistory.find(cmd => 
+                        const completedCommand = commandHistory.find((cmd: { command_id: string, result: { status: string } }) => 
                             cmd.command_id === commandId && 
                             cmd.result && 
                             cmd.result.status === 'success'
@@ -275,7 +129,7 @@ export default function ExecuteWorkflowPage() {
                         }
                         
                         // Check if the command failed
-                        const failedCommand = commandHistory.find(cmd => 
+                        const failedCommand = commandHistory.find((cmd: { command_id: string, result: { status: string } }) => 
                             cmd.command_id === commandId && 
                             cmd.result && 
                             cmd.result.status === 'error'
@@ -331,11 +185,11 @@ export default function ExecuteWorkflowPage() {
                     try {
                         // Use mock data for extraction
                         console.log('Using mock data for medication extraction');
-                        const rawText = mockData.default.rawText || '';
+                        const rawText = mockData.rawText || '';
                         
                         // Make generic extract API call to extract medications
                         console.log('Making extract API call to extract medications');
-                        const extractResponse = await fetch('/api/extract', {
+                        const extractResponse: Response = await fetch('/api/extract', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ 
@@ -361,7 +215,7 @@ export default function ExecuteWorkflowPage() {
                             throw new Error(`Extract API error: ${extractResponse.statusText}`);
                         }
                         
-                        const medications = await extractResponse.json();
+                        const medications: { medications: Medication[] } = await extractResponse.json();
                         console.log('Extracted medications:', JSON.stringify(medications, null, 2));
                         
                         // Simulate writing to medication system
@@ -369,16 +223,18 @@ export default function ExecuteWorkflowPage() {
                         console.log('Medications written successfully');
                         
                         // Prepare write operation result
-                        const writeResult = { 
-                            // recordId: 'MED-' + Date.now(),
-                            medications: medications 
-                        };
-                        console.log('Write result:', JSON.stringify(writeResult, null, 2));
+                        console.log('Write result:', JSON.stringify( medications.medications, null, 2));
                         
                         // Update task with the extracted medications
                         await updateTask(task.id, {
                             status: TaskStatus.COMPLETED,
-                            output: writeResult
+                            output: {
+                                type: TaskType.WRITE_MEDICATIONS,
+                                success: true,
+                                data: {
+                                    medications: medications.medications ? medications.medications : [],
+                                }
+                            },
                         });
                     } catch (error) {
                         console.error('Error extracting medications:', error);

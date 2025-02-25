@@ -53,11 +53,11 @@ Only include information that is explicitly mentioned in the text. Do not make a
       response_format: {
         type: "json_schema",
         json_schema: {
-          name: "medications",
+          name: "extracted",
           schema: {
             type: "object",
             properties: {
-            elements: {
+            medications: {
               type: "array",
               items: {
                 type: "object",

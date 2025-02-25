@@ -78,6 +78,7 @@ export async function PATCH(request: Request) {
 
         return NextResponse.json(updatedWorkflow);
     } catch (error) {
+        console.error('Failed to update task:', error);
         return NextResponse.json(
             { error: 'Failed to update task' },
             { status: 500 }

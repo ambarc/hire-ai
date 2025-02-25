@@ -75,7 +75,7 @@ interface WriteMedicationsInput {
 }
 
 interface WriteMedicationsResult {
-    medications: string[];
+    medications: Medication[];
 }
 
 // Discriminated unions for task inputs and outputs
