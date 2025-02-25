@@ -14,6 +14,14 @@ const formatTaskType = (type: TaskType): string => {
     .join(' ');
 };
 
+// Utility function to format source types
+const formatSourceType = (type: string): string => {
+  return type
+    .split('_')
+    .map(word => word.charAt(0) + word.slice(1).toLowerCase())
+    .join(' ');
+};
+
 // Utility function to get status styling
 const getStatusStyles = (status: TaskStatus) => {
   switch (status) {
@@ -398,7 +406,7 @@ export default function ExecuteWorkflowPage() {
                 if (task.input && 'source' in task.input.data) {
                     return (
                         <div className="mt-2 text-sm">
-                            <p className="font-medium text-gray-700">Source: {task.input.data.source.type}</p>
+                            <p className="font-medium text-gray-700">Source: {formatSourceType(task.input.data.source.type)}</p>
                             {'path' in task.input.data.source && task.input.data.source.path && (
                                 <p className="text-gray-600">Path: {task.input.data.source.path}</p>
                             )}
@@ -411,7 +419,7 @@ export default function ExecuteWorkflowPage() {
                 if (task.input && 'source' in task.input.data) {
                     return (
                         <div className="mt-2 text-sm">
-                            <p className="font-medium text-gray-700">Source: {task.input.data.source.type}</p>
+                            <p className="font-medium text-gray-700">Source: {formatSourceType(task.input.data.source.type)}</p>
                         </div>
                     );
                 }
