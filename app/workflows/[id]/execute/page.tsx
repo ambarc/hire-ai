@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { Workflow, Task, TaskStatus, TaskType, TaskOutput } from '../../../types/workflow';
 import { Medication } from '../../../types/clinical';
-import mockData from '../../../mock-data/test-scrape.json';
+// import mockData from '../../../mock-data/test-scrape.json';
 
 export default function ExecuteWorkflowPage() {
     const params = useParams();
@@ -12,6 +12,7 @@ export default function ExecuteWorkflowPage() {
     const [logs, setLogs] = useState<string[]>([]);
     const [status, setStatus] = useState<'loading' | 'idle' | 'executing' | 'completed' | 'error'>('loading');
     const [error, setError] = useState<string | null>(null);
+    const [ingestExtractedText, setIngestExtractedText] = useState<string>('');
 
     const addLog = (message: string) => {
         setLogs(prev => [...prev, `[${new Date().toISOString()}] ${message}`]);
@@ -156,6 +157,9 @@ export default function ExecuteWorkflowPage() {
                     // Extract the text from the command result
                     const extractedText = commandResult.summary || '';
                     
+                    // Save the extracted text to state variable
+                    setIngestExtractedText(extractedText);
+                    
                     // Create task output with the extracted text
                     const taskOutput: TaskOutput = {
                         type: TaskType.READ_OBESITY_INTAKE_FORM,
@@ -183,9 +187,9 @@ export default function ExecuteWorkflowPage() {
                     console.log('Connecting to medication system...');
                     
                     try {
-                        // Use mock data for extraction
-                        console.log('Using mock data for medication extraction');
-                        const rawText = mockData.default?.rawText || '';
+                        console.log('Using extracted text from intake form');
+                        const rawText = ingestExtractedText || '';
+                        console.log('Raw text for medication extraction:', rawText);
                         
                         // Make generic extract API call to extract medications
                         console.log('Making extract API call to extract medications');
