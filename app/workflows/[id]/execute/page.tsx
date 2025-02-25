@@ -83,6 +83,7 @@ export default function ExecuteWorkflowPage() {
     const [error, setError] = useState<string | null>(null);
     const [ingestExtractedText, setIngestExtractedText] = useState<string>('');
     const [extractedMedications, setExtractedMedications] = useState<Medication[]>([]);
+    const [extractedAllergies, setExtractedAllergies] = useState<Allergy[]>([]);
     
     const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
     const [expandedTasks, setExpandedTasks] = useState<Record<string, boolean>>({});
@@ -310,6 +311,9 @@ export default function ExecuteWorkflowPage() {
                     }
                     const allergies = await extractResponse.json();
                     
+                    // Store the extracted allergies in state
+                    setExtractedAllergies(allergies.allergies ? allergies.allergies : []);
+                    
                     // Update task with the extracted allergies
                     await updateTask(task.id, {
                         status: TaskStatus.COMPLETED,
@@ -387,13 +391,13 @@ export default function ExecuteWorkflowPage() {
                     const mockAllergies: Allergy[] = [
                         {
                             "name": "Penicillin",
-                            "severity": "moderate",
-                            "reaction": "skin rash"
+                            "severity": "Severe",
+                            "reaction": "Anaphylaxis"
                         },
                         {
                             "name": "Sulfa Drugs",
                             "severity": "moderate",
-                            "reaction": "rash"
+                            "reaction": "itching"
                         },
                         {
                             "name": "Shellfish",
@@ -605,6 +609,29 @@ export default function ExecuteWorkflowPage() {
                                             {med.frequency && (
                                                 <span className="rounded-full bg-green-50 px-2 py-0.5 text-xs text-green-700">
                                                     {med.frequency}
+                                                </span>
+                                            )}
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+                        
+                        {writeToAthenaBrowserInput.field === 'allergies' && extractedAllergies.length > 0 && (
+                            <div className="mt-3 space-y-2">
+                                <p className="text-xs font-medium text-gray-600">Allergies to write:</p>
+                                <ul className="divide-y divide-gray-100 rounded-md border border-gray-200">
+                                    {extractedAllergies.map((allergy, index) => (
+                                        <li key={index} className="flex items-center gap-2 px-4 py-3 hover:bg-gray-50">
+                                            <span className="font-medium text-gray-900">{allergy.name}</span>
+                                            {allergy.severity && (
+                                                <span className="rounded-full bg-orange-50 px-2 py-0.5 text-xs text-orange-700">
+                                                    {allergy.severity}
+                                                </span>
+                                            )}
+                                            {allergy.reaction && (
+                                                <span className="rounded-full bg-red-50 px-2 py-0.5 text-xs text-red-700">
+                                                    {allergy.reaction}
                                                 </span>
                                             )}
                                         </li>
