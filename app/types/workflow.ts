@@ -1,4 +1,4 @@
-import { Medication, Allergy } from './clinical';
+import { Medication, Allergy, Insurance } from './clinical';
 
 // Task status enum
 export enum TaskStatus {
@@ -14,6 +14,7 @@ export enum TaskType {
     VALIDATE_DATA = 'VALIDATE_DATA', // TODO(ambar): archive this.
     WRITE_MEDICATIONS = 'WRITE_MEDICATIONS',
     WRITE_ALLERGIES = 'WRITE_ALLERGIES',
+    WRITE_INSURANCE = 'WRITE_INSURANCE',
     // Add more task types here as needed
 }
 
@@ -68,6 +69,21 @@ interface ExtractAllergiesResult {
     allergies: Allergy[];
 }
 
+interface WriteInsuranceInput {
+    source: {
+        type: 'APPLICATION_MEMORY' | 'BROWSER'; // TODO(ambar): add 'API'
+        applicationMemoryKey?: string;
+        browserLocation?: string;
+    },
+    destination: {
+        type: 'ATHENA'
+    }
+}
+
+interface WriteInsuranceResult {
+    insurance: Insurance;
+}
+
 // Discriminated unions for task inputs and outputs
 export type TaskInput = {
     type: TaskType.READ_OBESITY_INTAKE_FORM;
@@ -81,6 +97,9 @@ export type TaskInput = {
 } | {
     type: TaskType.WRITE_ALLERGIES;
     data: ExtractAllergiesInput;
+} | {
+    type: TaskType.WRITE_INSURANCE;
+    data: WriteInsuranceInput;
 }
 
 export type TaskOutput = {
@@ -103,7 +122,12 @@ export type TaskOutput = {
     success: boolean;
     error?: string;
     data?: ExtractAllergiesResult;
-}   
+} | {
+    type: TaskType.WRITE_INSURANCE;
+    success: boolean;
+    error?: string;
+    data?: WriteInsuranceResult;
+}
 
 // Task definition
 export interface Task {

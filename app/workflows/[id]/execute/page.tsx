@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { Workflow, Task, TaskStatus, TaskType, TaskOutput } from '../../../types/workflow';
-import { Allergy, Medication } from '../../../types/clinical';
+import { Allergy, Medication, Insurance } from '../../../types/clinical';
 // import mockData from '../../../mock-data/test-scrape.json';
 
 export default function ExecuteWorkflowPage() {
@@ -289,6 +289,62 @@ export default function ExecuteWorkflowPage() {
                             success: true,
                             data: {
                                 allergies: allergies.allergies ? allergies.allergies : [],
+                            }
+                        },
+                    });
+                    
+                    break;
+                }
+
+                case TaskType.WRITE_INSURANCE: {
+                    console.log('Starting WRITE_INSURANCE execution');
+                    console.log('Extracting insurance from extracted text');
+                    
+                    // Make generic extract API call to extract allergies
+                    console.log('Making extract API call to extract insurance');
+
+                    /*
+     
+                    */
+                    const extractResponse: Response = await fetch('/api/extract', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                          text: ingestExtractedText,
+                          extractionType: 'insurance',
+                          schema: {
+                            type: 'object',
+                            properties: {
+                              type: 'array',
+                              properties: {
+                                name: { type: 'string' },
+                                policyNumber: { type: 'string' },
+                                groupNumber: { type: 'string' },
+                                memberId: { type: 'string' },
+                              },
+                              required: ['name', 'policyNumber', 'groupNumber', 'memberId']
+                            }
+                          }
+                        })
+                    });
+
+                    if (!extractResponse.ok) {
+                        throw new Error(`Extract API error: ${extractResponse.statusText}`);
+                    }
+                    const insurance: { insurance: Insurance } = await extractResponse.json();
+                    console.log('Extracted insurance:', JSON.stringify(insurance, null, 2));
+                
+                    // Prepare write operation result
+                    console.log('Write result:', JSON.stringify( insurance.insurance, null, 2));
+                    
+                    // Update task with the extracted medications
+                    await updateTask(task.id, {
+                        status: TaskStatus.COMPLETED,
+                        output: {
+                            type: TaskType.WRITE_INSURANCE,
+                            success: true,
+                            data: {
+                                insurance: insurance.insurance ? insurance.insurance : [],
                             }
                         },
                     });

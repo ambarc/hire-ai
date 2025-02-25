@@ -10,3 +10,10 @@ export interface Allergy {
     severity: string;
     reaction: string;
 }
+
+export interface Insurance {
+    name: string;
+    policyNumber: string;
+    groupNumber: string;
+    memberId: string;
+}

@@ -134,6 +134,55 @@ Only include information that is explicitly mentioned in the text. Do not make a
           return NextResponse.json(parsedResponse, { status: 200 });
 
       break;
+      case 'insurance':
+        prompt = `Extract all insurance information from the following text. Include name, policy number, group number, and member ID when available.
+        
+Text: ${text}
+
+Only include information that is explicitly mentioned in the text. Do not make assumptions or add information not present in the text. Return an empty array if no insurance information is found.`;
+
+      completion = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          { role: "system", content: "You are a medical data extraction assistant. Extract structured data from medical text according to the specified schema. Only return valid JSON without any additional text." },
+          { role: "user", content: prompt }
+        ],
+
+        // TODO(ambar): solve this with reflection.
+        response_format: {
+          type: "json_schema",
+          json_schema: {
+            name: "extracted",
+            schema: {
+              type: "object",
+              properties: {
+                insurance: {
+                  type: "object",
+                  properties: {
+                    name: { type: "string" },
+                    policyNumber: { type: "string" },
+                    groupNumber: { type: "string" },
+                    memberId: { type: "string" },
+                  },
+                required: ["name", "policyNumber", "groupNumber", "memberId"]
+              }
+            } } } },
+        });
+
+              // Parse the response
+        const insuranceResponseContent = completion.choices[0].message.content;
+
+        console.log('insuranceResponseContent', insuranceResponseContent);
+        if (!insuranceResponseContent) {
+          throw new Error('Empty response from OpenAI');
+        }
+
+        const insuranceParsedResponse = JSON.parse(insuranceResponseContent);
+        
+        // Return the extracted data
+        return NextResponse.json(insuranceParsedResponse, { status: 200 });
+      break;
+        
       default:
         return NextResponse.json({ error: `Unsupported extraction type: ${extractionType}` }, { status: 400 });
     }
