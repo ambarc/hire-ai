@@ -4,3 +4,9 @@ export interface Medication {
     frequency: string;
     route: string;
 } 
+
+export interface Allergy {
+    name: string;
+    severity: string;
+    reaction: string;
+}

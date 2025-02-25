@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { Workflow, Task, TaskStatus, TaskType, TaskOutput } from '../../../types/workflow';
-import { Medication } from '../../../types/clinical';
+import { Allergy, Medication } from '../../../types/clinical';
 // import mockData from '../../../mock-data/test-scrape.json';
 
 export default function ExecuteWorkflowPage() {
@@ -65,7 +65,7 @@ export default function ExecuteWorkflowPage() {
                     console.log('Starting READ_OBESITY_INTAKE_FORM execution');
                     
                     // Define browser prompt - use the one from the curl example
-                    const browserPrompt = "go to localhost:8000/ingest and scroll well through the page. Return the text from the page.";
+                    const browserPrompt = "go to localhost:8000/ingest and scroll through the page. Return the text from the page. Return the text itself. Do not overtly summarize.";
                     console.log('Browser prompt:', browserPrompt);
                     
                     // Send command to browser service
@@ -220,12 +220,8 @@ export default function ExecuteWorkflowPage() {
                         }
                         
                         const medications: { medications: Medication[] } = await extractResponse.json();
-                        console.log('Extracted medications:', JSON.stringify(medications, null, 2));
-                        
-                        // Simulate writing to medication system
-                        await new Promise(resolve => setTimeout(resolve, 1500));
-                        console.log('Medications written successfully');
-                        
+                        console.log('Extracted medications:', JSON.stringify(medications.medications, null, 2));
+                    
                         // Prepare write operation result
                         console.log('Write result:', JSON.stringify( medications.medications, null, 2));
                         
@@ -246,7 +242,60 @@ export default function ExecuteWorkflowPage() {
                     }
                     break;
                 }
+
+                case TaskType.WRITE_ALLERGIES: {
+                    console.log('Starting WRITE_ALLERGIES execution');
+                    console.log('Extracting allergies from extracted text');
                     
+                    // Make generic extract API call to extract allergies
+                    console.log('Making extract API call to extract allergies');
+
+                    const extractResponse: Response = await fetch('/api/extract', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                          text: ingestExtractedText,
+                          extractionType: 'allergies',
+                          schema: {
+                            type: 'object',
+                            properties: {
+                              type: 'array',
+                              properties: {
+                                name: { type: 'string' },
+                                severity: { type: 'string' },
+                                reaction: { type: 'string' },
+                              },
+                              required: ['name', 'severity', 'reaction']
+                            }
+                          }
+                        })
+                    });
+
+                    if (!extractResponse.ok) {
+                        throw new Error(`Extract API error: ${extractResponse.statusText}`);
+                    }
+                    const allergies: { allergies: Allergy[] } = await extractResponse.json();
+                    console.log('Extracted allergies:', JSON.stringify(allergies, null, 2));
+                
+                    
+                    // Prepare write operation result
+                    console.log('Write result:', JSON.stringify( allergies.allergies, null, 2));
+                    
+                    // Update task with the extracted medications
+                    await updateTask(task.id, {
+                        status: TaskStatus.COMPLETED,
+                        output: {
+                            type: TaskType.WRITE_ALLERGIES,
+                            success: true,
+                            data: {
+                                allergies: allergies.allergies ? allergies.allergies : [],
+                            }
+                        },
+                    });
+                    
+                    break;
+                }
+
                 default:
                     console.error(`Unknown task type encountered: ${task.type}`);
                     console.error('Task will not be executed');

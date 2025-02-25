@@ -66,6 +66,20 @@ export default function WorkflowForm({ initialWorkflow }: WorkflowFormProps) {
                         }
                     }
                 };
+            case TaskType.WRITE_ALLERGIES:
+                return {
+                    type: TaskType.WRITE_ALLERGIES,
+                    data: {
+                        source: {
+                            type: 'APPLICATION_MEMORY', 
+                            applicationMemoryKey: '',
+                            allergies: []
+                        },
+                        destination: {
+                            type: 'ATHENA'
+                        }
+                    }
+                };
             default:
                 return {
                     type: TaskType.READ_OBESITY_INTAKE_FORM,
@@ -82,6 +96,11 @@ export default function WorkflowForm({ initialWorkflow }: WorkflowFormProps) {
 
         if (newTask.type === TaskType.WRITE_MEDICATIONS && !newTask.description.trim()) {
             setError('Description is required for medication tasks');
+            return;
+        }
+
+        if (newTask.type === TaskType.WRITE_ALLERGIES && !newTask.description.trim()) {
+            setError('Description is required for allergies extraction tasks');
             return;
         }
 
@@ -286,6 +305,94 @@ export default function WorkflowForm({ initialWorkflow }: WorkflowFormProps) {
                     </div>
                 );
             
+            case TaskType.WRITE_ALLERGIES:
+                const extractAllergiesInput = input.type === TaskType.WRITE_ALLERGIES ? input.data : null;
+                if (!extractAllergiesInput) return null;
+
+                return (
+                    <div className="space-y-3">
+                        <div>
+                            <label className="block text-sm text-gray-700">Source Type</label>
+                            <select
+                                value={extractAllergiesInput.source.type}
+                                onChange={e => onChange({
+                                    type: TaskType.WRITE_ALLERGIES,
+                                    data: {
+                                        source: {
+                                            ...extractAllergiesInput.source,
+                                            type: e.target.value as 'APPLICATION_MEMORY' | 'BROWSER'
+                                        },
+                                        destination: {
+                                            type: 'ATHENA'
+                                        }
+                                    }
+                                })}
+                                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
+                            >
+                                <option value="APPLICATION_MEMORY">Application Memory</option>
+                                <option value="BROWSER">Browser</option>
+                            </select>
+                        </div>
+
+                        {extractAllergiesInput.source.type === 'APPLICATION_MEMORY' && (
+                            <div>
+                                <label className="block text-sm text-gray-700">Application Memory Key</label>
+                                <input
+                                    type="text"
+                                    value={extractAllergiesInput.source.applicationMemoryKey || ''}
+                                    onChange={e => onChange({
+                                        type: TaskType.WRITE_ALLERGIES,
+                                        data: {
+                                            source: {
+                                                ...extractAllergiesInput.source,
+                                                applicationMemoryKey: e.target.value
+                                            },
+                                            destination: {
+                                                type: 'ATHENA'
+                                            }
+                                        }
+                                    })}
+                                    className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
+                                    placeholder="Enter memory key..."
+                                />
+                            </div>
+                        )}
+
+                        {extractAllergiesInput.source.type === 'BROWSER' && (
+                            <div>
+                                <label className="block text-sm text-gray-700">Browser Location</label>
+                                <input
+                                    type="text"
+                                    value={extractAllergiesInput.source.browserLocation || ''}
+                                    onChange={e => onChange({
+                                        type: TaskType.WRITE_ALLERGIES,
+                                        data: {
+                                            source: {
+                                                ...extractAllergiesInput.source,
+                                                browserLocation: e.target.value
+                                            },
+                                            destination: {
+                                                type: 'ATHENA'
+                                            }
+                                        }
+                                    })}
+                                    className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
+                                    placeholder="Enter browser location..."
+                                />
+                            </div>
+                        )}
+
+                        <div>
+                            <label className="block text-sm text-gray-700">Destination Type</label>
+                            <input
+                                type="text"
+                                value="ATHENA"
+                                disabled
+                                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 bg-gray-50"
+                            />
+                        </div>
+                    </div>
+                );
             default:
                 return <div>Unsupported task type</div>;
         }
@@ -324,6 +431,21 @@ export default function WorkflowForm({ initialWorkflow }: WorkflowFormProps) {
                     </div>
                 );
             
+            case TaskType.WRITE_ALLERGIES:
+                const extractAllergiesTask = task.input.type === TaskType.WRITE_ALLERGIES ? task.input.data : null;
+                if (!extractAllergiesTask) return null;
+
+                return (
+                    <div className="text-sm text-gray-600">
+                        <p>Source Type: {extractAllergiesTask.source.type}</p>
+                        {extractAllergiesTask.source.type === 'APPLICATION_MEMORY' ? (
+                            <p>Memory Key: {extractAllergiesTask.source.applicationMemoryKey}</p>
+                        ) : (
+                            <p>Browser Location: {extractAllergiesTask.source.browserLocation}</p>
+                        )}
+                        <p>Destination: {extractAllergiesTask.destination.type}</p>
+                    </div>
+                );
             default:
                 return <p className="text-sm text-gray-600">Unsupported task type</p>;
         }
