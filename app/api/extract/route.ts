@@ -85,7 +85,7 @@ Only include information that is explicitly mentioned in the text. Do not make a
 
         break;
       case 'allergies':
-        prompt = `Extract all allergies from the following text. Include name, severity, and reaction when available.
+        prompt = `Extract all allergies and intolerances from the following text. Include name, severity, and reaction when available.
         
 Text: ${text}
 

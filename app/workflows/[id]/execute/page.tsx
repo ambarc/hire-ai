@@ -1,5 +1,7 @@
 'use client';
 
+
+
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { Workflow, Task, TaskStatus, TaskType, TaskOutput } from '../../../types/workflow';
@@ -368,39 +370,158 @@ export default function ExecuteWorkflowPage() {
                 }
 
                 case TaskType.WRITE_TO_ATHENA_BROWSER: {
+
+                    const mockMeds: Medication[] = [
+                        {
+                            "name": "Lisinopril",
+                            "dosage": "10mg",
+                            "frequency": "daily"
+                        },
+                        {
+                            "name": "Metformin",
+                            "dosage": "500mg",
+                            "frequency": "daily"
+                        }
+                    ]
+
+                    const mockAllergies: Allergy[] = [
+                        {
+                            "name": "Penicillin",
+                            "severity": "moderate",
+                            "reaction": "skin rash"
+                        },
+                        {
+                            "name": "Sulfa Drugs",
+                            "severity": "moderate",
+                            "reaction": "rash"
+                        },
+                        {
+                            "name": "Shellfish",
+                            "severity": "mild",
+                            "reaction": "itching"
+                        },
+                        {
+                            "name": "Lactose Intolerance",
+                            "severity": "mild",
+                            "reaction": "GI symptoms"
+                        }
+                    ]
+
+                    const useMeds = mockMeds; 
+                    const useAllergies = mockAllergies;
+                
                     const writeToAthenaBrowserInput = task.input.type === TaskType.WRITE_TO_ATHENA_BROWSER ? task.input.data : null;
                     if (!writeToAthenaBrowserInput) {
-                        return <p className="mt-2 text-sm text-gray-600">No input details available</p>;
+                        throw new Error('Invalid input for WRITE_TO_ATHENA_BROWSER task');
                     }
 
-                    return (
-                        <div className="mt-2 text-sm">
-                            <p className="font-medium text-gray-700">{writeToAthenaBrowserInput.field}</p>
-                            
-                            {writeToAthenaBrowserInput.field === 'medications' && extractedMedications.length > 0 && (
-                                <div className="mt-3 space-y-2">
-                                    <p className="text-xs font-medium text-gray-600">Medications to write:</p>
-                                    <ul className="divide-y divide-gray-100 rounded-md border border-gray-200">
-                                        {extractedMedications.map((med, index) => (
-                                            <li key={index} className="flex items-center gap-2 px-4 py-3 hover:bg-gray-50">
-                                                <span className="font-medium text-gray-900">{med.name}</span>
-                                                {med.dosage && (
-                                                    <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs text-blue-700">
-                                                        {med.dosage}
-                                                    </span>
-                                                )}
-                                                {med.frequency && (
-                                                    <span className="rounded-full bg-green-50 px-2 py-0.5 text-xs text-green-700">
-                                                        {med.frequency}
-                                                    </span>
-                                                )}
-                                            </li>
-                                        ))}
-                                    </ul>
-                                </div>
-                            )}
-                        </div>
-                    );
+                    // Construct the browser prompt based on the field
+                    let browserPrompt = '';
+                    let additionalData = '';
+
+                    if (writeToAthenaBrowserInput.field === 'medications' && useMeds.length > 0) {
+                        additionalData = JSON.stringify(useMeds);
+                        browserPrompt = `go to localhost:8000, search for james smith, and go to his profile. once there, save the following medications to the medications form, one at a time: ${additionalData}`;
+                    } else {
+                        throw new Error(`Unsupported field type: ${writeToAthenaBrowserInput.field}`);
+                    }
+
+                    if (writeToAthenaBrowserInput.field === 'allergies' && useAllergies.length > 0) {
+                        additionalData = JSON.stringify(useAllergies);
+                        browserPrompt = `go to localhost:8000, search for james smith, and go to his profile. once there, save the following allergies to the allergies form, one at a time: ${additionalData}`;
+                    } else {
+                        throw new Error(`Unsupported field type: ${writeToAthenaBrowserInput.field}`);
+                    }
+
+                    // Send command to browser service
+                    const commandResponse = await fetch('/api/browser-agent/session', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            command: {
+                                prompt: browserPrompt
+                            }
+                        }),
+                    });
+                    
+                    if (!commandResponse.ok) {
+                        throw new Error(`Failed to send browser command: ${commandResponse.statusText}`);
+                    }
+                    
+                    const commandData = await commandResponse.json();
+                    
+                    const sessionId = commandData.session_id;
+                    const commandId = commandData.command_id;
+                    
+                    if (!sessionId || !commandId) {
+                        throw new Error('Invalid response from browser service: missing session_id or command_id');
+                    }
+                    
+                    // Poll for command completion
+                    const maxAttempts = 30; // Prevent infinite polling
+                    let attempts = 0;
+                    let commandResult = null;
+                    
+                    while (attempts < maxAttempts) {
+                        await new Promise(resolve => setTimeout(resolve, 5000)); // Poll every 2 seconds
+                        
+                        const stateResponse = await fetch(`/api/browser-agent/${sessionId}/state`);
+                        
+                        if (!stateResponse.ok) {
+                            throw new Error(`Failed to get session state: ${stateResponse.statusText}`);
+                        }
+                        
+                        const stateData = await stateResponse.json();
+                        
+                        // Check if the command has completed
+                        const commandHistory = stateData.command_history || [];
+                        const completedCommand = commandHistory.find((cmd: { command_id: string, result: { status: string } }) => 
+                            cmd.command_id === commandId && 
+                            cmd.result && 
+                            cmd.result.status === 'success'
+                        );
+                        
+                        if (completedCommand) {
+                            commandResult = completedCommand.result;
+                            break;
+                        }
+                        
+                        // Check if the command failed
+                        const failedCommand = commandHistory.find((cmd: { command_id: string, result: { status: string } }) => 
+                            cmd.command_id === commandId && 
+                            cmd.result && 
+                            cmd.result.status === 'error'
+                        );
+                        
+                        if (failedCommand) {
+                            throw new Error(`Browser command failed: ${failedCommand.result.message || 'Unknown error'}`);
+                        }
+                        
+                        // If the session is in error state, throw an error
+                        if (stateData.status === 'error') {
+                            throw new Error(`Browser session in error state: ${stateData.error || 'Unknown error'}`);
+                        }
+                        
+                        attempts++;
+                    }
+                    
+                    if (!commandResult) {
+                        throw new Error('Browser command timed out after multiple attempts');
+                    }
+
+                    // Update task with the output
+                    await updateTask(task.id, {
+                        status: TaskStatus.COMPLETED,
+                        output: {
+                            type: TaskType.WRITE_TO_ATHENA_BROWSER,
+                            success: true,
+                            data: {
+                                success: true
+                            }
+                        }
+                    });
+                    
+                    break;
                 }
 
                 default:
