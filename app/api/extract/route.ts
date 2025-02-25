@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import dotenv from 'dotenv';
+import { Medication } from '../../types/clinical'; 
 
 // Load environment variables from .env file
 dotenv.config();
@@ -35,10 +36,7 @@ export async function POST(request: NextRequest) {
         
 Text: ${text}
 
-Return the data as a JSON array of medication objects that strictly follows this schema:
-${JSON.stringify(schema, null, 2)}
-
-Only include information that is explicitly mentioned in the text. Do not make assumptions or add information not present in the text.`;
+Only include information that is explicitly mentioned in the text. Do not make assumptions or add information not present in the text. Return an empty array if no medications are found..`;
         break;
       default:
         return NextResponse.json({ error: `Unsupported extraction type: ${extractionType}` }, { status: 400 });
@@ -51,13 +49,28 @@ Only include information that is explicitly mentioned in the text. Do not make a
         { role: "system", content: "You are a medical data extraction assistant. Extract structured data from medical text according to the specified schema. Only return valid JSON without any additional text." },
         { role: "user", content: prompt }
       ],
-      // response_format: { type: "json_object", 
 
-        // json_schema: {
-        //   name: "medication",
-        //   schema: schema
-        // }
-      // }
+      // TODO(ambar): solve this with reflection.
+      response_format: {
+        type: "json_schema",
+        json_schema: {
+          name: "medications",
+          schema: {
+            type: "object",
+            properties: {
+            elements: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  name: { type: "string" },
+                  dosage: { type: "string" },
+                  frequency: { type: "string" },
+                },
+                required: ["name", "dosage", "frequency"]
+              }
+            },
+          } } } },
     });
 
     // Parse the response
@@ -66,10 +79,10 @@ Only include information that is explicitly mentioned in the text. Do not make a
       throw new Error('Empty response from OpenAI');
     }
 
-    // const parsedResponse = JSON.parse(responseContent);
+    const parsedResponse = JSON.parse(responseContent);
     
     // Return the extracted data
-    return NextResponse.json({response: responseContent}, { status: 200 });
+    return NextResponse.json(parsedResponse, { status: 200 });
     
   } catch (error) {
     console.error('Error in extract API:', error);
