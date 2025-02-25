@@ -66,6 +66,41 @@ export default function WorkflowForm({ initialWorkflow }: WorkflowFormProps) {
                         }
                     }
                 };
+            case TaskType.WRITE_ALLERGIES:
+                return {
+                    type: TaskType.WRITE_ALLERGIES,
+                    data: {
+                        source: {
+                            type: 'APPLICATION_MEMORY', 
+                            applicationMemoryKey: '',
+                            allergies: []
+                        },
+                        destination: {
+                            type: 'ATHENA'
+                        }
+                    }
+                };
+            case TaskType.WRITE_INSURANCE:
+                return {
+                    type: TaskType.WRITE_INSURANCE,
+                    data: {
+                        source: {
+                            type: 'APPLICATION_MEMORY', 
+                            applicationMemoryKey: '',
+                        },
+                        destination: {
+                            type: 'ATHENA'
+                        },
+                    }
+                };
+            case TaskType.WRITE_TO_ATHENA:
+                return {
+                    type: TaskType.WRITE_TO_ATHENA,
+                    data: {
+                        field: '',
+                        prompt: '',
+                    }
+                };
             default:
                 return {
                     type: TaskType.READ_OBESITY_INTAKE_FORM,
@@ -80,9 +115,23 @@ export default function WorkflowForm({ initialWorkflow }: WorkflowFormProps) {
             return;
         }
 
-        if (newTask.type === TaskType.WRITE_MEDICATIONS && !newTask.description.trim()) {
-            setError('Description is required for medication tasks');
+        if(!newTask.description.trim()) {
+            setError('A description is required for all tasks');
             return;
+        }
+
+        if(newTask.type === TaskType.WRITE_TO_ATHENA && 
+           newTask.input?.type === TaskType.WRITE_TO_ATHENA && 
+           !newTask.input.data.prompt.trim()) {
+            setError('A prompt is required for write to athena browser tasks');
+            return;
+        }
+
+        if(newTask.type === TaskType.WRITE_TO_ATHENA && 
+           newTask.input?.type === TaskType.WRITE_TO_ATHENA && 
+           !newTask.input.data.field.trim()) {
+            setError('A field is required for write to athena browser tasks');
+            return; 
         }
 
         const task: Task = {
@@ -286,6 +335,224 @@ export default function WorkflowForm({ initialWorkflow }: WorkflowFormProps) {
                     </div>
                 );
             
+            case TaskType.WRITE_ALLERGIES:
+                const extractAllergiesInput = input.type === TaskType.WRITE_ALLERGIES ? input.data : null;
+                if (!extractAllergiesInput) return null;
+
+                return (
+                    <div className="space-y-3">
+                        <div>
+                            <label className="block text-sm text-gray-700">Source Type</label>
+                            <select
+                                value={extractAllergiesInput.source.type}
+                                onChange={e => onChange({
+                                    type: TaskType.WRITE_ALLERGIES,
+                                    data: {
+                                        source: {
+                                            ...extractAllergiesInput.source,
+                                            type: e.target.value as 'APPLICATION_MEMORY' | 'BROWSER'
+                                        },
+                                        destination: {
+                                            type: 'ATHENA'
+                                        }
+                                    }
+                                })}
+                                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
+                            >
+                                <option value="APPLICATION_MEMORY">Application Memory</option>
+                                <option value="BROWSER">Browser</option>
+                            </select>
+                        </div>
+
+                        {extractAllergiesInput.source.type === 'APPLICATION_MEMORY' && (
+                            <div>
+                                <label className="block text-sm text-gray-700">Application Memory Key</label>
+                                <input
+                                    type="text"
+                                    value={extractAllergiesInput.source.applicationMemoryKey || ''}
+                                    onChange={e => onChange({
+                                        type: TaskType.WRITE_ALLERGIES,
+                                        data: {
+                                            source: {
+                                                ...extractAllergiesInput.source,
+                                                applicationMemoryKey: e.target.value
+                                            },
+                                            destination: {
+                                                type: 'ATHENA'
+                                            }
+                                        }
+                                    })}
+                                    className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
+                                    placeholder="Enter memory key..."
+                                />
+                            </div>
+                        )}
+
+                        {extractAllergiesInput.source.type === 'BROWSER' && (
+                            <div>
+                                <label className="block text-sm text-gray-700">Browser Location</label>
+                                <input
+                                    type="text"
+                                    value={extractAllergiesInput.source.browserLocation || ''}
+                                    onChange={e => onChange({
+                                        type: TaskType.WRITE_ALLERGIES,
+                                        data: {
+                                            source: {
+                                                ...extractAllergiesInput.source,
+                                                browserLocation: e.target.value
+                                            },
+                                            destination: {
+                                                type: 'ATHENA'
+                                            }
+                                        }
+                                    })}
+                                    className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
+                                    placeholder="Enter browser location..."
+                                />
+                            </div>
+                        )}
+
+                        <div>
+                            <label className="block text-sm text-gray-700">Destination Type</label>
+                            <input
+                                type="text"
+                                value="ATHENA"
+                                disabled
+                                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 bg-gray-50"
+                            />
+                        </div>
+                    </div>
+                );
+            
+            case TaskType.WRITE_INSURANCE:
+                const writeInsuranceInput = input.type === TaskType.WRITE_INSURANCE ? input.data : null;
+                if (!writeInsuranceInput) return null;
+    
+                    return (
+                        <div className="space-y-3">
+                            <div>
+                                <label className="block text-sm text-gray-700">Source Type</label>
+                                <select
+                                    value={writeInsuranceInput.source.type}
+                                    onChange={e => onChange({
+                                        type: TaskType.WRITE_INSURANCE,
+                                        data: {
+                                            source: {
+                                                ...writeInsuranceInput.source,
+                                                type: e.target.value as 'APPLICATION_MEMORY' | 'BROWSER'
+                                            },
+                                            destination: {
+                                                type: 'ATHENA'
+                                            }
+                                        }
+                                    })}
+                                    className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
+                                >
+                                    <option value="APPLICATION_MEMORY">Application Memory</option>
+                                    <option value="BROWSER">Browser</option>
+                                </select>
+                            </div>
+    
+                            {writeInsuranceInput.source.type === 'APPLICATION_MEMORY' && (
+                                <div>
+                                    <label className="block text-sm text-gray-700">Application Memory Key</label>
+                                    <input
+                                        type="text"
+                                        value={writeInsuranceInput.source.applicationMemoryKey || ''}
+                                        onChange={e => onChange({
+                                            type: TaskType.WRITE_INSURANCE,
+                                            data: {
+                                                source: {
+                                                    ...writeInsuranceInput.source,
+                                                    applicationMemoryKey: e.target.value
+                                                },
+                                                destination: {
+                                                    type: 'ATHENA'
+                                                }
+                                            }
+                                        })}
+                                        className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
+                                        placeholder="Enter memory key..."
+                                    />
+                                </div>
+                            )}
+    
+                            {writeInsuranceInput.source.type === 'BROWSER' && (
+                                <div>
+                                    <label className="block text-sm text-gray-700">Browser Location</label>
+                                    <input
+                                        type="text"
+                                        value={writeInsuranceInput.source.browserLocation || ''}
+                                        onChange={e => onChange({
+                                            type: TaskType.WRITE_INSURANCE,
+                                            data: {
+                                                source: {
+                                                    ...writeInsuranceInput.source,
+                                                    browserLocation: e.target.value
+                                                },
+                                                destination: {
+                                                    type: 'ATHENA'
+                                                }
+                                            }
+                                        })}
+                                        className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
+                                        placeholder="Enter browser location..."
+                                    />
+                                </div>
+                            )}
+    
+                            <div>
+                                <label className="block text-sm text-gray-700">Destination Type</label>
+                                <input
+                                    type="text"
+                                    value="ATHENA"
+                                    disabled
+                                    className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 bg-gray-50"
+                                />
+                            </div>
+                        </div>
+                ); 
+            
+            case TaskType.WRITE_TO_ATHENA:
+                const writeToAthenaBrowserInput = input.type === TaskType.WRITE_TO_ATHENA ? input.data : null;
+                if (!writeToAthenaBrowserInput) return null;
+
+                return (
+                    <div className="space-y-3">
+                        <div>
+                            <label className="block text-sm text-gray-700">Field</label>
+                            <input
+                                type="text"
+                                value={writeToAthenaBrowserInput.field}
+                                onChange={e => onChange({
+                                    type: TaskType.WRITE_TO_ATHENA,
+                                    data: {
+                                        field: e.target.value,
+                                        prompt: writeToAthenaBrowserInput.prompt
+                                    }
+                                })}
+                                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm text-gray-700">Prompt</label>
+                            <textarea
+                                value={writeToAthenaBrowserInput.prompt}
+                                onChange={e => onChange({
+                                    type: TaskType.WRITE_TO_ATHENA,
+                                    data: {
+                                        field: writeToAthenaBrowserInput.field,
+                                        prompt: e.target.value
+                                    }
+                                })}
+                                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
+                                rows={3}
+                                placeholder="Enter the prompt for generating content..."
+                            />
+                        </div>
+                    </div>
+                );
+            
             default:
                 return <div>Unsupported task type</div>;
         }
@@ -321,6 +588,48 @@ export default function WorkflowForm({ initialWorkflow }: WorkflowFormProps) {
                             <p>Browser Location: {writeMedTask.source.browserLocation}</p>
                         )}
                         <p>Destination: {writeMedTask.destination.type}</p>
+                    </div>
+                );
+            
+            case TaskType.WRITE_ALLERGIES:
+                const extractAllergiesTask = task.input.type === TaskType.WRITE_ALLERGIES ? task.input.data : null;
+                if (!extractAllergiesTask) return null;
+
+                return (
+                    <div className="text-sm text-gray-600">
+                        <p>Source Type: {extractAllergiesTask.source.type}</p>
+                        {extractAllergiesTask.source.type === 'APPLICATION_MEMORY' ? (
+                            <p>Memory Key: {extractAllergiesTask.source.applicationMemoryKey}</p>
+                        ) : (
+                            <p>Browser Location: {extractAllergiesTask.source.browserLocation}</p>
+                        )}
+                        <p>Destination: {extractAllergiesTask.destination.type}</p>
+                    </div>
+                );
+
+            case TaskType.WRITE_INSURANCE:
+                const writeInsuranceTask = task.input.type === TaskType.WRITE_INSURANCE ? task.input.data : null;
+                if (!writeInsuranceTask) return null;
+
+                return (
+                    <div className="text-sm text-gray-600">
+                        <p>Source Type: {writeInsuranceTask.source.type}</p>
+                        {writeInsuranceTask.source.type === 'APPLICATION_MEMORY' ? (
+                            <p>Memory Key: {writeInsuranceTask.source.applicationMemoryKey}</p>
+                        ) : (
+                            <p>Browser Location: {writeInsuranceTask.source.browserLocation}</p>
+                        )}
+                    </div>
+                );
+            
+            case TaskType.WRITE_TO_ATHENA:
+                const writeToAthenaBrowserTask = task.input.type === TaskType.WRITE_TO_ATHENA ? task.input.data : null;
+                if (!writeToAthenaBrowserTask) return null;
+
+                return (
+                    <div className="text-sm text-gray-600">
+                        <p>Field: {writeToAthenaBrowserTask.field}</p>
+                        <p>Prompt: {writeToAthenaBrowserTask.prompt}</p>
                     </div>
                 );
             

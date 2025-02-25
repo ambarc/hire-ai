@@ -1,4 +1,9 @@
-import { Medication } from './clinical';
+import { Medication, Allergy, Insurance } from './clinical';
+
+// TODO(ambar): adding a new task, viewing it, and executing it should be O(1) build time.
+// TODO(ambar): what's a good way to take task inputs from prior outputs?
+// TODO(ambar): there's a more generic browser task template that we should extract.
+// TODO(ambar): figure out normalization / denormalization for extract vs write tasks.
 
 // Task status enum
 export enum TaskStatus {
@@ -12,8 +17,11 @@ export enum TaskStatus {
 export enum TaskType {
     READ_OBESITY_INTAKE_FORM = 'READ_OBESITY_INTAKE_FORM',
     VALIDATE_DATA = 'VALIDATE_DATA', // TODO(ambar): archive this.
+    // TODO(ambar): figure out normalization / denormalization for extract vs write tasks.
     WRITE_MEDICATIONS = 'WRITE_MEDICATIONS',
-    // INGEST_ALLERGIES = 'INGEST_ALLERGIES',
+    WRITE_ALLERGIES = 'WRITE_ALLERGIES',
+    WRITE_INSURANCE = 'WRITE_INSURANCE',
+    WRITE_TO_ATHENA = 'WRITE_TO_ATHENA',
     // Add more task types here as needed
 }
 
@@ -24,32 +32,6 @@ interface ReadObesityIntakeFormData {
 
 interface ReadObesityIntakeFormResult {
     rawText?: string;
-    // patientInfo?: {
-    //     name?: string;
-    //     dateOfBirth?: string;
-    //     height?: string;
-    //     weight?: string;
-    //     bmi?: string;
-    //     medicalHistory?: string[];
-    //     currentMedications?: string[];
-    //     allergies?: string[];
-    //     dietaryRestrictions?: string[];
-    //     exerciseRoutine?: {
-    //         frequency?: string;
-    //         type?: string;
-    //         duration?: string;
-    //     };
-    //     previousWeightLossAttempts?: {
-    //         method: string;
-    //         duration: string;
-    //         result: string;
-    //     }[];
-    // };
-    // formMetadata?: {
-    //     submissionDate?: string;
-    //     formVersion?: string;
-    //     completionStatus?: 'complete' | 'partial' | 'invalid';
-    // };
 }
 
 // VALIDATE_DATA types
@@ -78,6 +60,45 @@ interface WriteMedicationsResult {
     medications: Medication[];
 }
 
+interface ExtractAllergiesInput {
+    source: {
+        type: 'APPLICATION_MEMORY' | 'BROWSER'; // TODO(ambar): add 'API'
+        applicationMemoryKey?: string;
+        browserLocation?: string;
+        allergies?: string[];
+    }, 
+    destination: {
+        type: 'ATHENA'
+    }
+}
+
+interface ExtractAllergiesResult {
+    allergies: Allergy[];
+}
+
+interface WriteInsuranceInput {
+    source: {
+        type: 'APPLICATION_MEMORY' | 'BROWSER'; // TODO(ambar): add 'API'
+        applicationMemoryKey?: string;
+        browserLocation?: string;
+    },
+    destination: {
+        type: 'ATHENA'
+    }
+}
+
+interface WriteInsuranceResult {
+    insurance: Insurance;
+}
+
+interface WriteToAthenaBrowserInput {
+    field: string;
+    prompt: string;
+}
+
+interface WriteToAthenaBrowserResult {
+    success: boolean;
+}
 // Discriminated unions for task inputs and outputs
 export type TaskInput = {
     type: TaskType.READ_OBESITY_INTAKE_FORM;
@@ -88,6 +109,15 @@ export type TaskInput = {
 } | {
     type: TaskType.WRITE_MEDICATIONS;
     data: WriteMedicationsInput;
+} | {
+    type: TaskType.WRITE_ALLERGIES;
+    data: ExtractAllergiesInput;
+} | {
+    type: TaskType.WRITE_INSURANCE;
+    data: WriteInsuranceInput;
+} | {
+    type: TaskType.WRITE_TO_ATHENA;
+    data: WriteToAthenaBrowserInput;
 }
 
 export type TaskOutput = {
@@ -105,6 +135,21 @@ export type TaskOutput = {
     success: boolean;
     error?: string;
     data?: WriteMedicationsResult;
+} | {
+    type: TaskType.WRITE_ALLERGIES;
+    success: boolean;
+    error?: string;
+    data?: ExtractAllergiesResult;
+} | {
+    type: TaskType.WRITE_INSURANCE;
+    success: boolean;
+    error?: string;
+    data?: WriteInsuranceResult;
+} | {
+    type: TaskType.WRITE_TO_ATHENA;
+    success: boolean;
+    error?: string;
+    data?: WriteToAthenaBrowserResult;
 }
 
 // Task definition
