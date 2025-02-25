@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { Workflow, Task, TaskStatus, TaskType, TaskOutput } from '../../../types/workflow';
 import { Medication } from '../../../types/clinical';
-import * as mockData from '../../../mock-data/test-scrape.json'
+import mockData from '../../../mock-data/test-scrape.json';
 
 export default function ExecuteWorkflowPage() {
     const params = useParams();
@@ -185,7 +185,7 @@ export default function ExecuteWorkflowPage() {
                     try {
                         // Use mock data for extraction
                         console.log('Using mock data for medication extraction');
-                        const rawText = mockData.rawText || '';
+                        const rawText = mockData.default?.rawText || '';
                         
                         // Make generic extract API call to extract medications
                         console.log('Making extract API call to extract medications');
