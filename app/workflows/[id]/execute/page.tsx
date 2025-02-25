@@ -1,9 +1,11 @@
 'use client';
 
+
+
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { Workflow, Task, TaskStatus, TaskType, TaskOutput } from '../../../types/workflow';
-import { Allergy, Medication, Insurance } from '../../../types/clinical';
+import { Workflow, Task, TaskStatus, TaskType } from '../../../types/workflow';
+import { Allergy, Medication } from '../../../types/clinical';
 // import mockData from '../../../mock-data/test-scrape.json';
 
 // Utility function to format task type constants into readable titles
@@ -80,6 +82,9 @@ export default function ExecuteWorkflowPage() {
     const [status, setStatus] = useState<'loading' | 'idle' | 'executing' | 'completed' | 'error'>('loading');
     const [error, setError] = useState<string | null>(null);
     const [ingestExtractedText, setIngestExtractedText] = useState<string>('');
+    const [extractedMedications, setExtractedMedications] = useState<Medication[]>([]);
+    const [extractedAllergies, setExtractedAllergies] = useState<Allergy[]>([]);
+    
     const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
     const [expandedTasks, setExpandedTasks] = useState<Record<string, boolean>>({});
 
@@ -162,7 +167,7 @@ export default function ExecuteWorkflowPage() {
                     let commandResult = null;
                     
                     while (attempts < maxAttempts) {
-                        await new Promise(resolve => setTimeout(resolve, 2000)); // Poll every 2 seconds
+                        await new Promise(resolve => setTimeout(resolve, 5000)); // Poll every 5 seconds
                         
                         const stateResponse = await fetch(`/api/browser-agent/${sessionId}/state`);
                         
@@ -210,6 +215,7 @@ export default function ExecuteWorkflowPage() {
                     
                     // Extract the text from the command result
                     const extractedText = commandResult.summary || '';
+                    console.log('extractedText', extractedText);
                     
                     // Save the extracted text to state variable
                     setIngestExtractedText(extractedText);
@@ -229,7 +235,7 @@ export default function ExecuteWorkflowPage() {
                     break;
                 }
 
-                case TaskType.WRITE_MEDICATIONS: {
+                case TaskType.WRITE_MEDICATIONS:
                     try {
                         const rawText = ingestExtractedText || '';
                         
@@ -260,7 +266,7 @@ export default function ExecuteWorkflowPage() {
                         }
                         
                         const medications = await extractResponse.json();
-                        
+                        setExtractedMedications(medications.medications ? medications.medications : []);
                         // Update task with the extracted medications
                         await updateTask(task.id, {
                             status: TaskStatus.COMPLETED,
@@ -276,7 +282,6 @@ export default function ExecuteWorkflowPage() {
                         throw error;
                     }
                     break;
-                }
 
                 case TaskType.WRITE_ALLERGIES: {
                     // Make generic extract API call to extract allergies
@@ -305,6 +310,9 @@ export default function ExecuteWorkflowPage() {
                         throw new Error(`Extract API error: ${extractResponse.statusText}`);
                     }
                     const allergies = await extractResponse.json();
+                    
+                    // Store the extracted allergies in state
+                    setExtractedAllergies(allergies.allergies ? allergies.allergies : []);
                     
                     // Update task with the extracted allergies
                     await updateTask(task.id, {
@@ -365,6 +373,157 @@ export default function ExecuteWorkflowPage() {
                     break;
                 }
 
+                case TaskType.WRITE_TO_ATHENA: {
+
+                    const mockMeds: Medication[] = [
+                        {
+                            "name": "Lisinopril",
+                            "dosage": "10mg",
+                            "frequency": "daily"
+                        },
+                        {
+                            "name": "Metformin",
+                            "dosage": "500mg",
+                            "frequency": "daily"
+                        }
+                    ]
+
+                    const mockAllergies: Allergy[] = [
+                        {
+                            "name": "Penicillin",
+                            "severity": "Severe",
+                            "reaction": "Anaphylaxis"
+                        },
+                        {
+                            "name": "Sulfa Drugs",
+                            "severity": "moderate",
+                            "reaction": "itching"
+                        },
+                        {
+                            "name": "Shellfish",
+                            "severity": "mild",
+                            "reaction": "itching"
+                        },
+                        {
+                            "name": "Lactose Intolerance",
+                            "severity": "mild",
+                            "reaction": "GI symptoms"
+                        }
+                    ]
+
+                    const useMeds = mockMeds; 
+                    const useAllergies = mockAllergies;
+                
+                    const writeToAthenaBrowserInput = task.input.type === TaskType.WRITE_TO_ATHENA ? task.input.data : null;
+                    if (!writeToAthenaBrowserInput) {
+                        throw new Error('Invalid input for WRITE_TO_ATHENA task');
+                    }
+
+                    // Construct the browser prompt based on the field
+                    let browserPrompt = '';
+                    let additionalData = '';
+
+                    if (writeToAthenaBrowserInput.field === 'medications' && useMeds.length > 0) {
+                        additionalData = JSON.stringify(useMeds);
+                        browserPrompt = `go to localhost:8000, search for james smith, and go to his profile. once there, save the following medications to the medications form, one at a time: ${additionalData}`;
+                    } else if (writeToAthenaBrowserInput.field === 'allergies' && useAllergies.length > 0) {
+                        additionalData = JSON.stringify(useAllergies);
+                        browserPrompt = `go to localhost:8000, search for james smith, and go to his profile. once there, save the following allergies to the allergies form, one at a time: ${additionalData}`;
+                    } else {
+                        throw new Error(`Unsupported field type: ${writeToAthenaBrowserInput.field}`);
+                    }
+
+                    // Send command to browser service
+                    const commandResponse = await fetch('/api/browser-agent/session', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            command: {
+                                prompt: browserPrompt
+                            }
+                        }),
+                    });
+                    
+                    if (!commandResponse.ok) {
+                        throw new Error(`Failed to send browser command: ${commandResponse.statusText}`);
+                    }
+                    
+                    const commandData = await commandResponse.json();
+                    
+                    const sessionId = commandData.session_id;
+                    const commandId = commandData.command_id;
+                    
+                    if (!sessionId || !commandId) {
+                        throw new Error('Invalid response from browser service: missing session_id or command_id');
+                    }
+                    
+                    // Poll for command completion
+                    const maxAttempts = 30; // Prevent infinite polling
+                    let attempts = 0;
+                    let commandResult = null;
+                    
+                    while (attempts < maxAttempts) {
+                        await new Promise(resolve => setTimeout(resolve, 5000)); // Poll every 2 seconds
+                        
+                        const stateResponse = await fetch(`/api/browser-agent/${sessionId}/state`);
+                        
+                        if (!stateResponse.ok) {
+                            throw new Error(`Failed to get session state: ${stateResponse.statusText}`);
+                        }
+                        
+                        const stateData = await stateResponse.json();
+                        
+                        // Check if the command has completed
+                        const commandHistory = stateData.command_history || [];
+                        const completedCommand = commandHistory.find((cmd: { command_id: string, result: { status: string } }) => 
+                            cmd.command_id === commandId && 
+                            cmd.result && 
+                            cmd.result.status === 'success'
+                        );
+                        
+                        if (completedCommand) {
+                            commandResult = completedCommand.result;
+                            break;
+                        }
+                        
+                        // Check if the command failed
+                        const failedCommand = commandHistory.find((cmd: { command_id: string, result: { status: string } }) => 
+                            cmd.command_id === commandId && 
+                            cmd.result && 
+                            cmd.result.status === 'error'
+                        );
+                        
+                        if (failedCommand) {
+                            throw new Error(`Browser command failed: ${failedCommand.result.message || 'Unknown error'}`);
+                        }
+                        
+                        // If the session is in error state, throw an error
+                        if (stateData.status === 'error') {
+                            throw new Error(`Browser session in error state: ${stateData.error || 'Unknown error'}`);
+                        }
+                        
+                        attempts++;
+                    }
+                    
+                    if (!commandResult) {
+                        throw new Error('Browser command timed out after multiple attempts');
+                    }
+
+                    // Update task with the output
+                    await updateTask(task.id, {
+                        status: TaskStatus.COMPLETED,
+                        output: {
+                            type: TaskType.WRITE_TO_ATHENA,
+                            success: true,
+                            data: {
+                                success: true
+                            }
+                        }
+                    });
+                    
+                    break;
+                }
+
                 default:
                     throw new Error(`Unknown task type: ${task.type}`);
             }
@@ -388,7 +547,7 @@ export default function ExecuteWorkflowPage() {
                 setError(err instanceof Error ? err.message : 'Failed to load workflow');
                 setStatus('error');
             });
-    }, []);
+    }, [getWorkflow]);
 
     // Function to render task input details
     const renderTaskInput = (task: Task) => {
@@ -415,6 +574,7 @@ export default function ExecuteWorkflowPage() {
                 }
                 return <p className="mt-2 text-sm text-gray-600">No input details available</p>;
             case TaskType.WRITE_ALLERGIES:
+                break;
             case TaskType.WRITE_INSURANCE:
                 if (task.input && 'source' in task.input.data) {
                     return (
@@ -424,6 +584,64 @@ export default function ExecuteWorkflowPage() {
                     );
                 }
                 return <p className="mt-2 text-sm text-gray-600">No input details available</p>;
+            case TaskType.WRITE_TO_ATHENA: {
+                const writeToAthenaBrowserInput = task.input.type === TaskType.WRITE_TO_ATHENA ? task.input.data : null;
+                if (!writeToAthenaBrowserInput) {
+                    return <p className="mt-2 text-sm text-gray-600">No input details available</p>;
+                }
+
+                return (
+                    <div className="mt-2 text-sm">
+                        <p className="font-medium text-gray-700">{writeToAthenaBrowserInput.field}</p>
+                        
+                        {writeToAthenaBrowserInput.field === 'medications' && extractedMedications.length > 0 && (
+                            <div className="mt-3 space-y-2">
+                                <p className="text-xs font-medium text-gray-600">Medications to write:</p>
+                                <ul className="divide-y divide-gray-100 rounded-md border border-gray-200">
+                                    {extractedMedications.map((med, index) => (
+                                        <li key={index} className="flex items-center gap-2 px-4 py-3 hover:bg-gray-50">
+                                            <span className="font-medium text-gray-900">{med.name}</span>
+                                            {med.dosage && (
+                                                <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs text-blue-700">
+                                                    {med.dosage}
+                                                </span>
+                                            )}
+                                            {med.frequency && (
+                                                <span className="rounded-full bg-green-50 px-2 py-0.5 text-xs text-green-700">
+                                                    {med.frequency}
+                                                </span>
+                                            )}
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+                        
+                        {writeToAthenaBrowserInput.field === 'allergies' && extractedAllergies.length > 0 && (
+                            <div className="mt-3 space-y-2">
+                                <p className="text-xs font-medium text-gray-600">Allergies to write:</p>
+                                <ul className="divide-y divide-gray-100 rounded-md border border-gray-200">
+                                    {extractedAllergies.map((allergy, index) => (
+                                        <li key={index} className="flex items-center gap-2 px-4 py-3 hover:bg-gray-50">
+                                            <span className="font-medium text-gray-900">{allergy.name}</span>
+                                            {allergy.severity && (
+                                                <span className="rounded-full bg-orange-50 px-2 py-0.5 text-xs text-orange-700">
+                                                    {allergy.severity}
+                                                </span>
+                                            )}
+                                            {allergy.reaction && (
+                                                <span className="rounded-full bg-red-50 px-2 py-0.5 text-xs text-red-700">
+                                                    {allergy.reaction}
+                                                </span>
+                                            )}
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+                    </div>
+                );
+            }
             default:
                 return <p className="mt-2 text-sm text-gray-600">No input details available</p>;
         }
@@ -495,6 +713,12 @@ export default function ExecuteWorkflowPage() {
                         )}
                     </div>
                 );
+            case TaskType.WRITE_TO_ATHENA:
+                return (
+                    <div className="mt-2">
+                        <p className="font-medium text-sm text-gray-700">Status: {task.output.success ? 'Success' : 'Failed'}</p>
+                    </div>
+                );
             default:
                 return <p className="text-sm text-gray-600">No output details available</p>;
         }
@@ -543,7 +767,7 @@ export default function ExecuteWorkflowPage() {
                             <div className="p-6">
                                 <h2 className="text-lg font-medium text-gray-900 mb-4">Tasks</h2>
                                 <div className="space-y-4">
-                                    {workflow.tasks.map((task, index) => {
+                                    {workflow.tasks.map((task) => {
                                         const statusStyles = getStatusStyles(task.status);
                                         const isActive = task.id === activeTaskId;
                                         const isExpanded = expandedTasks[task.id] || false;
