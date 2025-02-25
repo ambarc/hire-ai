@@ -344,7 +344,7 @@ export default function ExecuteWorkflowPage() {
                             type: TaskType.WRITE_INSURANCE,
                             success: true,
                             data: {
-                                insurance: insurance.insurance ? insurance.insurance : [],
+                                insurance: insurance.insurance ? insurance.insurance : { name: '', policyNumber: '', groupNumber: '', memberId: '' },
                             }
                         },
                     });
@@ -393,7 +393,7 @@ export default function ExecuteWorkflowPage() {
                 setError(err instanceof Error ? err.message : 'Failed to load workflow');
                 setStatus('error');
             });
-    }, []);
+    }, [getWorkflow]);
 
     return (
         <div className="max-w-4xl mx-auto p-4 space-y-6">

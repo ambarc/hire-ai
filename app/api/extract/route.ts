@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
 
     // Create a prompt based on extraction type
     let prompt = '';
-    let completion: any;
+    let completion: OpenAI.Chat.Completions.ChatCompletion;
     switch (extractionType) {
       case 'medications':
         prompt = `Extract all medications from the following text. Include name, dosage, and frequency when available.
