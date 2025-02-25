@@ -23,32 +23,33 @@ interface ReadObesityIntakeFormData {
 }
 
 interface ReadObesityIntakeFormResult {
-    patientInfo?: {
-        name?: string;
-        dateOfBirth?: string;
-        height?: string;
-        weight?: string;
-        bmi?: string;
-        medicalHistory?: string[];
-        currentMedications?: string[];
-        allergies?: string[];
-        dietaryRestrictions?: string[];
-        exerciseRoutine?: {
-            frequency?: string;
-            type?: string;
-            duration?: string;
-        };
-        previousWeightLossAttempts?: {
-            method: string;
-            duration: string;
-            result: string;
-        }[];
-    };
-    formMetadata?: {
-        submissionDate?: string;
-        formVersion?: string;
-        completionStatus?: 'complete' | 'partial' | 'invalid';
-    };
+    rawText?: string;
+    // patientInfo?: {
+    //     name?: string;
+    //     dateOfBirth?: string;
+    //     height?: string;
+    //     weight?: string;
+    //     bmi?: string;
+    //     medicalHistory?: string[];
+    //     currentMedications?: string[];
+    //     allergies?: string[];
+    //     dietaryRestrictions?: string[];
+    //     exerciseRoutine?: {
+    //         frequency?: string;
+    //         type?: string;
+    //         duration?: string;
+    //     };
+    //     previousWeightLossAttempts?: {
+    //         method: string;
+    //         duration: string;
+    //         result: string;
+    //     }[];
+    // };
+    // formMetadata?: {
+    //     submissionDate?: string;
+    //     formVersion?: string;
+    //     completionStatus?: 'complete' | 'partial' | 'invalid';
+    // };
 }
 
 // VALIDATE_DATA types
@@ -74,7 +75,7 @@ interface WriteMedicationsInput {
 }
 
 interface WriteMedicationsResult {
-    medications: string[];
+    medications: Medication[];
 }
 
 // Discriminated unions for task inputs and outputs

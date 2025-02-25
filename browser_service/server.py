@@ -10,6 +10,8 @@ import os
 from browser_use import Agent, Browser, BrowserConfig
 from langchain_openai import ChatOpenAI
 from collections import deque
+import uuid
+import asyncio
 
 app = FastAPI()
 
@@ -27,6 +29,7 @@ class Command(BaseModel):
     """Command to be executed in a browser session"""
     prompt: str
     description: Optional[str] = None
+    id: Optional[str] = None
 
 class SessionCreate(BaseModel):
     command: Command = None
@@ -112,7 +115,6 @@ class BrowserSession:
         """Add a command to the session's queue"""
         try:
             self.command_queue.append(command)
-
             return True
         except Exception as e:
             self.error = f"Failed to add command: {str(e)}"
@@ -187,6 +189,7 @@ class BrowserSession:
             
             self.result = {
                 "status": "success",
+                "command_id": self.current_command.id,
                 "actions": actions,
                 "summary": summary,
             }
@@ -196,6 +199,7 @@ class BrowserSession:
             print("Debug: Updating command history")
             self.command_history.append({
                 "command": self.current_command.dict(),
+                "command_id": self.current_command.id,
                 "result": self.result,
                 "timestamp": datetime.now().isoformat()
             })
@@ -216,12 +220,14 @@ class BrowserSession:
             self.result = {
                 "status": "error",
                 "message": error_msg,
-                "command": self.current_command.dict() if self.current_command else None
+                "command": self.current_command.dict() if self.current_command else None,
+                "command_id": self.current_command.id if self.current_command else None
             }
             
             print(f"Debug: Error result: {self.result}")
             self.command_history.append({
                 "command": self.current_command.dict() if self.current_command else None,
+                "command_id": self.current_command.id if self.current_command else None,
                 "result": self.result,
                 "timestamp": datetime.now().isoformat()
             })
@@ -376,24 +382,29 @@ async def get_debug_ui():
 async def create_session(data: SessionCreate):
     """Create a new browser session"""
     try:
-        session_id = f"session_{len(sessions)}"
+        session_id = str(uuid.uuid4())
         browser_session = BrowserSession()
         await browser_session.start(session_id)
         sessions[session_id] = browser_session
         
         print("executing data" +  str(data))
-        # If initial prompt provided, create and execute command
+        # If initial prompt provided, add command to queue but don't wait for execution
+        command_id = None
         if data.command:
             print(f"Creating session with prompt: {data.command.prompt}")
             command = Command(prompt=data.command.prompt)
+            # Assign a UUID to the command
+            command.id = str(uuid.uuid4())
+            command_id = command.id
             await browser_session.add_command(command)
-            result = await browser_session.execute_next_command()
-        else:
-            result = {"status": "initialized"}
+            
+            # Start command execution in background without awaiting the result
+            asyncio.create_task(browser_session.execute_next_command())
         
         return {
             "session_id": session_id,
-            "status": result
+            "status": "initialized",
+            "command_id": command_id
         }
     except Exception as e:
         print("getting create session error" + str(e))
@@ -407,18 +418,20 @@ async def send_command(session_id: str, command: Command):
     
     browser_session = sessions[session_id]
     
-    # Add command to queue
-    success = await browser_session.add_command(command)
-    if not success:
-        raise HTTPException(status_code=500, detail="Failed to add command")
+    # Assign a UUID to the command if it doesn't have one
+    if not command.id:
+        command.id = str(uuid.uuid4())
     
-    # Execute command immediately
-    result = await browser_session.execute_next_command()
+    # Add command to queue
+    add_result = await browser_session.add_command(command)
+    
+    # Start command execution in background without awaiting the result
+    asyncio.create_task(browser_session.execute_next_command())
     
     return {
         "status": "success",
-        "command_result": result,
-        "session_state": browser_session.get_state()
+        "command_id": command.id,
+        "session_id": session_id
     }
 
 @app.get("/api/browser-agent/{session_id}/commands")
