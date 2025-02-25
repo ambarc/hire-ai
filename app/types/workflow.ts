@@ -1,3 +1,5 @@
+import { Medication } from './clinical';
+
 // Task status enum
 export enum TaskStatus {
     NOT_STARTED = 'NOT_STARTED',
@@ -9,7 +11,9 @@ export enum TaskStatus {
 // Task type enum
 export enum TaskType {
     READ_OBESITY_INTAKE_FORM = 'READ_OBESITY_INTAKE_FORM',
-    VALIDATE_DATA = 'VALIDATE_DATA',
+    VALIDATE_DATA = 'VALIDATE_DATA', // TODO(ambar): archive this.
+    WRITE_MEDICATIONS = 'WRITE_MEDICATIONS',
+    // INGEST_ALLERGIES = 'INGEST_ALLERGIES',
     // Add more task types here as needed
 }
 
@@ -19,32 +23,33 @@ interface ReadObesityIntakeFormData {
 }
 
 interface ReadObesityIntakeFormResult {
-    patientInfo?: {
-        name?: string;
-        dateOfBirth?: string;
-        height?: string;
-        weight?: string;
-        bmi?: string;
-        medicalHistory?: string[];
-        currentMedications?: string[];
-        allergies?: string[];
-        dietaryRestrictions?: string[];
-        exerciseRoutine?: {
-            frequency?: string;
-            type?: string;
-            duration?: string;
-        };
-        previousWeightLossAttempts?: {
-            method: string;
-            duration: string;
-            result: string;
-        }[];
-    };
-    formMetadata?: {
-        submissionDate?: string;
-        formVersion?: string;
-        completionStatus?: 'complete' | 'partial' | 'invalid';
-    };
+    rawText?: string;
+    // patientInfo?: {
+    //     name?: string;
+    //     dateOfBirth?: string;
+    //     height?: string;
+    //     weight?: string;
+    //     bmi?: string;
+    //     medicalHistory?: string[];
+    //     currentMedications?: string[];
+    //     allergies?: string[];
+    //     dietaryRestrictions?: string[];
+    //     exerciseRoutine?: {
+    //         frequency?: string;
+    //         type?: string;
+    //         duration?: string;
+    //     };
+    //     previousWeightLossAttempts?: {
+    //         method: string;
+    //         duration: string;
+    //         result: string;
+    //     }[];
+    // };
+    // formMetadata?: {
+    //     submissionDate?: string;
+    //     formVersion?: string;
+    //     completionStatus?: 'complete' | 'partial' | 'invalid';
+    // };
 }
 
 // VALIDATE_DATA types
@@ -56,6 +61,23 @@ interface ValidateDataResult {
     isValid: boolean;
 }
 
+interface WriteMedicationsInput {
+    source: {
+        type: 'APPLICATION_MEMORY' | 'BROWSER'; // TODO(ambar): add 'API'
+        applicationMemoryKey?: string;
+        browserLocation?: string;
+        medications?: Medication[];
+        path: string;
+    },
+    destination: {
+        type: 'ATHENA'
+    },
+}
+
+interface WriteMedicationsResult {
+    medications: Medication[];
+}
+
 // Discriminated unions for task inputs and outputs
 export type TaskInput = {
     type: TaskType.READ_OBESITY_INTAKE_FORM;
@@ -63,6 +85,9 @@ export type TaskInput = {
 } | {
     type: TaskType.VALIDATE_DATA;
     data: ValidateDataInput;
+} | {
+    type: TaskType.WRITE_MEDICATIONS;
+    data: WriteMedicationsInput;
 }
 
 export type TaskOutput = {
@@ -75,6 +100,11 @@ export type TaskOutput = {
     success: boolean;
     error?: string;
     data?: ValidateDataResult;
+} | {
+    type: TaskType.WRITE_MEDICATIONS;
+    success: boolean;
+    error?: string;
+    data?: WriteMedicationsResult;
 }
 
 // Task definition

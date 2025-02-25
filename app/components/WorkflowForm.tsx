@@ -13,14 +13,18 @@ export default function WorkflowForm({ initialWorkflow }: WorkflowFormProps) {
     const [error, setError] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
 
-    const [workflow, setWorkflow] = useState<Partial<Workflow>>(
-        initialWorkflow || {
+    const [workflow, setWorkflow] = useState<Partial<Workflow>>(() => ({
+        ...(initialWorkflow || {
+            id: crypto.randomUUID(),
             name: '',
             description: '',
             tasks: [],
-            metadata: {}
-        }
-    );
+            metadata: {},
+            status: TaskStatus.NOT_STARTED,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+        })
+    }));
 
     const [newTask, setNewTask] = useState<Partial<Task>>({
         type: TaskType.READ_OBESITY_INTAKE_FORM,
@@ -45,8 +49,21 @@ export default function WorkflowForm({ initialWorkflow }: WorkflowFormProps) {
             case TaskType.VALIDATE_DATA:
                 return {
                     type: TaskType.VALIDATE_DATA,
-                    data: { 
-                        validationFn: () => true
+                    data: { validationFn: () => true }
+                };
+            case TaskType.WRITE_MEDICATIONS:
+                return {
+                    type: TaskType.WRITE_MEDICATIONS,
+                    data: {
+                        source: {
+                            type: 'APPLICATION_MEMORY',
+                            applicationMemoryKey: '',
+                            path: '',
+                            medications: []
+                        },
+                        destination: {
+                            type: 'ATHENA'
+                        }
                     }
                 };
             default:
@@ -58,34 +75,45 @@ export default function WorkflowForm({ initialWorkflow }: WorkflowFormProps) {
     };
 
     const addTask = () => {
-        if (!newTask.type || !newTask.input || !newTask.description) return;
+        if (!newTask.type || !newTask.input || !newTask.description) {
+            setError('Please fill in all required fields');
+            return;
+        }
+
+        if (newTask.type === TaskType.WRITE_MEDICATIONS && !newTask.description.trim()) {
+            setError('Description is required for medication tasks');
+            return;
+        }
 
         const task: Task = {
             id: crypto.randomUUID(),
             type: newTask.type,
             description: newTask.description,
             status: TaskStatus.NOT_STARTED,
-            input: newTask.input as TaskInput,
+            input: newTask.input,
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString()
         };
 
-        setWorkflow(prev => ({
-            ...prev,
-            tasks: [...(prev.tasks || []), task]
-        }));
+        setWorkflow(prev => {
+            const updatedTasks = [...(prev.tasks || []), task];
+            return {
+                ...prev,
+                tasks: updatedTasks,
+                status: TaskStatus.NOT_STARTED,
+                updatedAt: new Date().toISOString()
+            };
+        });
 
+        setError(null);
         // Reset new task form
         setNewTask({
             type: TaskType.READ_OBESITY_INTAKE_FORM,
             description: '',
-            input: {
-                type: TaskType.READ_OBESITY_INTAKE_FORM,
-                data: {
-                    url: '',
-                }
-            }
+            input: getDefaultInputForTaskType(TaskType.READ_OBESITY_INTAKE_FORM)
         });
+        
+        setShowTaskForm(false);
     };
 
     const removeTask = (taskId: string) => {
@@ -169,6 +197,95 @@ export default function WorkflowForm({ initialWorkflow }: WorkflowFormProps) {
                     </div>
                 );
             
+            case TaskType.WRITE_MEDICATIONS:
+                const writeMedicationsInput = input.type === TaskType.WRITE_MEDICATIONS ? input.data : null;
+                if (!writeMedicationsInput) return null;
+
+                return (
+                    <div className="space-y-3">
+                        <div>
+                            <label className="block text-sm text-gray-700">Source Type</label>
+                            <select
+                                value={writeMedicationsInput.source.type}
+                                onChange={e => onChange({
+                                    type: TaskType.WRITE_MEDICATIONS,
+                                    data: {
+                                        source: {
+                                            ...writeMedicationsInput.source,
+                                            type: e.target.value as 'APPLICATION_MEMORY' | 'BROWSER'
+                                        },
+                                        destination: {
+                                            type: 'ATHENA'
+                                        }
+                                    }
+                                })}
+                                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
+                            >
+                                <option value="APPLICATION_MEMORY">Application Memory</option>
+                                <option value="BROWSER">Browser</option>
+                            </select>
+                        </div>
+
+                        {writeMedicationsInput.source.type === 'APPLICATION_MEMORY' && (
+                            <div>
+                                <label className="block text-sm text-gray-700">Application Memory Key</label>
+                                <input
+                                    type="text"
+                                    value={writeMedicationsInput.source.applicationMemoryKey || ''}
+                                    onChange={e => onChange({
+                                        type: TaskType.WRITE_MEDICATIONS,
+                                        data: {
+                                            source: {
+                                                ...writeMedicationsInput.source,
+                                                applicationMemoryKey: e.target.value
+                                            },
+                                            destination: {
+                                                type: 'ATHENA'
+                                            }
+                                        }
+                                    })}
+                                    className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
+                                    placeholder="Enter memory key..."
+                                />
+                            </div>
+                        )}
+
+                        {writeMedicationsInput.source.type === 'BROWSER' && (
+                            <div>
+                                <label className="block text-sm text-gray-700">Browser Location</label>
+                                <input
+                                    type="text"
+                                    value={writeMedicationsInput.source.browserLocation || ''}
+                                    onChange={e => onChange({
+                                        type: TaskType.WRITE_MEDICATIONS,
+                                        data: {
+                                            source: {
+                                                ...writeMedicationsInput.source,
+                                                browserLocation: e.target.value
+                                            },
+                                            destination: {
+                                                type: 'ATHENA'
+                                            }
+                                        }
+                                    })}
+                                    className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
+                                    placeholder="Enter browser location..."
+                                />
+                            </div>
+                        )}
+
+                        <div>
+                            <label className="block text-sm text-gray-700">Destination Type</label>
+                            <input
+                                type="text"
+                                value="ATHENA"
+                                disabled
+                                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 bg-gray-50"
+                            />
+                        </div>
+                    </div>
+                );
+            
             default:
                 return <div>Unsupported task type</div>;
         }
@@ -190,7 +307,23 @@ export default function WorkflowForm({ initialWorkflow }: WorkflowFormProps) {
                         Validation task
                     </p>
                 );
+            
+            case TaskType.WRITE_MEDICATIONS:
+                const writeMedTask = task.input.type === TaskType.WRITE_MEDICATIONS ? task.input.data : null;
+                if (!writeMedTask) return null;
                 
+                return (
+                    <div className="text-sm text-gray-600">
+                        <p>Source Type: {writeMedTask.source.type}</p>
+                        {writeMedTask.source.type === 'APPLICATION_MEMORY' ? (
+                            <p>Memory Key: {writeMedTask.source.applicationMemoryKey}</p>
+                        ) : (
+                            <p>Browser Location: {writeMedTask.source.browserLocation}</p>
+                        )}
+                        <p>Destination: {writeMedTask.destination.type}</p>
+                    </div>
+                );
+            
             default:
                 return <p className="text-sm text-gray-600">Unsupported task type</p>;
         }
@@ -308,18 +441,36 @@ export default function WorkflowForm({ initialWorkflow }: WorkflowFormProps) {
                                     </div>
                                     
                                     <div>
-                                        <label className="block text-sm text-gray-700">Task Description</label>
+                                        <label className="block text-sm text-gray-700">
+                                            Task Description
+                                            {newTask.type === TaskType.WRITE_MEDICATIONS && (
+                                                <span className="text-red-500 ml-1">*</span>
+                                            )}
+                                        </label>
                                         <textarea
                                             value={newTask.description || ''}
                                             onChange={e => setNewTask(prev => ({
                                                 ...prev,
                                                 description: e.target.value
                                             }))}
-                                            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
+                                            className={`mt-1 block w-full rounded-md border px-3 py-2 ${
+                                                newTask.type === TaskType.WRITE_MEDICATIONS && !newTask.description
+                                                    ? 'border-red-300 focus:border-red-500 focus:ring-red-500'
+                                                    : 'border-gray-300 focus:border-indigo-500 focus:ring-indigo-500'
+                                            }`}
                                             rows={2}
-                                            placeholder="Describe the purpose of this task..."
-                                            required
+                                            placeholder={
+                                                newTask.type === TaskType.WRITE_MEDICATIONS
+                                                    ? "Describe the medications to be written (required)..."
+                                                    : "Describe the purpose of this task..."
+                                            }
+                                            required={newTask.type === TaskType.WRITE_MEDICATIONS}
                                         />
+                                        {newTask.type === TaskType.WRITE_MEDICATIONS && !newTask.description && (
+                                            <p className="mt-1 text-sm text-red-600">
+                                                Description is required for medication tasks
+                                            </p>
+                                        )}
                                     </div>
 
                                     <TaskInputForm
