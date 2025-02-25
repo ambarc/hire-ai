@@ -8,6 +8,7 @@ export enum TaskStatus {
     FAILED = 'FAILED',
 }
 
+// TODO(ambar): adding a new task, viewing it, and executing it should be O(1) build time.
 // TODO(ambar): what's a good way to take task inputs from prior outputs?
 
 // Task type enum
@@ -18,7 +19,7 @@ export enum TaskType {
     WRITE_MEDICATIONS = 'WRITE_MEDICATIONS',
     WRITE_ALLERGIES = 'WRITE_ALLERGIES',
     WRITE_INSURANCE = 'WRITE_INSURANCE',
-    WRITE_TO_ATHENA_BROWSER = 'WRITE_TO_ATHENA_BROWSER',
+    WRITE_TO_ATHENA = 'WRITE_TO_ATHENA',
     // Add more task types here as needed
 }
 
@@ -115,7 +116,7 @@ export type TaskInput = {
     type: TaskType.WRITE_INSURANCE;
     data: WriteInsuranceInput;
 } | {
-    type: TaskType.WRITE_TO_ATHENA_BROWSER;
+    type: TaskType.WRITE_TO_ATHENA;
     data: WriteToAthenaBrowserInput;
 }
 
@@ -145,7 +146,7 @@ export type TaskOutput = {
     error?: string;
     data?: WriteInsuranceResult;
 } | {
-    type: TaskType.WRITE_TO_ATHENA_BROWSER;
+    type: TaskType.WRITE_TO_ATHENA;
     success: boolean;
     error?: string;
     data?: WriteToAthenaBrowserResult;

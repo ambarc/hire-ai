@@ -166,7 +166,7 @@ export default function ExecuteWorkflowPage() {
                     let commandResult = null;
                     
                     while (attempts < maxAttempts) {
-                        await new Promise(resolve => setTimeout(resolve, 2000)); // Poll every 2 seconds
+                        await new Promise(resolve => setTimeout(resolve, 5000)); // Poll every 5 seconds
                         
                         const stateResponse = await fetch(`/api/browser-agent/${sessionId}/state`);
                         
@@ -369,7 +369,7 @@ export default function ExecuteWorkflowPage() {
                     break;
                 }
 
-                case TaskType.WRITE_TO_ATHENA_BROWSER: {
+                case TaskType.WRITE_TO_ATHENA: {
 
                     const mockMeds: Medication[] = [
                         {
@@ -410,9 +410,9 @@ export default function ExecuteWorkflowPage() {
                     const useMeds = mockMeds; 
                     const useAllergies = mockAllergies;
                 
-                    const writeToAthenaBrowserInput = task.input.type === TaskType.WRITE_TO_ATHENA_BROWSER ? task.input.data : null;
+                    const writeToAthenaBrowserInput = task.input.type === TaskType.WRITE_TO_ATHENA ? task.input.data : null;
                     if (!writeToAthenaBrowserInput) {
-                        throw new Error('Invalid input for WRITE_TO_ATHENA_BROWSER task');
+                        throw new Error('Invalid input for WRITE_TO_ATHENA task');
                     }
 
                     // Construct the browser prompt based on the field
@@ -422,11 +422,7 @@ export default function ExecuteWorkflowPage() {
                     if (writeToAthenaBrowserInput.field === 'medications' && useMeds.length > 0) {
                         additionalData = JSON.stringify(useMeds);
                         browserPrompt = `go to localhost:8000, search for james smith, and go to his profile. once there, save the following medications to the medications form, one at a time: ${additionalData}`;
-                    } else {
-                        throw new Error(`Unsupported field type: ${writeToAthenaBrowserInput.field}`);
-                    }
-
-                    if (writeToAthenaBrowserInput.field === 'allergies' && useAllergies.length > 0) {
+                    } else if (writeToAthenaBrowserInput.field === 'allergies' && useAllergies.length > 0) {
                         additionalData = JSON.stringify(useAllergies);
                         browserPrompt = `go to localhost:8000, search for james smith, and go to his profile. once there, save the following allergies to the allergies form, one at a time: ${additionalData}`;
                     } else {
@@ -513,7 +509,7 @@ export default function ExecuteWorkflowPage() {
                     await updateTask(task.id, {
                         status: TaskStatus.COMPLETED,
                         output: {
-                            type: TaskType.WRITE_TO_ATHENA_BROWSER,
+                            type: TaskType.WRITE_TO_ATHENA,
                             success: true,
                             data: {
                                 success: true
@@ -584,8 +580,8 @@ export default function ExecuteWorkflowPage() {
                     );
                 }
                 return <p className="mt-2 text-sm text-gray-600">No input details available</p>;
-            case TaskType.WRITE_TO_ATHENA_BROWSER: {
-                const writeToAthenaBrowserInput = task.input.type === TaskType.WRITE_TO_ATHENA_BROWSER ? task.input.data : null;
+            case TaskType.WRITE_TO_ATHENA: {
+                const writeToAthenaBrowserInput = task.input.type === TaskType.WRITE_TO_ATHENA ? task.input.data : null;
                 if (!writeToAthenaBrowserInput) {
                     return <p className="mt-2 text-sm text-gray-600">No input details available</p>;
                 }
@@ -690,7 +686,7 @@ export default function ExecuteWorkflowPage() {
                         )}
                     </div>
                 );
-            case TaskType.WRITE_TO_ATHENA_BROWSER:
+            case TaskType.WRITE_TO_ATHENA:
                 return (
                     <div className="mt-2">
                         <p className="font-medium text-sm text-gray-700">Status: {task.output.success ? 'Success' : 'Failed'}</p>

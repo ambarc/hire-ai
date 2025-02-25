@@ -93,9 +93,9 @@ export default function WorkflowForm({ initialWorkflow }: WorkflowFormProps) {
                         },
                     }
                 };
-            case TaskType.WRITE_TO_ATHENA_BROWSER:
+            case TaskType.WRITE_TO_ATHENA:
                 return {
-                    type: TaskType.WRITE_TO_ATHENA_BROWSER,
+                    type: TaskType.WRITE_TO_ATHENA,
                     data: {
                         field: '',
                         prompt: '',
@@ -120,15 +120,15 @@ export default function WorkflowForm({ initialWorkflow }: WorkflowFormProps) {
             return;
         }
 
-        if(newTask.type === TaskType.WRITE_TO_ATHENA_BROWSER && 
-           newTask.input?.type === TaskType.WRITE_TO_ATHENA_BROWSER && 
+        if(newTask.type === TaskType.WRITE_TO_ATHENA && 
+           newTask.input?.type === TaskType.WRITE_TO_ATHENA && 
            !newTask.input.data.prompt.trim()) {
             setError('A prompt is required for write to athena browser tasks');
             return;
         }
 
-        if(newTask.type === TaskType.WRITE_TO_ATHENA_BROWSER && 
-           newTask.input?.type === TaskType.WRITE_TO_ATHENA_BROWSER && 
+        if(newTask.type === TaskType.WRITE_TO_ATHENA && 
+           newTask.input?.type === TaskType.WRITE_TO_ATHENA && 
            !newTask.input.data.field.trim()) {
             setError('A field is required for write to athena browser tasks');
             return; 
@@ -513,8 +513,8 @@ export default function WorkflowForm({ initialWorkflow }: WorkflowFormProps) {
                         </div>
                 ); 
             
-            case TaskType.WRITE_TO_ATHENA_BROWSER:
-                const writeToAthenaBrowserInput = input.type === TaskType.WRITE_TO_ATHENA_BROWSER ? input.data : null;
+            case TaskType.WRITE_TO_ATHENA:
+                const writeToAthenaBrowserInput = input.type === TaskType.WRITE_TO_ATHENA ? input.data : null;
                 if (!writeToAthenaBrowserInput) return null;
 
                 return (
@@ -525,7 +525,7 @@ export default function WorkflowForm({ initialWorkflow }: WorkflowFormProps) {
                                 type="text"
                                 value={writeToAthenaBrowserInput.field}
                                 onChange={e => onChange({
-                                    type: TaskType.WRITE_TO_ATHENA_BROWSER,
+                                    type: TaskType.WRITE_TO_ATHENA,
                                     data: {
                                         field: e.target.value,
                                         prompt: writeToAthenaBrowserInput.prompt
@@ -539,7 +539,7 @@ export default function WorkflowForm({ initialWorkflow }: WorkflowFormProps) {
                             <textarea
                                 value={writeToAthenaBrowserInput.prompt}
                                 onChange={e => onChange({
-                                    type: TaskType.WRITE_TO_ATHENA_BROWSER,
+                                    type: TaskType.WRITE_TO_ATHENA,
                                     data: {
                                         field: writeToAthenaBrowserInput.field,
                                         prompt: e.target.value
@@ -622,8 +622,8 @@ export default function WorkflowForm({ initialWorkflow }: WorkflowFormProps) {
                     </div>
                 );
             
-            case TaskType.WRITE_TO_ATHENA_BROWSER:
-                const writeToAthenaBrowserTask = task.input.type === TaskType.WRITE_TO_ATHENA_BROWSER ? task.input.data : null;
+            case TaskType.WRITE_TO_ATHENA:
+                const writeToAthenaBrowserTask = task.input.type === TaskType.WRITE_TO_ATHENA ? task.input.data : null;
                 if (!writeToAthenaBrowserTask) return null;
 
                 return (
