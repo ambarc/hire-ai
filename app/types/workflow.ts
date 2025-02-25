@@ -8,13 +8,17 @@ export enum TaskStatus {
     FAILED = 'FAILED',
 }
 
+// TODO(ambar): what's a good way to take task inputs from prior outputs?
+
 // Task type enum
 export enum TaskType {
     READ_OBESITY_INTAKE_FORM = 'READ_OBESITY_INTAKE_FORM',
     VALIDATE_DATA = 'VALIDATE_DATA', // TODO(ambar): archive this.
+    // TODO(ambar): figure out normalization / denormalization for extract vs write tasks.
     WRITE_MEDICATIONS = 'WRITE_MEDICATIONS',
     WRITE_ALLERGIES = 'WRITE_ALLERGIES',
     WRITE_INSURANCE = 'WRITE_INSURANCE',
+    WRITE_TO_ATHENA_BROWSER = 'WRITE_TO_ATHENA_BROWSER',
     // Add more task types here as needed
 }
 
@@ -80,10 +84,20 @@ interface WriteInsuranceInput {
     }
 }
 
+// TODO(ambar): there's a more generic browser task template that we should extract.
+
 interface WriteInsuranceResult {
     insurance: Insurance;
 }
 
+interface WriteToAthenaBrowserInput {
+    field: string;
+    prompt: string;
+}
+
+interface WriteToAthenaBrowserResult {
+    success: boolean;
+}
 // Discriminated unions for task inputs and outputs
 export type TaskInput = {
     type: TaskType.READ_OBESITY_INTAKE_FORM;
@@ -100,6 +114,9 @@ export type TaskInput = {
 } | {
     type: TaskType.WRITE_INSURANCE;
     data: WriteInsuranceInput;
+} | {
+    type: TaskType.WRITE_TO_ATHENA_BROWSER;
+    data: WriteToAthenaBrowserInput;
 }
 
 export type TaskOutput = {
@@ -127,6 +144,11 @@ export type TaskOutput = {
     success: boolean;
     error?: string;
     data?: WriteInsuranceResult;
+} | {
+    type: TaskType.WRITE_TO_ATHENA_BROWSER;
+    success: boolean;
+    error?: string;
+    data?: WriteToAthenaBrowserResult;
 }
 
 // Task definition
