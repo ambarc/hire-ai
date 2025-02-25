@@ -52,9 +52,12 @@ export async function PATCH(
         const updates: Partial<Task> = await request.json();
         const store = WorkflowStore.getInstance();
         
+        // Ensure params is properly awaited
+        const { id, taskId } = params;
+        
         const updatedWorkflow = await store.updateWorkflowTask(
-            params.id,
-            params.taskId,
+            id,
+            taskId,
             updates
         );
 

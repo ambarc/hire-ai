@@ -11,6 +11,7 @@ from browser_use import Agent, Browser, BrowserConfig
 from langchain_openai import ChatOpenAI
 from collections import deque
 import uuid
+import asyncio
 
 app = FastAPI()
 
@@ -387,21 +388,23 @@ async def create_session(data: SessionCreate):
         sessions[session_id] = browser_session
         
         print("executing data" +  str(data))
-        # If initial prompt provided, create and execute command
+        # If initial prompt provided, add command to queue but don't wait for execution
+        command_id = None
         if data.command:
             print(f"Creating session with prompt: {data.command.prompt}")
             command = Command(prompt=data.command.prompt)
             # Assign a UUID to the command
             command.id = str(uuid.uuid4())
+            command_id = command.id
             await browser_session.add_command(command)
-            result = await browser_session.execute_next_command()
-        else:
-            result = {"status": "initialized"}
+            
+            # Start command execution in background without awaiting the result
+            asyncio.create_task(browser_session.execute_next_command())
         
         return {
             "session_id": session_id,
-            "status": result,
-            "command_id": command.id if data.command else None
+            "status": "initialized",
+            "command_id": command_id
         }
     except Exception as e:
         print("getting create session error" + str(e))
@@ -422,14 +425,13 @@ async def send_command(session_id: str, command: Command):
     # Add command to queue
     add_result = await browser_session.add_command(command)
     
-    # Execute command immediately
-    exec_result = await browser_session.execute_next_command()
+    # Start command execution in background without awaiting the result
+    asyncio.create_task(browser_session.execute_next_command())
     
     return {
         "status": "success",
         "command_id": command.id,
-        "command_result": exec_result,
-        "session_state": browser_session.get_state()
+        "session_id": session_id
     }
 
 @app.get("/api/browser-agent/{session_id}/commands")

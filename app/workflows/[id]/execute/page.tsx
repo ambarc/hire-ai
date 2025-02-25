@@ -66,7 +66,7 @@ const worker: Worker = {
                           const browserPrompt = "Go to localhost:8000/ingest and scroll well through the page. Return the text from the page.";
                           
                           // Send command to browser service - using correct API endpoint
-                          const commandResponse = await fetch('http://localhost:3001/api/browser-agent/session', {
+                          const commandResponse = await fetch('/api/browser-agent/session', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ 
@@ -94,7 +94,7 @@ const worker: Worker = {
                           while (attempts < maxAttempts) {
                             await new Promise(resolve => setTimeout(resolve, 2000)); // Poll every 2 seconds
                             
-                            const stateResponse = await fetch(`http://localhost:3001/api/browser-agent/${sessionId}/state`);
+                            const stateResponse = await fetch(`/api/browser-agent/${sessionId}/state`);
                             
                             if (!stateResponse.ok) {
                               throw new Error(`Failed to get session state: ${stateResponse.statusText}`);
@@ -255,20 +255,118 @@ export default function ExecuteWorkflowPage() {
             switch (task.type) {
                 case TaskType.READ_OBESITY_INTAKE_FORM:
                     console.log('Starting READ_OBESITY_INTAKE_FORM execution');
-                    console.log('Preparing browser prompt');
-                    const browserPrompt = "Go to localhost:8000/ingest and scroll well through the page. Return the text from the page.";
+                    
+                    // Define browser prompt - use the one from the curl example
+                    const browserPrompt = "go to localhost:8000/ingest and scroll well through the page. Return the text from the page.";
                     console.log('Browser prompt:', browserPrompt);
                     
+                    // Send command to browser service
                     console.log('Sending request to browser agent API');
-                    console.log('API endpoint: http://localhost:3001/api/browser-agent/session');
-                    console.log('Request payload:', JSON.stringify({ 
-                        command: {
-                            prompt: browserPrompt
-                        }
-                    }, null, 2));
+                    const commandResponse = await fetch('/api/browser-agent/session', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            command: {
+                                prompt: browserPrompt
+                            }
+                        }),
+                    });
                     
-                    // Add more execution logic here...
-                    console.log('READ_OBESITY_INTAKE_FORM execution completed');
+                    if (!commandResponse.ok) {
+                        throw new Error(`Failed to send browser command: ${commandResponse.statusText}`);
+                    }
+                    
+                    const commandData = await commandResponse.json();
+                    console.log('Command response:', commandData);
+                    
+                    const sessionId = commandData.session_id;
+                    const commandId = commandData.command_id;
+                    
+                    if (!sessionId || !commandId) {
+                        throw new Error('Invalid response from browser service: missing session_id or command_id');
+                    }
+                    
+                    console.log(`Browser session created with ID: ${sessionId}, command ID: ${commandId}`);
+                    
+                    // Poll for command completion
+                    console.log('Starting to poll for command completion');
+                    const maxAttempts = 30; // Prevent infinite polling
+                    let attempts = 0;
+                    let commandResult = null;
+                    
+                    while (attempts < maxAttempts) {
+                        console.log(`Polling attempt ${attempts + 1}/${maxAttempts}`);
+                        await new Promise(resolve => setTimeout(resolve, 2000)); // Poll every 2 seconds
+                        
+                        const stateResponse = await fetch(`/api/browser-agent/${sessionId}/state`);
+                        
+                        if (!stateResponse.ok) {
+                            throw new Error(`Failed to get session state: ${stateResponse.statusText}`);
+                        }
+                        
+                        const stateData = await stateResponse.json();
+                        console.log('Current session state:', stateData);
+                        
+                        // Check if the command has completed
+                        const commandHistory = stateData.command_history || [];
+                        const completedCommand = commandHistory.find(cmd => 
+                            cmd.command_id === commandId && 
+                            cmd.result && 
+                            cmd.result.status === 'success'
+                        );
+                        
+                        if (completedCommand) {
+                            console.log('Command completed successfully');
+                            commandResult = completedCommand.result;
+                            break;
+                        }
+                        
+                        // Check if the command failed
+                        const failedCommand = commandHistory.find(cmd => 
+                            cmd.command_id === commandId && 
+                            cmd.result && 
+                            cmd.result.status === 'error'
+                        );
+                        
+                        if (failedCommand) {
+                            throw new Error(`Browser command failed: ${failedCommand.result.message || 'Unknown error'}`);
+                        }
+                        
+                        // If the session is in error state, throw an error
+                        if (stateData.status === 'error') {
+                            throw new Error(`Browser session in error state: ${stateData.error || 'Unknown error'}`);
+                        }
+                        
+                        attempts++;
+                    }
+                    
+                    if (!commandResult) {
+                        throw new Error('Browser command timed out after multiple attempts');
+                    }
+                    
+                    console.log('Command result:', commandResult);
+                    
+                    // Extract the text from the command result
+                    const extractedText = commandResult.summary || '';
+                    
+                    // Create task output with the extracted text
+                    const taskOutput: TaskOutput = {
+                        type: TaskType.READ_OBESITY_INTAKE_FORM,
+                        success: true,
+                        data: {
+                            rawText: extractedText
+                        }
+                    };
+                    
+                    console.log('Task output:', taskOutput);
+                    
+                    // Update task with the output
+                    await updateTask(task.id, {
+                        status: TaskStatus.COMPLETED,
+                        output: taskOutput
+                    });
+                    
+                    console.log('READ_OBESITY_INTAKE_FORM task completed successfully');
                     break;
                     
                 case TaskType.VALIDATE_DATA:

@@ -24,32 +24,32 @@ interface ReadObesityIntakeFormData {
 
 interface ReadObesityIntakeFormResult {
     rawText?: string;
-    patientInfo?: {
-        name?: string;
-        dateOfBirth?: string;
-        height?: string;
-        weight?: string;
-        bmi?: string;
-        medicalHistory?: string[];
-        currentMedications?: string[];
-        allergies?: string[];
-        dietaryRestrictions?: string[];
-        exerciseRoutine?: {
-            frequency?: string;
-            type?: string;
-            duration?: string;
-        };
-        previousWeightLossAttempts?: {
-            method: string;
-            duration: string;
-            result: string;
-        }[];
-    };
-    formMetadata?: {
-        submissionDate?: string;
-        formVersion?: string;
-        completionStatus?: 'complete' | 'partial' | 'invalid';
-    };
+    // patientInfo?: {
+    //     name?: string;
+    //     dateOfBirth?: string;
+    //     height?: string;
+    //     weight?: string;
+    //     bmi?: string;
+    //     medicalHistory?: string[];
+    //     currentMedications?: string[];
+    //     allergies?: string[];
+    //     dietaryRestrictions?: string[];
+    //     exerciseRoutine?: {
+    //         frequency?: string;
+    //         type?: string;
+    //         duration?: string;
+    //     };
+    //     previousWeightLossAttempts?: {
+    //         method: string;
+    //         duration: string;
+    //         result: string;
+    //     }[];
+    // };
+    // formMetadata?: {
+    //     submissionDate?: string;
+    //     formVersion?: string;
+    //     completionStatus?: 'complete' | 'partial' | 'invalid';
+    // };
 }
 
 // VALIDATE_DATA types
