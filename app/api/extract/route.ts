@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import dotenv from 'dotenv';
-import { Medication } from '../../types/clinical'; 
 
 // Load environment variables from .env file
 dotenv.config();
