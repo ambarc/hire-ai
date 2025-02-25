@@ -1,5 +1,10 @@
 import { Medication, Allergy, Insurance } from './clinical';
 
+// TODO(ambar): adding a new task, viewing it, and executing it should be O(1) build time.
+// TODO(ambar): what's a good way to take task inputs from prior outputs?
+// TODO(ambar): there's a more generic browser task template that we should extract.
+// TODO(ambar): figure out normalization / denormalization for extract vs write tasks.
+
 // Task status enum
 export enum TaskStatus {
     NOT_STARTED = 'NOT_STARTED',
@@ -7,9 +12,6 @@ export enum TaskStatus {
     COMPLETED = 'COMPLETED',
     FAILED = 'FAILED',
 }
-
-// TODO(ambar): adding a new task, viewing it, and executing it should be O(1) build time.
-// TODO(ambar): what's a good way to take task inputs from prior outputs?
 
 // Task type enum
 export enum TaskType {
@@ -84,8 +86,6 @@ interface WriteInsuranceInput {
         type: 'ATHENA'
     }
 }
-
-// TODO(ambar): there's a more generic browser task template that we should extract.
 
 interface WriteInsuranceResult {
     insurance: Insurance;
