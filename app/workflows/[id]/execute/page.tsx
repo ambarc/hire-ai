@@ -22,21 +22,6 @@ const worker: Worker = {
                 // await updateTask(task.id, { status: TaskStatus.IN_PROGRESS });
 
                 switch (task.type) {
-                    case TaskType.READ_OBESITY_INTAKE:
-                        log('Reading obesity intake form...');
-                        await new Promise(resolve => setTimeout(resolve, 2000));
-                        await updateTask(task.id, {
-                            status: TaskStatus.COMPLETED,
-                            output: {
-                                patientData: {
-                                    height: 170,
-                                    weight: 70,
-                                    bmi: 24.2
-                                }
-                            }
-                        });
-                        break;
-
                     case TaskType.VALIDATE_DATA:
                         log('Validating data...');
                         await new Promise(resolve => setTimeout(resolve, 1500));
@@ -55,10 +40,120 @@ const worker: Worker = {
                         await updateTask(task.id, {
                             status: TaskStatus.COMPLETED,
                             output: {
-                                success: true,
                                 recordId: 'MED-123'
                             }
                         });
+                        break;
+
+                    case TaskType.READ_OBESITY_INTAKE_FORM:
+                        console.log('Executing READ_OBESITY_INTAKE_FORM task');
+                        
+                        try {
+                          // Find the task index in the workflow tasks array
+                          const taskIndex = workflow.tasks.findIndex((t: Task) => t.id === task.id);
+                          if (taskIndex === -1) {
+                            throw new Error(`Task with ID ${task.id} not found in workflow`);
+                          }
+                          
+                          // Set task status to in progress
+                          workflow.tasks[taskIndex].status = TaskStatus.IN_PROGRESS;
+                          console.log('Setting task status to IN_PROGRESS for task', task);
+                          await updateTask(task.id, {
+                            status: TaskStatus.IN_PROGRESS,
+                          });
+                          
+                          // Define browser prompt
+                          const browserPrompt = "Go to localhost:8000/ingest and scroll well through the page. Return the text from the page.";
+                          
+                          // Send command to browser service - using correct API endpoint
+                          const commandResponse = await fetch('http://localhost:3001/api/browser-agent/session', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ 
+                              command: {
+                                prompt: browserPrompt
+                              }
+                            }),
+                          });
+                          
+                          if (!commandResponse.ok) {
+                            throw new Error(`Failed to send browser command: ${commandResponse.statusText}`);
+                          }
+                          
+                          const commandData = await commandResponse.json();
+                          const sessionId = commandData.session_id;
+                          const commandId = commandData.command_id;
+                          
+                          console.log(`Browser session created with ID: ${sessionId}, command ID: ${commandId}`);
+                          
+                          // Poll for command completion
+                          const maxAttempts = 30; // Prevent infinite polling
+                          let attempts = 0;
+                          let sessionState = null;
+                          
+                          while (attempts < maxAttempts) {
+                            await new Promise(resolve => setTimeout(resolve, 2000)); // Poll every 2 seconds
+                            
+                            const stateResponse = await fetch(`http://localhost:3001/api/browser-agent/${sessionId}/state`);
+                            
+                            if (!stateResponse.ok) {
+                              throw new Error(`Failed to get session state: ${stateResponse.statusText}`);
+                            }
+                            
+                            const stateData = await stateResponse.json();
+                            
+                            if (stateData.status !== 'running') {
+                              sessionState = stateData;
+                              break;
+                            }
+                            
+                            attempts++;
+                          }
+                          
+                          if (!sessionState) {
+                            throw new Error('Browser command timed out after multiple attempts');
+                          }
+                          
+                          // Store the entire session state in the rawText field
+                          const taskOutput: TaskOutput = {
+                            type: TaskType.READ_OBESITY_INTAKE_FORM,
+                            data: {
+                              rawText: JSON.stringify(sessionState),
+                            },
+                          };
+                          
+                          workflow.tasks[taskIndex].output = taskOutput;
+                          workflow.tasks[taskIndex].status = TaskStatus.COMPLETED;
+                          await updateTask(task.id, {
+                            status: TaskStatus.COMPLETED,
+                            output: taskOutput,
+                          });
+                          
+                          console.log('READ_OBESITY_INTAKE_FORM task completed successfully');
+                        } catch (error) {
+                          console.error('Error executing READ_OBESITY_INTAKE_FORM task:', error);
+                          
+                          // Find the task index in the workflow tasks array
+                          const taskIndex = workflow.tasks.findIndex(t => t.id === task.id);
+                          if (taskIndex !== -1) {
+                            workflow.tasks[taskIndex].output = {
+                              type: TaskType.READ_OBESITY_INTAKE_FORM,
+                              success: false,
+                              error: error instanceof Error ? error.message : String(error),
+                            };
+                            workflow.tasks[taskIndex].status = TaskStatus.FAILED;
+                          }
+                          
+                          await updateTask(task.id, {
+                            status: TaskStatus.FAILED,
+                            output: {
+                              type: TaskType.READ_OBESITY_INTAKE_FORM,
+                              success: false,
+                              error: error instanceof Error ? error.message : String(error),
+                            },
+                          });
+                        }
+                        
                         break;
 
                     default:
@@ -142,20 +237,99 @@ export default function ExecuteWorkflowPage() {
     }, [workflow, params.id]);
 
     const executeTask = async (task: Task) => {
-        console.log('Executing task:', task);
+        console.log('==============================');
+        console.log('TASK EXECUTION STARTED:', task.id);
+        console.log('Task details:', JSON.stringify(task, null, 2));
+        console.log('Current task status:', task.status);
+        console.log('Task type:', task.type);
+        console.log('Task input:', JSON.stringify(task.input, null, 2));
         
-        switch (task.type) {
-            case TaskType.READ_OBESITY_INTAKE_FORM:
-                console.log('Executing READ_OBESITY_INTAKE_FORM task');
-                break;
-            case TaskType.VALIDATE_DATA:
-                console.log('Executing VALIDATE_DATA task');
-                break;
-            case TaskType.WRITE_MEDICATIONS:
-                console.log('Executing WRITE_MEDICATIONS task');
-                break;
-            default:
-                console.error(`Unknown task type: ${task.type}`);
+        try {
+            console.log('Preparing to execute task type:', task.type);
+            
+            // Update task status to in progress
+            console.log('Updating task status to IN_PROGRESS');
+            await updateTask(task.id, { status: TaskStatus.IN_PROGRESS });
+            console.log('Task status updated successfully');
+            
+            switch (task.type) {
+                case TaskType.READ_OBESITY_INTAKE_FORM:
+                    console.log('Starting READ_OBESITY_INTAKE_FORM execution');
+                    console.log('Preparing browser prompt');
+                    const browserPrompt = "Go to localhost:8000/ingest and scroll well through the page. Return the text from the page.";
+                    console.log('Browser prompt:', browserPrompt);
+                    
+                    console.log('Sending request to browser agent API');
+                    console.log('API endpoint: http://localhost:3001/api/browser-agent/session');
+                    console.log('Request payload:', JSON.stringify({ 
+                        command: {
+                            prompt: browserPrompt
+                        }
+                    }, null, 2));
+                    
+                    // Add more execution logic here...
+                    console.log('READ_OBESITY_INTAKE_FORM execution completed');
+                    break;
+                    
+                case TaskType.VALIDATE_DATA:
+                    console.log('Starting VALIDATE_DATA execution');
+                    console.log('Validation input:', JSON.stringify(task.input, null, 2));
+                    console.log('Running validation checks...');
+                    // Add mock validation logic
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                    console.log('Validation complete');
+                    
+                    console.log('Preparing validation results');
+                    const validationResult = { isValid: true, validatedData: task.input };
+                    console.log('Validation result:', JSON.stringify(validationResult, null, 2));
+                    
+                    console.log('Updating task with validation results');
+                    break;
+                    
+                case TaskType.WRITE_MEDICATIONS:
+                    console.log('Starting WRITE_MEDICATIONS execution');
+                    console.log('Medication data to write:', JSON.stringify(task.input, null, 2));
+                    console.log('Connecting to medication system...');
+                    // Add mock medication writing logic
+                    await new Promise(resolve => setTimeout(resolve, 1500));
+                    console.log('Medications written successfully');
+                    
+                    console.log('Preparing write operation result');
+                    const writeResult = { recordId: 'MED-' + Date.now() };
+                    console.log('Write result:', JSON.stringify(writeResult, null, 2));
+                    
+                    console.log('Updating task with write results');
+                    break;
+                    
+                default:
+                    console.error(`Unknown task type encountered: ${task.type}`);
+                    console.error('Task will not be executed');
+                    throw new Error(`Unknown task type: ${task.type}`);
+            }
+            
+            console.log('Task execution successful');
+            console.log('Updating task status to COMPLETED');
+            await updateTask(task.id, { 
+                status: TaskStatus.COMPLETED,
+                output: { timestamp: new Date().toISOString() }
+            });
+            console.log('Task status updated to COMPLETED');
+            
+        } catch (error) {
+            console.error('ERROR DURING TASK EXECUTION:', error);
+            console.error('Error type:', typeof error);
+            console.error('Error message:', error instanceof Error ? error.message : String(error));
+            console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace available');
+            
+            console.log('Updating task status to FAILED');
+            await updateTask(task.id, {
+                status: TaskStatus.FAILED,
+                error: error instanceof Error ? error.message : String(error)
+            });
+            console.error('Task status updated to FAILED');
+        } finally {
+            console.log('Task execution process finished for:', task.id);
+            console.log('==============================');
         }
     };
 

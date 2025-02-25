@@ -23,6 +23,7 @@ interface ReadObesityIntakeFormData {
 }
 
 interface ReadObesityIntakeFormResult {
+    rawText?: string;
     patientInfo?: {
         name?: string;
         dateOfBirth?: string;
