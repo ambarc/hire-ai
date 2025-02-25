@@ -4,8 +4,8 @@
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { Workflow, Task, TaskStatus, TaskType, TaskOutput } from '../../../types/workflow';
-import { Allergy, Medication, Insurance } from '../../../types/clinical';
+import { Workflow, Task, TaskStatus, TaskType } from '../../../types/workflow';
+import { Allergy, Medication } from '../../../types/clinical';
 // import mockData from '../../../mock-data/test-scrape.json';
 
 // Utility function to format task type constants into readable titles
@@ -547,7 +547,7 @@ export default function ExecuteWorkflowPage() {
                 setError(err instanceof Error ? err.message : 'Failed to load workflow');
                 setStatus('error');
             });
-    }, []);
+    }, [getWorkflow]);
 
     // Function to render task input details
     const renderTaskInput = (task: Task) => {
@@ -767,7 +767,7 @@ export default function ExecuteWorkflowPage() {
                             <div className="p-6">
                                 <h2 className="text-lg font-medium text-gray-900 mb-4">Tasks</h2>
                                 <div className="space-y-4">
-                                    {workflow.tasks.map((task, index) => {
+                                    {workflow.tasks.map((task) => {
                                         const statusStyles = getStatusStyles(task.status);
                                         const isActive = task.id === activeTaskId;
                                         const isExpanded = expandedTasks[task.id] || false;
