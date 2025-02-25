@@ -1,5 +1,10 @@
 import { Medication, Allergy, Insurance } from './clinical';
 
+// TODO(ambar): adding a new task, viewing it, and executing it should be O(1) build time.
+// TODO(ambar): what's a good way to take task inputs from prior outputs?
+// TODO(ambar): there's a more generic browser task template that we should extract.
+// TODO(ambar): figure out normalization / denormalization for extract vs write tasks.
+
 // Task status enum
 export enum TaskStatus {
     NOT_STARTED = 'NOT_STARTED',
@@ -12,9 +17,11 @@ export enum TaskStatus {
 export enum TaskType {
     READ_OBESITY_INTAKE_FORM = 'READ_OBESITY_INTAKE_FORM',
     VALIDATE_DATA = 'VALIDATE_DATA', // TODO(ambar): archive this.
+    // TODO(ambar): figure out normalization / denormalization for extract vs write tasks.
     WRITE_MEDICATIONS = 'WRITE_MEDICATIONS',
     WRITE_ALLERGIES = 'WRITE_ALLERGIES',
     WRITE_INSURANCE = 'WRITE_INSURANCE',
+    WRITE_TO_ATHENA = 'WRITE_TO_ATHENA',
     // Add more task types here as needed
 }
 
@@ -84,6 +91,14 @@ interface WriteInsuranceResult {
     insurance: Insurance;
 }
 
+interface WriteToAthenaBrowserInput {
+    field: string;
+    prompt: string;
+}
+
+interface WriteToAthenaBrowserResult {
+    success: boolean;
+}
 // Discriminated unions for task inputs and outputs
 export type TaskInput = {
     type: TaskType.READ_OBESITY_INTAKE_FORM;
@@ -100,6 +115,9 @@ export type TaskInput = {
 } | {
     type: TaskType.WRITE_INSURANCE;
     data: WriteInsuranceInput;
+} | {
+    type: TaskType.WRITE_TO_ATHENA;
+    data: WriteToAthenaBrowserInput;
 }
 
 export type TaskOutput = {
@@ -127,6 +145,11 @@ export type TaskOutput = {
     success: boolean;
     error?: string;
     data?: WriteInsuranceResult;
+} | {
+    type: TaskType.WRITE_TO_ATHENA;
+    success: boolean;
+    error?: string;
+    data?: WriteToAthenaBrowserResult;
 }
 
 // Task definition

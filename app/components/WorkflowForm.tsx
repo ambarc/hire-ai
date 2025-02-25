@@ -93,6 +93,14 @@ export default function WorkflowForm({ initialWorkflow }: WorkflowFormProps) {
                         },
                     }
                 };
+            case TaskType.WRITE_TO_ATHENA:
+                return {
+                    type: TaskType.WRITE_TO_ATHENA,
+                    data: {
+                        field: '',
+                        prompt: '',
+                    }
+                };
             default:
                 return {
                     type: TaskType.READ_OBESITY_INTAKE_FORM,
@@ -107,14 +115,23 @@ export default function WorkflowForm({ initialWorkflow }: WorkflowFormProps) {
             return;
         }
 
-        if (newTask.type === TaskType.WRITE_MEDICATIONS && !newTask.description.trim()) {
-            setError('Description is required for medication tasks');
+        if(!newTask.description.trim()) {
+            setError('A description is required for all tasks');
             return;
         }
 
-        if (newTask.type === TaskType.WRITE_ALLERGIES && !newTask.description.trim()) {
-            setError('Description is required for allergies extraction tasks');
+        if(newTask.type === TaskType.WRITE_TO_ATHENA && 
+           newTask.input?.type === TaskType.WRITE_TO_ATHENA && 
+           !newTask.input.data.prompt.trim()) {
+            setError('A prompt is required for write to athena browser tasks');
             return;
+        }
+
+        if(newTask.type === TaskType.WRITE_TO_ATHENA && 
+           newTask.input?.type === TaskType.WRITE_TO_ATHENA && 
+           !newTask.input.data.field.trim()) {
+            setError('A field is required for write to athena browser tasks');
+            return; 
         }
 
         const task: Task = {
@@ -494,7 +511,47 @@ export default function WorkflowForm({ initialWorkflow }: WorkflowFormProps) {
                                 />
                             </div>
                         </div>
-                    );
+                ); 
+            
+            case TaskType.WRITE_TO_ATHENA:
+                const writeToAthenaBrowserInput = input.type === TaskType.WRITE_TO_ATHENA ? input.data : null;
+                if (!writeToAthenaBrowserInput) return null;
+
+                return (
+                    <div className="space-y-3">
+                        <div>
+                            <label className="block text-sm text-gray-700">Field</label>
+                            <input
+                                type="text"
+                                value={writeToAthenaBrowserInput.field}
+                                onChange={e => onChange({
+                                    type: TaskType.WRITE_TO_ATHENA,
+                                    data: {
+                                        field: e.target.value,
+                                        prompt: writeToAthenaBrowserInput.prompt
+                                    }
+                                })}
+                                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm text-gray-700">Prompt</label>
+                            <textarea
+                                value={writeToAthenaBrowserInput.prompt}
+                                onChange={e => onChange({
+                                    type: TaskType.WRITE_TO_ATHENA,
+                                    data: {
+                                        field: writeToAthenaBrowserInput.field,
+                                        prompt: e.target.value
+                                    }
+                                })}
+                                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
+                                rows={3}
+                                placeholder="Enter the prompt for generating content..."
+                            />
+                        </div>
+                    </div>
+                );
             
             default:
                 return <div>Unsupported task type</div>;
@@ -564,6 +621,18 @@ export default function WorkflowForm({ initialWorkflow }: WorkflowFormProps) {
                         )}
                     </div>
                 );
+            
+            case TaskType.WRITE_TO_ATHENA:
+                const writeToAthenaBrowserTask = task.input.type === TaskType.WRITE_TO_ATHENA ? task.input.data : null;
+                if (!writeToAthenaBrowserTask) return null;
+
+                return (
+                    <div className="text-sm text-gray-600">
+                        <p>Field: {writeToAthenaBrowserTask.field}</p>
+                        <p>Prompt: {writeToAthenaBrowserTask.prompt}</p>
+                    </div>
+                );
+            
             default:
                 return <p className="text-sm text-gray-600">Unsupported task type</p>;
         }
