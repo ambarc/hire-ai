@@ -44,16 +44,24 @@ export async function POST(request: NextRequest) {
     }
 }
 
-export async function PATCH(
-    request: Request,
-    { params }: { params: { id: string; taskId: string } }
-) {
+export async function PATCH(request: Request) {
     try {
+        // Extract parameters from URL path
+        const { pathname } = new URL(request.url);
+        const parts = pathname.split('/');
+        const taskId = parts.pop() || '';
+        const id = parts[parts.length - 2] || ''; // Get the workflow ID
+        
+        // Validate IDs
+        if (!taskId || !id) {
+            return NextResponse.json(
+                { error: 'Invalid workflow or task ID' },
+                { status: 400 }
+            );
+        }
+        
         const updates: Partial<Task> = await request.json();
         const store = WorkflowStore.getInstance();
-        
-        // Ensure params is properly awaited
-        const { id, taskId } = params;
         
         const updatedWorkflow = await store.updateWorkflowTask(
             id,

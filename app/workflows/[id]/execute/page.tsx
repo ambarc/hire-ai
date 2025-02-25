@@ -5,6 +5,8 @@ import { useParams } from 'next/navigation';
 import { Workflow, Task, TaskStatus, TaskType } from '../../../types/workflow';
 import { Worker, WorkerContext } from '../../../types/worker';
 
+import * as mockData from '../../../mock-data/test-scrape.json'
+
 // Create a mock worker (in real app, this would be managed by a worker service)
 const worker: Worker = {
     id: 'worker-1',
@@ -22,29 +24,6 @@ const worker: Worker = {
                 // await updateTask(task.id, { status: TaskStatus.IN_PROGRESS });
 
                 switch (task.type) {
-                    case TaskType.VALIDATE_DATA:
-                        log('Validating data...');
-                        await new Promise(resolve => setTimeout(resolve, 1500));
-                        await updateTask(task.id, {
-                            status: TaskStatus.COMPLETED,
-                            output: {
-                                isValid: true,
-                                validatedData: task.input
-                            }
-                        });
-                        break;
-
-                    case TaskType.WRITE_MEDICATIONS:
-                        log('Writing medications to system...');
-                        await new Promise(resolve => setTimeout(resolve, 2500));
-                        await updateTask(task.id, {
-                            status: TaskStatus.COMPLETED,
-                            output: {
-                                recordId: 'MED-123'
-                            }
-                        });
-                        break;
-
                     case TaskType.READ_OBESITY_INTAKE_FORM:
                         console.log('Executing READ_OBESITY_INTAKE_FORM task');
                         
@@ -157,7 +136,7 @@ const worker: Worker = {
                         break;
 
                     default:
-                        throw new Error(`Unknown task type: ${task.type}`);
+                        throw new Error(`Unknown task type!!! ${task.type}`);
                 }
 
                 log(`Task ${task.id} completed successfully`);
@@ -210,32 +189,6 @@ export default function ExecuteWorkflowPage() {
         }
     };
 
-    const executeWorkflow = useCallback(async () => {
-        if (!workflow) return;
-
-        try {
-            setStatus('executing');
-            worker.status = 'busy';
-            worker.currentWorkflow = params.id;
-
-            await worker.execute({
-                workflowId: params.id,
-                log: addLog,
-                updateTask,
-                getWorkflow
-            });
-
-            setStatus('completed');
-            worker.status = 'idle';
-            worker.currentWorkflow = undefined;
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to execute workflow');
-            setStatus('error');
-            worker.status = 'idle';
-            worker.currentWorkflow = undefined;
-        }
-    }, [workflow, params.id]);
-
     const executeTask = async (task: Task) => {
         console.log('==============================');
         console.log('TASK EXECUTION STARTED:', task.id);
@@ -253,7 +206,7 @@ export default function ExecuteWorkflowPage() {
             console.log('Task status updated successfully');
             
             switch (task.type) {
-                case TaskType.READ_OBESITY_INTAKE_FORM:
+                case TaskType.READ_OBESITY_INTAKE_FORM: {
                     console.log('Starting READ_OBESITY_INTAKE_FORM execution');
                     
                     // Define browser prompt - use the one from the curl example
@@ -368,36 +321,71 @@ export default function ExecuteWorkflowPage() {
                     
                     console.log('READ_OBESITY_INTAKE_FORM task completed successfully');
                     break;
-                    
-                case TaskType.VALIDATE_DATA:
-                    console.log('Starting VALIDATE_DATA execution');
-                    console.log('Validation input:', JSON.stringify(task.input, null, 2));
-                    console.log('Running validation checks...');
-                    // Add mock validation logic
-                    await new Promise(resolve => setTimeout(resolve, 1000));
-                    console.log('Validation complete');
-                    
-                    console.log('Preparing validation results');
-                    const validationResult = { isValid: true, validatedData: task.input };
-                    console.log('Validation result:', JSON.stringify(validationResult, null, 2));
-                    
-                    console.log('Updating task with validation results');
-                    break;
-                    
-                case TaskType.WRITE_MEDICATIONS:
+                }
+
+                case TaskType.WRITE_MEDICATIONS: {
                     console.log('Starting WRITE_MEDICATIONS execution');
                     console.log('Medication data to write:', JSON.stringify(task.input, null, 2));
                     console.log('Connecting to medication system...');
-                    // Add mock medication writing logic
-                    await new Promise(resolve => setTimeout(resolve, 1500));
-                    console.log('Medications written successfully');
                     
-                    console.log('Preparing write operation result');
-                    const writeResult = { recordId: 'MED-' + Date.now() };
-                    console.log('Write result:', JSON.stringify(writeResult, null, 2));
-                    
-                    console.log('Updating task with write results');
+                    try {
+                        // Use mock data for extraction
+                        console.log('Using mock data for medication extraction');
+                        const rawText = mockData.default.rawText || '';
+                        
+                        // Make generic extract API call to extract medications
+                        console.log('Making extract API call to extract medications');
+                        const extractResponse = await fetch('/api/extract', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ 
+                              text: rawText,
+                              extractionType: 'medications',
+                              schema: {
+                                type: 'object',
+                                properties: {
+                                  type: 'array',
+                                  properties: {
+                                    name: { type: 'string' },
+                                    dosage: { type: 'string' },
+                                    frequency: { type: 'string' },
+                                    // route: { type: 'string' }
+                                  },
+                                  required: ['name']
+                                }
+                              }
+                            })
+                        });
+                        
+                        if (!extractResponse.ok) {
+                            throw new Error(`Extract API error: ${extractResponse.statusText}`);
+                        }
+                        
+                        const medications = await extractResponse.json();
+                        console.log('Extracted medications:', JSON.stringify(medications, null, 2));
+                        
+                        // Simulate writing to medication system
+                        await new Promise(resolve => setTimeout(resolve, 1500));
+                        console.log('Medications written successfully');
+                        
+                        // Prepare write operation result
+                        const writeResult = { 
+                            // recordId: 'MED-' + Date.now(),
+                            medications: medications 
+                        };
+                        console.log('Write result:', JSON.stringify(writeResult, null, 2));
+                        
+                        // Update task with the extracted medications
+                        await updateTask(task.id, {
+                            status: TaskStatus.COMPLETED,
+                            output: writeResult
+                        });
+                    } catch (error) {
+                        console.error('Error extracting medications:', error);
+                        throw error;
+                    }
                     break;
+                }
                     
                 default:
                     console.error(`Unknown task type encountered: ${task.type}`);
@@ -405,13 +393,13 @@ export default function ExecuteWorkflowPage() {
                     throw new Error(`Unknown task type: ${task.type}`);
             }
             
-            console.log('Task execution successful');
-            console.log('Updating task status to COMPLETED');
-            await updateTask(task.id, { 
-                status: TaskStatus.COMPLETED,
-                output: { timestamp: new Date().toISOString() }
-            });
-            console.log('Task status updated to COMPLETED');
+            // console.log('Task execution successful');
+            // console.log('Updating task status to COMPLETED');
+            // await updateTask(task.id, { 
+            //     status: TaskStatus.COMPLETED,
+            //     output: { timestamp: new Date().toISOString() }
+            // });
+            // console.log('Task status updated to COMPLETED');
             
         } catch (error) {
             console.error('ERROR DURING TASK EXECUTION:', error);
@@ -450,15 +438,6 @@ export default function ExecuteWorkflowPage() {
                 <div className="space-y-6">
                     <div className="flex justify-between items-center">
                         <h1 className="text-2xl font-bold">{workflow.name}</h1>
-                        {status === 'idle' && (
-                            <button 
-                                onClick={executeWorkflow}
-                                disabled={!workflow}
-                                className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded disabled:opacity-50"
-                            >
-                                Execute Workflow
-                            </button>
-                        )}
                     </div>
 
                     <div className="border rounded-lg p-4 bg-white shadow">
