@@ -98,14 +98,6 @@ export default function ExecuteWorkflowPage() {
         setLogs(prev => [...prev, `[${new Date().toISOString()}] ${message}`]);
     };
 
-    const getWorkflow = async () => {
-        const response = await fetch(`/api/workflow/${params.id}`);
-        if (!response.ok) throw new Error('Failed to fetch workflow');
-        const workflow = await response.json();
-        setWorkflow(workflow);
-        return workflow;
-    };
-
     useEffect(() => {
         const fetchWorkflow = async () => {
             try {
@@ -381,7 +373,7 @@ export default function ExecuteWorkflowPage() {
                         throw new Error(`Extract API error: ${extractResponse.statusText}`);
                     }
                     const insurance = await extractResponse.json();
-                    
+                    setExtractedInsurance(insurance.insurance ? insurance.insurance : null);
                     // Update task with the extracted insurance
                     await updateTask(task.id, {
                         status: TaskStatus.COMPLETED,
@@ -664,6 +656,12 @@ export default function ExecuteWorkflowPage() {
                                         </li>
                                     ))}
                                 </ul>
+                            </div>
+                        )}
+                        {writeToAthenaBrowserInput.field === 'insurance' && extractedInsurance && (
+                            <div className="mt-3 space-y-2">
+                                <p className="text-xs font-medium text-gray-600">Insurance to write:</p>
+                                <p className="text-gray-600">{JSON.stringify(extractedInsurance)}</p>
                             </div>
                         )}
                     </div>
