@@ -1,11 +1,9 @@
 'use client';
 
-
-
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { Workflow, Task, TaskStatus, TaskType } from '../../../types/workflow';
-import { Allergy, Medication } from '../../../types/clinical';
+import { Allergy, Medication, Insurance } from '../../../types/clinical';
 // import mockData from '../../../mock-data/test-scrape.json';
 
 // Utility function to format task type constants into readable titles
@@ -84,6 +82,7 @@ export default function ExecuteWorkflowPage() {
     const [ingestExtractedText, setIngestExtractedText] = useState<string>('');
     const [extractedMedications, setExtractedMedications] = useState<Medication[]>([]);
     const [extractedAllergies, setExtractedAllergies] = useState<Allergy[]>([]);
+    const [extractedInsurance, setExtractedInsurance] = useState<Insurance | null>(null);
     
     const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
     const [expandedTasks, setExpandedTasks] = useState<Record<string, boolean>>({});
@@ -99,13 +98,30 @@ export default function ExecuteWorkflowPage() {
         setLogs(prev => [...prev, `[${new Date().toISOString()}] ${message}`]);
     };
 
-    const getWorkflow = async () => {
-        const response = await fetch(`/api/workflow/${params.id}`);
-        if (!response.ok) throw new Error('Failed to fetch workflow');
-        const workflow = await response.json();
-        setWorkflow(workflow);
-        return workflow;
-    };
+    useEffect(() => {
+        const fetchWorkflow = async () => {
+            try {
+                console.log('fetching workflow');
+                const response = await fetch(`/api/workflow/${params.id}`);
+                if (!response.ok) throw new Error('Failed to fetch workflow');
+                const workflow = await response.json();
+                setWorkflow(workflow);
+                setStatus('idle');
+            } catch (err) {
+                setError(err instanceof Error ? err.message : 'Failed to load workflow');
+                setStatus('error');
+            }
+        };
+
+        // Initial fetch
+        fetchWorkflow();
+
+        // Set up polling every 5 seconds
+        const pollInterval = setInterval(fetchWorkflow, 5000);
+
+        // Cleanup on unmount or when ID changes
+        return () => clearInterval(pollInterval);
+    }, [params.id]);
 
     const updateTask = async (taskId: string, updates: Partial<Task>) => {
         try {
@@ -357,7 +373,7 @@ export default function ExecuteWorkflowPage() {
                         throw new Error(`Extract API error: ${extractResponse.statusText}`);
                     }
                     const insurance = await extractResponse.json();
-                    
+                    setExtractedInsurance(insurance.insurance ? insurance.insurance : null);
                     // Update task with the extracted insurance
                     await updateTask(task.id, {
                         status: TaskStatus.COMPLETED,
@@ -375,6 +391,7 @@ export default function ExecuteWorkflowPage() {
 
                 case TaskType.WRITE_TO_ATHENA: {
 
+                    // TODO(ambar): feature-ize how you'd manage internally generated state.
                     const mockMeds: Medication[] = [
                         {
                             "name": "Lisinopril",
@@ -411,9 +428,19 @@ export default function ExecuteWorkflowPage() {
                         }
                     ]
 
+                    const mockInsurance: Insurance = {
+                        "name": "Blue Cross Blue Shield",
+                        "planType": "HMO",
+                        "policyNumber": "1234567890",
+                        "groupNumber": "1234567890",
+                        "memberId": "1234567890",
+                        "effectiveDate": "2024-01-01"
+                    }
+
                     const useMeds = mockMeds; 
                     const useAllergies = mockAllergies;
-                
+                    const useInsurance = mockInsurance;
+
                     const writeToAthenaBrowserInput = task.input.type === TaskType.WRITE_TO_ATHENA ? task.input.data : null;
                     if (!writeToAthenaBrowserInput) {
                         throw new Error('Invalid input for WRITE_TO_ATHENA task');
@@ -429,6 +456,9 @@ export default function ExecuteWorkflowPage() {
                     } else if (writeToAthenaBrowserInput.field === 'allergies' && useAllergies.length > 0) {
                         additionalData = JSON.stringify(useAllergies);
                         browserPrompt = `go to localhost:8000, search for james smith, and go to his profile. once there, save the following allergies to the allergies form, one at a time: ${additionalData}`;
+                    } else if (writeToAthenaBrowserInput.field === 'insurance' && useInsurance) {
+                        additionalData = JSON.stringify(useInsurance);
+                        browserPrompt = `go to localhost:8000, search for james smith, and go to his profile. once there, save the following insurance to the insurance form: ${additionalData}. The end date field is optional to enter; skip it if you don't have it. If asked, the subscriber name is the name given to you. `;
                     } else {
                         throw new Error(`Unsupported field type: ${writeToAthenaBrowserInput.field}`);
                     }
@@ -463,7 +493,7 @@ export default function ExecuteWorkflowPage() {
                     let commandResult = null;
                     
                     while (attempts < maxAttempts) {
-                        await new Promise(resolve => setTimeout(resolve, 5000)); // Poll every 2 seconds
+                        await new Promise(resolve => setTimeout(resolve, 10000)); // Poll every 10 seconds
                         
                         const stateResponse = await fetch(`/api/browser-agent/${sessionId}/state`);
                         
@@ -537,17 +567,6 @@ export default function ExecuteWorkflowPage() {
             setActiveTaskId(null);
         }
     };
-
-    useEffect(() => {
-        getWorkflow()
-            .then(() => {
-                setStatus('idle');
-            })
-            .catch(err => {
-                setError(err instanceof Error ? err.message : 'Failed to load workflow');
-                setStatus('error');
-            });
-    }, [getWorkflow]);
 
     // Function to render task input details
     const renderTaskInput = (task: Task) => {
@@ -637,6 +656,12 @@ export default function ExecuteWorkflowPage() {
                                         </li>
                                     ))}
                                 </ul>
+                            </div>
+                        )}
+                        {writeToAthenaBrowserInput.field === 'insurance' && extractedInsurance && (
+                            <div className="mt-3 space-y-2">
+                                <p className="text-xs font-medium text-gray-600">Insurance to write:</p>
+                                <p className="text-gray-600">{JSON.stringify(extractedInsurance)}</p>
                             </div>
                         )}
                     </div>

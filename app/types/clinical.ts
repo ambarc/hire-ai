@@ -12,7 +12,9 @@ export interface Allergy {
 
 export interface Insurance {
     name: string;
+    planType: 'HMO' | 'PPO' | 'EPO' | 'POS' | 'HDHP';
     policyNumber: string;
+    effectiveDate: string;
     groupNumber: string;
     memberId: string;
 }
