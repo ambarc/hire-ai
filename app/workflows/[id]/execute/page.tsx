@@ -466,7 +466,7 @@ export default function ExecuteWorkflowPage() {
                         browserPrompt = `go to localhost:8000, search for james smith, and go to his profile. once there, save the following allergies to the allergies form, one at a time: ${additionalData}`;
                     } else if (writeToAthenaBrowserInput.field === 'insurance' && useInsurance) {
                         additionalData = JSON.stringify(useInsurance);
-                        browserPrompt = `go to localhost:8000, search for james smith, and go to his profile. once there, save the following insurance to the insurance form: ${additionalData}`;
+                        browserPrompt = `go to localhost:8000, search for james smith, and go to his profile. once there, save the following insurance to the insurance form: ${additionalData}. The end date field is optional to enter; skip it if you don't have it. If asked, the subscriber name is the name given to you. `;
                     } else {
                         throw new Error(`Unsupported field type: ${writeToAthenaBrowserInput.field}`);
                     }
