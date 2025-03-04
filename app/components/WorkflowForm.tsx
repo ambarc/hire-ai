@@ -111,6 +111,12 @@ export default function WorkflowForm({ initialWorkflow }: WorkflowFormProps) {
                         }
                     }
                 };
+            case TaskType.IDENTIFY_CHART_IN_ATHENA:
+                return {
+                    type: TaskType.IDENTIFY_CHART_IN_ATHENA,
+                    data: {
+                    }
+                };
             default:
                 return {
                     type: TaskType.READ_OBESITY_INTAKE_FORM,
@@ -633,6 +639,18 @@ export default function WorkflowForm({ initialWorkflow }: WorkflowFormProps) {
                     </div>
                 );
             
+            case TaskType.IDENTIFY_CHART_IN_ATHENA:
+                return (
+                    <div className="space-y-3">
+                        <div className="p-4 bg-gray-50 rounded-lg">
+                            <p className="text-sm text-gray-600">
+                                This task will use the extracted profile data to locate and navigate to the patient's chart in Athena.
+                                No additional input is required as it will automatically use the profile data from the previous extraction task.
+                            </p>
+                        </div>
+                    </div>
+                );
+            
             default:
                 return <div>Unsupported task type</div>;
         }
@@ -710,6 +728,13 @@ export default function WorkflowForm({ initialWorkflow }: WorkflowFormProps) {
                     <div className="text-sm text-gray-600">
                         <p>Field: {writeToAthenaBrowserTask.field}</p>
                         <p>Prompt: {writeToAthenaBrowserTask.prompt}</p>
+                    </div>
+                );
+
+            case TaskType.IDENTIFY_CHART_IN_ATHENA:
+                return (
+                    <div className="text-sm text-gray-600">
+                        <p>Uses extracted profile data to locate patient chart</p>
                     </div>
                 );
             

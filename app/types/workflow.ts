@@ -26,6 +26,7 @@ export enum TaskType {
     EXTRACT_PATIENT_PROFILE = 'EXTRACT_PATIENT_PROFILE',
 
     // given ingest information, identify and navigate to the chart in athena. default over the browser, else through the API.
+    // train a browser AI to take the profile data, confirm that it's seeing the right chart. 
     IDENTIFY_CHART_IN_ATHENA = 'IDENTIFY_CHART_IN_ATHENA',
 }
 
@@ -44,7 +45,7 @@ interface ExtractPatientProfileResult {
 
 // scrapes ingest data to extract these. 
 interface IdentifyChartInAthenaData {
-    profile: Profile; 
+    profile?: Profile; 
 }
 
 interface IdentifyChartInAthenaResult {
