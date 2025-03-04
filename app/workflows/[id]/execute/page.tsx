@@ -170,7 +170,7 @@ export default function ExecuteWorkflowPage() {
             switch (task.type) {
                 case TaskType.READ_OBESITY_INTAKE_FORM: {
                           // Define browser prompt
-                    const browserPrompt = "go to localhost:8000/ingest and scroll through the page. Return the text from the page. Return the text itself. Do not overtly summarize.";
+                    const browserPrompt = "go to localhost:8000/ingest and scroll through the whole page. Scan all the text on the page and return it. Return the text itself. Do not summarize.";
                           
                     // Send command to browser service
                           const commandResponse = await fetch('/api/browser-agent/session', {
@@ -728,14 +728,14 @@ Return the current URL of the patient's chart page.`;
                     console.log("seeing command result", commandResult)
 
                     // Extract the URL from the command result
-                    const chartUrl = commandResult.url || commandResult.current_url;
+                    const chartUrl = commandResult.last_url;
                     if (!chartUrl) {
                         throw new Error('Failed to get patient chart URL from browser service');
                     }
 
                     // Update task with the output
-            await updateTask(task.id, { 
-                status: TaskStatus.COMPLETED,
+                    await updateTask(task.id, { 
+                    status: TaskStatus.COMPLETED,
                         output: {
                             type: TaskType.IDENTIFY_CHART_IN_ATHENA,
                             success: true,
