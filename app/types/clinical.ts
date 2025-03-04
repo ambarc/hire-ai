@@ -1,3 +1,10 @@
+export interface Profile {
+    name: string;
+    birthDate?: string;
+    gender?: string;
+    phoneNumber?: string;
+}
+
 export interface Medication {
     name: string;
     dosage: string;

@@ -2,9 +2,27 @@
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { Workflow, Task, TaskStatus, TaskType } from '../../../types/workflow';
+import { Workflow, Task, TaskStatus, TaskType, isTaskOfType } from '../../../types/workflow';
 import { Allergy, Medication, Insurance } from '../../../types/clinical';
 // import mockData from '../../../mock-data/test-scrape.json';
+
+interface Profile {
+    name: string;
+    dateOfBirth: string;
+    gender: string;
+    phoneNumber?: string;
+    email?: string;
+    address?: string;
+}
+
+// Application memory for storing temporary data
+const applicationMemory: Record<string, string> = {};
+
+// Function to get text from a browser location
+const getBrowserText = async (location: string): Promise<string> => {
+    // TODO: Implement browser text extraction
+    return '';
+};
 
 // Utility function to format task type constants into readable titles
 const formatTaskType = (type: TaskType): string => {
@@ -83,6 +101,7 @@ export default function ExecuteWorkflowPage() {
     const [extractedMedications, setExtractedMedications] = useState<Medication[]>([]);
     const [extractedAllergies, setExtractedAllergies] = useState<Allergy[]>([]);
     const [extractedInsurance, setExtractedInsurance] = useState<Insurance | null>(null);
+    const [extractedProfile, setExtractedProfile] = useState<Profile | null>(null);
     
     const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
     const [expandedTasks, setExpandedTasks] = useState<Record<string, boolean>>({});
@@ -356,15 +375,12 @@ export default function ExecuteWorkflowPage() {
                           schema: {
                             type: 'object',
                             properties: {
-                              type: 'array',
-                              properties: {
-                                name: { type: 'string' },
-                                policyNumber: { type: 'string' },
-                                groupNumber: { type: 'string' },
-                                memberId: { type: 'string' },
-                              },
-                              required: ['name', 'policyNumber', 'groupNumber', 'memberId']
-                            }
+                              name: { type: 'string' },
+                              policyNumber: { type: 'string' },
+                              groupNumber: { type: 'string' },
+                              memberId: { type: 'string' },
+                            },
+                            required: ['name', 'policyNumber', 'groupNumber', 'memberId']
                           }
                         })
                     });
@@ -373,7 +389,10 @@ export default function ExecuteWorkflowPage() {
                         throw new Error(`Extract API error: ${extractResponse.statusText}`);
                     }
                     const insurance = await extractResponse.json();
+                    
+                    // Store the extracted insurance in state
                     setExtractedInsurance(insurance.insurance ? insurance.insurance : null);
+                    
                     // Update task with the extracted insurance
                     await updateTask(task.id, {
                         status: TaskStatus.COMPLETED,
@@ -381,13 +400,72 @@ export default function ExecuteWorkflowPage() {
                             type: TaskType.WRITE_INSURANCE,
                             success: true,
                             data: {
-                                insurance: insurance.insurance ? insurance.insurance : { name: '', policyNumber: '', groupNumber: '', memberId: '' },
+                                insurance: insurance.insurance ? insurance.insurance : null,
                             }
                         },
                     });
                     
                     break;
                 }
+
+                case TaskType.EXTRACT_PATIENT_PROFILE:
+                    if (!isTaskOfType(TaskType.EXTRACT_PATIENT_PROFILE, task)) {
+                        throw new Error('Invalid task type');
+                    }
+
+                    let textToExtract = '';
+                    if (task.input.data.source.type === 'APPLICATION_MEMORY') {
+                        if (!task.input.data.source.applicationMemoryKey) {
+                            throw new Error('Application memory key is required');
+                        }
+                        textToExtract = ingestExtractedText;
+                    } else if (task.input.data.source.type === 'BROWSER') {
+                        if (!task.input.data.source.browserLocation) {
+                            throw new Error('Browser location is required');
+                        }
+                        textToExtract = await getBrowserText(task.input.data.source.browserLocation);
+                    }
+
+                    const profileExtractResponse = await fetch('/api/extract', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            text: textToExtract,
+                            extractionType: 'profile',
+                            schema: {
+                                type: 'object',
+                                properties: {
+                                    name: { type: 'string' },
+                                    dateOfBirth: { type: 'string' },
+                                    gender: { type: 'string' },
+                                    phoneNumber: { type: 'string' },
+                                    email: { type: 'string' },
+                                    address: { type: 'string' }
+                                },
+                                required: ['name', 'dateOfBirth', 'gender']
+                            }
+                        })
+                    });
+
+                    if (!profileExtractResponse.ok) {
+                        throw new Error(`Extract API error: ${profileExtractResponse.statusText}`);
+                    }
+                    const profileData = await profileExtractResponse.json();
+                    
+                    // Store the extracted profile in state
+                    setExtractedProfile(profileData.profile);
+                    
+                    await updateTask(task.id, {
+                        status: TaskStatus.COMPLETED,
+                        output: {
+                            type: TaskType.EXTRACT_PATIENT_PROFILE,
+                            success: true,
+                            data: {
+                                profile: profileData.profile
+                            }
+                        },
+                    });
+                    break;
 
                 case TaskType.WRITE_TO_ATHENA: {
 
@@ -742,6 +820,29 @@ export default function ExecuteWorkflowPage() {
                 return (
                     <div className="mt-2">
                         <p className="font-medium text-sm text-gray-700">Status: {task.output.success ? 'Success' : 'Failed'}</p>
+                    </div>
+                );
+            case TaskType.EXTRACT_PATIENT_PROFILE:
+                const profileData = task.output.data?.profile as Profile;
+                return (
+                    <div className="mt-2">
+                        <p className="font-medium text-sm text-gray-700">Status: {task.output.success ? 'Success' : 'Failed'}</p>
+                        {profileData && (
+                            <div className="mt-1 text-xs text-gray-600">
+                                <p>Name: {profileData.name}</p>
+                                <p>Date of Birth: {profileData.dateOfBirth}</p>
+                                <p>Gender: {profileData.gender}</p>
+                                {profileData.phoneNumber && (
+                                    <p>Phone: {profileData.phoneNumber}</p>
+                                )}
+                                {profileData.email && (
+                                    <p>Email: {profileData.email}</p>
+                                )}
+                                {profileData.address && (
+                                    <p>Address: {profileData.address}</p>
+                                )}
+                            </div>
+                        )}
                     </div>
                 );
             default:

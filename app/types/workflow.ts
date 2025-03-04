@@ -1,4 +1,4 @@
-import { Medication, Allergy, Insurance } from './clinical';
+import { Medication, Allergy, Insurance, Profile } from './clinical';
 
 // TODO(ambar): adding a new task, viewing it, and executing it should be O(1) build time.
 // TODO(ambar): what's a good way to take task inputs from prior outputs?
@@ -22,7 +22,34 @@ export enum TaskType {
     WRITE_ALLERGIES = 'WRITE_ALLERGIES',
     WRITE_INSURANCE = 'WRITE_INSURANCE',
     WRITE_TO_ATHENA = 'WRITE_TO_ATHENA',
-    // Add more task types here as needed
+
+    EXTRACT_PATIENT_PROFILE = 'EXTRACT_PATIENT_PROFILE',
+
+    // given ingest information, identify and navigate to the chart in athena. default over the browser, else through the API.
+    IDENTIFY_CHART_IN_ATHENA = 'IDENTIFY_CHART_IN_ATHENA',
+}
+
+// EXTRACT_PATIENT_PROFILE types
+interface ExtractPatientProfileData {
+    source: {
+        type: 'APPLICATION_MEMORY' | 'BROWSER';
+        applicationMemoryKey?: string;
+        browserLocation?: string;
+    }
+}
+
+interface ExtractPatientProfileResult {
+    profile: Profile; 
+}
+
+// scrapes ingest data to extract these. 
+interface IdentifyChartInAthenaData {
+    profile: Profile; 
+}
+
+interface IdentifyChartInAthenaResult {
+    // TODO(ambar): isolate member ID when needed.
+    url: string; // chart url in athena.
 }
 
 // READ_OBESITY_INTAKE_FORM types
@@ -118,6 +145,12 @@ export type TaskInput = {
 } | {
     type: TaskType.WRITE_TO_ATHENA;
     data: WriteToAthenaBrowserInput;
+} | {
+    type: TaskType.IDENTIFY_CHART_IN_ATHENA;
+    data: IdentifyChartInAthenaData;
+} | {
+    type: TaskType.EXTRACT_PATIENT_PROFILE;
+    data: ExtractPatientProfileData;
 }
 
 export type TaskOutput = {
@@ -150,6 +183,16 @@ export type TaskOutput = {
     success: boolean;
     error?: string;
     data?: WriteToAthenaBrowserResult;
+} | {
+    type: TaskType.IDENTIFY_CHART_IN_ATHENA;
+    success: boolean;
+    error?: string;
+    data?: IdentifyChartInAthenaResult;
+} | {
+    type: TaskType.EXTRACT_PATIENT_PROFILE;
+    success: boolean;
+    error?: string;
+    data?: ExtractPatientProfileResult;
 }
 
 // Task definition
