@@ -644,8 +644,7 @@ export default function WorkflowForm({ initialWorkflow }: WorkflowFormProps) {
                     <div className="space-y-3">
                         <div className="p-4 bg-gray-50 rounded-lg">
                             <p className="text-sm text-gray-600">
-                                This task will use the extracted profile data to locate and navigate to the patient's chart in Athena.
-                                No additional input is required as it will automatically use the profile data from the previous extraction task.
+                                {"This task will use the extracted profile data to locate and navigate to the patient's chart in Athena. No additional input is required as it will automatically use the profile data from the previous extraction task."}
                             </p>
                         </div>
                     </div>

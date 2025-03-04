@@ -16,10 +16,10 @@ interface Profile {
 }
 
 // Application memory for storing temporary data
-const applicationMemory: Record<string, string> = {};
+// const applicationMemory: Record<string, string> = {};
 
 // Function to get text from a browser location
-const getBrowserText = async (location: string): Promise<string> => {
+const getBrowserText = async (): Promise<string> => {
     // TODO: Implement browser text extraction
     return '';
 };
@@ -418,12 +418,13 @@ export default function ExecuteWorkflowPage() {
                         if (!task.input.data.source.applicationMemoryKey) {
                             throw new Error('Application memory key is required');
                         }
+                        // textToExtract = mockData.rawText;
                         textToExtract = ingestExtractedText;
                     } else if (task.input.data.source.type === 'BROWSER') {
                         if (!task.input.data.source.browserLocation) {
                             throw new Error('Browser location is required');
                         }
-                        textToExtract = await getBrowserText(task.input.data.source.browserLocation);
+                        textToExtract = await getBrowserText();
                     }
 
                     const profileExtractResponse = await fetch('/api/extract', {
