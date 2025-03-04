@@ -1,0 +1,273 @@
+openapi: 3.0.3
+info:
+  title: Browser Agent Service
+  description: |
+    A service that orchestrates browser agents to execute commands and automate browser interactions.
+    The service maintains stateful browser sessions and provides a queue-based command execution system.
+  version: 1.0.0
+  contact:
+    name: Browser Agent Team
+
+servers:
+  - url: http://localhost:8000
+    description: Local development server
+
+components:
+  schemas:
+    Command:
+      type: object
+      required:
+        - prompt
+      properties:
+        prompt:
+          type: string
+          description: The instruction or task for the browser agent to execute
+        description:
+          type: string
+          description: Optional description of the command
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier for the command
+    
+    SessionCreate:
+      type: object
+      properties:
+        command:
+          $ref: '#/components/schemas/Command'
+          description: Initial command to execute when creating the session
+    
+    CommandResult:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [success, error, no_commands]
+        command_id:
+          type: string
+          format: uuid
+        actions:
+          type: array
+          items:
+            type: string
+        summary:
+          type: string
+        message:
+          type: string
+          description: Error message if status is error
+    
+    SessionState:
+      type: object
+      properties:
+        session_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [initialized, running, ready, error]
+        error:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        command_queue_size:
+          type: integer
+        current_command:
+          $ref: '#/components/schemas/Command'
+        command_history:
+          type: array
+          items:
+            type: object
+            properties:
+              command:
+                $ref: '#/components/schemas/Command'
+              command_id:
+                type: string
+                format: uuid
+              result:
+                $ref: '#/components/schemas/CommandResult'
+              timestamp:
+                type: string
+                format: date-time
+
+paths:
+  /api/browser-agent/session:
+    post:
+      summary: Create a new browser session
+      description: |
+        Creates a new browser session and optionally executes an initial command.
+        The session will maintain its state and browser instance until explicitly ended.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SessionCreate'
+      responses:
+        '200':
+          description: Session created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  session_id:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                    enum: [initialized]
+                  command_id:
+                    type: string
+                    format: uuid
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  detail:
+                    type: string
+
+  /api/browser-agent/{session_id}/command:
+    post:
+      summary: Send a command to an existing session
+      parameters:
+        - name: session_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Command'
+      responses:
+        '200':
+          description: Command accepted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [success]
+                  command_id:
+                    type: string
+                    format: uuid
+                  session_id:
+                    type: string
+                    format: uuid
+        '404':
+          description: Session not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  detail:
+                    type: string
+
+  /api/browser-agent/{session_id}/commands:
+    get:
+      summary: Get command history for a session
+      parameters:
+        - name: session_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Command history retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    command:
+                      $ref: '#/components/schemas/Command'
+                    command_id:
+                      type: string
+                      format: uuid
+                    result:
+                      $ref: '#/components/schemas/CommandResult'
+                    timestamp:
+                      type: string
+                      format: date-time
+        '404':
+          description: Session not found
+
+  /api/browser-agent/{session_id}/state:
+    get:
+      summary: Get full session state
+      parameters:
+        - name: session_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Session state retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionState'
+        '404':
+          description: Session not found
+
+  /api/browser-agent/{session_id}:
+    delete:
+      summary: End a session
+      parameters:
+        - name: session_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Session ended successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [success]
+        '404':
+          description: Session not found
+
+  /api/browser-agent/sessions:
+    get:
+      summary: List all active sessions
+      responses:
+        '200':
+          description: List of active sessions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    session_id:
+                      type: string
+                      format: uuid
+                    state:
+                      $ref: '#/components/schemas/SessionState' 

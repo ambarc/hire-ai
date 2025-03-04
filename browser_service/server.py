@@ -13,7 +13,7 @@ from collections import deque
 import uuid
 import asyncio
 
-app = FastAPI()
+app = FastAPI(title="Browser Agent", description="A service that orchestrates browser agents given commands.")
 
 # Get the current directory
 current_dir = os.path.dirname(os.path.abspath(__file__))
