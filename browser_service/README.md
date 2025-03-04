@@ -10,6 +10,11 @@ A stateful browser agent service that manages browser sessions using browser-use
 - Recording capability for browser sessions
 - Command-based interaction with browser sessions
 
+### API Endpoints
+see the openapi.yaml file for a service description.
+
+Generate it with `python generate_openapi_yaml.py`
+
 ## Prerequisites
 
 - Python 3.11+
@@ -36,18 +41,6 @@ Start the service:
 ```bash
 uvicorn server:app --reload --port 8000
 ```
-
-### API Endpoints
-
-- `POST /api/browser-agent` - Create new session
-- `POST /api/browser-agent/{session_id}/task` - Add task to session
-- `POST /api/browser-agent/{session_id}/command` - Send command to session
-- `POST /api/browser-agent/{session_id}/pause` - Pause session
-- `POST /api/browser-agent/{session_id}/resume` - Resume session
-- `DELETE /api/browser-agent/{session_id}` - End session
-- `GET /api/browser-agent/{session_id}/status` - Get session status
-- `GET /api/browser-agent/{session_id}/commands` - Get command history
-- `GET /api/browser-agent/sessions` - List all sessions
 
 ### Command Types
 
