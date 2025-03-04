@@ -101,6 +101,22 @@ export default function WorkflowForm({ initialWorkflow }: WorkflowFormProps) {
                         prompt: '',
                     }
                 };
+            case TaskType.EXTRACT_PATIENT_PROFILE:
+                return {
+                    type: TaskType.EXTRACT_PATIENT_PROFILE,
+                    data: {
+                        source: {
+                            type: 'APPLICATION_MEMORY',
+                            applicationMemoryKey: ''
+                        }
+                    }
+                };
+            case TaskType.IDENTIFY_CHART_IN_ATHENA:
+                return {
+                    type: TaskType.IDENTIFY_CHART_IN_ATHENA,
+                    data: {
+                    }
+                };
             default:
                 return {
                     type: TaskType.READ_OBESITY_INTAKE_FORM,
@@ -243,6 +259,76 @@ export default function WorkflowForm({ initialWorkflow }: WorkflowFormProps) {
                                 Validation function will be provided during task execution.
                             </p>
                         </div>
+                    </div>
+                );
+            
+            case TaskType.EXTRACT_PATIENT_PROFILE:
+                const extractProfileInput = input.type === TaskType.EXTRACT_PATIENT_PROFILE ? input.data : null;
+                if (!extractProfileInput) return null;
+
+                return (
+                    <div className="space-y-3">
+                        <div>
+                            <label className="block text-sm text-gray-700">Source Type</label>
+                            <select
+                                value={extractProfileInput.source.type}
+                                onChange={e => onChange({
+                                    type: TaskType.EXTRACT_PATIENT_PROFILE,
+                                    data: {
+                                        source: {
+                                            ...extractProfileInput.source,
+                                            type: e.target.value as 'APPLICATION_MEMORY' | 'BROWSER'
+                                        }
+                                    }
+                                })}
+                                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
+                            >
+                                <option value="APPLICATION_MEMORY">Application Memory</option>
+                                <option value="BROWSER">Browser</option>
+                            </select>
+                        </div>
+
+                        {extractProfileInput.source.type === 'APPLICATION_MEMORY' && (
+                            <div>
+                                <label className="block text-sm text-gray-700">Application Memory Key</label>
+                                <input
+                                    type="text"
+                                    value={extractProfileInput.source.applicationMemoryKey || ''}
+                                    onChange={e => onChange({
+                                        type: TaskType.EXTRACT_PATIENT_PROFILE,
+                                        data: {
+                                            source: {
+                                                ...extractProfileInput.source,
+                                                applicationMemoryKey: e.target.value
+                                            }
+                                        }
+                                    })}
+                                    className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
+                                    placeholder="Enter memory key..."
+                                />
+                            </div>
+                        )}
+
+                        {extractProfileInput.source.type === 'BROWSER' && (
+                            <div>
+                                <label className="block text-sm text-gray-700">Browser Location</label>
+                                <input
+                                    type="text"
+                                    value={extractProfileInput.source.browserLocation || ''}
+                                    onChange={e => onChange({
+                                        type: TaskType.EXTRACT_PATIENT_PROFILE,
+                                        data: {
+                                            source: {
+                                                ...extractProfileInput.source,
+                                                browserLocation: e.target.value
+                                            }
+                                        }
+                                    })}
+                                    className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
+                                    placeholder="Enter browser location..."
+                                />
+                            </div>
+                        )}
                     </div>
                 );
             
@@ -553,6 +639,17 @@ export default function WorkflowForm({ initialWorkflow }: WorkflowFormProps) {
                     </div>
                 );
             
+            case TaskType.IDENTIFY_CHART_IN_ATHENA:
+                return (
+                    <div className="space-y-3">
+                        <div className="p-4 bg-gray-50 rounded-lg">
+                            <p className="text-sm text-gray-600">
+                                {"This task will use the extracted profile data to locate and navigate to the patient's chart in Athena. No additional input is required as it will automatically use the profile data from the previous extraction task."}
+                            </p>
+                        </div>
+                    </div>
+                );
+            
             default:
                 return <div>Unsupported task type</div>;
         }
@@ -630,6 +727,13 @@ export default function WorkflowForm({ initialWorkflow }: WorkflowFormProps) {
                     <div className="text-sm text-gray-600">
                         <p>Field: {writeToAthenaBrowserTask.field}</p>
                         <p>Prompt: {writeToAthenaBrowserTask.prompt}</p>
+                    </div>
+                );
+
+            case TaskType.IDENTIFY_CHART_IN_ATHENA:
+                return (
+                    <div className="text-sm text-gray-600">
+                        <p>Uses extracted profile data to locate patient chart</p>
                     </div>
                 );
             

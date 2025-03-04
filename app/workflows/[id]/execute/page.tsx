@@ -2,9 +2,27 @@
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { Workflow, Task, TaskStatus, TaskType } from '../../../types/workflow';
+import { Workflow, Task, TaskStatus, TaskType, isTaskOfType } from '../../../types/workflow';
 import { Allergy, Medication, Insurance } from '../../../types/clinical';
 // import mockData from '../../../mock-data/test-scrape.json';
+
+interface Profile {
+    name: string;
+    dateOfBirth: string;
+    gender: string;
+    phoneNumber?: string;
+    email?: string;
+    address?: string;
+}
+
+// Application memory for storing temporary data
+// const applicationMemory: Record<string, string> = {};
+
+// Function to get text from a browser location
+const getBrowserText = async (): Promise<string> => {
+    // TODO: Implement browser text extraction
+    return '';
+};
 
 // Utility function to format task type constants into readable titles
 const formatTaskType = (type: TaskType): string => {
@@ -83,6 +101,7 @@ export default function ExecuteWorkflowPage() {
     const [extractedMedications, setExtractedMedications] = useState<Medication[]>([]);
     const [extractedAllergies, setExtractedAllergies] = useState<Allergy[]>([]);
     const [extractedInsurance, setExtractedInsurance] = useState<Insurance | null>(null);
+    const [extractedProfile, setExtractedProfile] = useState<Profile | null>(null);
     
     const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
     const [expandedTasks, setExpandedTasks] = useState<Record<string, boolean>>({});
@@ -150,49 +169,49 @@ export default function ExecuteWorkflowPage() {
             
             switch (task.type) {
                 case TaskType.READ_OBESITY_INTAKE_FORM: {
-                    // Define browser prompt
-                    const browserPrompt = "go to localhost:8000/ingest and scroll through the page. Return the text from the page. Return the text itself. Do not overtly summarize.";
-                    
+                          // Define browser prompt
+                    const browserPrompt = "go to localhost:8000/ingest and scroll through the whole page. Scan all the text on the page and return it. Return the text itself. Do not summarize.";
+                          
                     // Send command to browser service
-                    const commandResponse = await fetch('/api/browser-agent/session', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ 
-                            command: {
+                          const commandResponse = await fetch('/api/browser-agent/session', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ 
+                              command: {
                                 prompt: browserPrompt
-                            }
-                        }),
-                    });
+                              }
+                            }),
+                          });
+                          
+                          if (!commandResponse.ok) {
+                            throw new Error(`Failed to send browser command: ${commandResponse.statusText}`);
+                          }
+                          
+                          const commandData = await commandResponse.json();
                     
-                    if (!commandResponse.ok) {
-                        throw new Error(`Failed to send browser command: ${commandResponse.statusText}`);
-                    }
-                    
-                    const commandData = await commandResponse.json();
-                    
-                    const sessionId = commandData.session_id;
-                    const commandId = commandData.command_id;
-                    
+                          const sessionId = commandData.session_id;
+                          const commandId = commandData.command_id;
+                          
                     if (!sessionId || !commandId) {
                         throw new Error('Invalid response from browser service: missing session_id or command_id');
                     }
-                    
-                    // Poll for command completion
-                    const maxAttempts = 30; // Prevent infinite polling
-                    let attempts = 0;
+                          
+                          // Poll for command completion
+                          const maxAttempts = 30; // Prevent infinite polling
+                          let attempts = 0;
                     let commandResult = null;
-                    
-                    while (attempts < maxAttempts) {
+                          
+                          while (attempts < maxAttempts) {
                         await new Promise(resolve => setTimeout(resolve, 5000)); // Poll every 5 seconds
-                        
-                        const stateResponse = await fetch(`/api/browser-agent/${sessionId}/state`);
-                        
-                        if (!stateResponse.ok) {
-                            throw new Error(`Failed to get session state: ${stateResponse.statusText}`);
-                        }
-                        
-                        const stateData = await stateResponse.json();
-                        
+                            
+                            const stateResponse = await fetch(`/api/browser-agent/${sessionId}/state`);
+                            
+                            if (!stateResponse.ok) {
+                              throw new Error(`Failed to get session state: ${stateResponse.statusText}`);
+                            }
+                            
+                            const stateData = await stateResponse.json();
+                            
                         // Check if the command has completed
                         const commandHistory = stateData.command_history || [];
                         const completedCommand = commandHistory.find((cmd: { command_id: string, result: { status: string } }) => 
@@ -203,8 +222,8 @@ export default function ExecuteWorkflowPage() {
                         
                         if (completedCommand) {
                             commandResult = completedCommand.result;
-                            break;
-                        }
+                              break;
+                            }
                         
                         // Check if the command failed
                         const failedCommand = commandHistory.find((cmd: { command_id: string, result: { status: string } }) => 
@@ -221,14 +240,14 @@ export default function ExecuteWorkflowPage() {
                         if (stateData.status === 'error') {
                             throw new Error(`Browser session in error state: ${stateData.error || 'Unknown error'}`);
                         }
-                        
-                        attempts++;
-                    }
-                    
+                            
+                            attempts++;
+                          }
+                          
                     if (!commandResult) {
-                        throw new Error('Browser command timed out after multiple attempts');
-                    }
-                    
+                            throw new Error('Browser command timed out after multiple attempts');
+                          }
+                          
                     // Extract the text from the command result
                     const extractedText = commandResult.summary || '';
                     console.log('extractedText', extractedText);
@@ -237,8 +256,8 @@ export default function ExecuteWorkflowPage() {
                     setIngestExtractedText(extractedText);
                     
                     // Update task with the output
-                    await updateTask(task.id, {
-                        status: TaskStatus.COMPLETED,
+                          await updateTask(task.id, {
+                            status: TaskStatus.COMPLETED,
                         output: {
                             type: TaskType.READ_OBESITY_INTAKE_FORM,
                             success: true,
@@ -284,7 +303,7 @@ export default function ExecuteWorkflowPage() {
                         const medications = await extractResponse.json();
                         setExtractedMedications(medications.medications ? medications.medications : []);
                         // Update task with the extracted medications
-                        await updateTask(task.id, {
+                          await updateTask(task.id, {
                             status: TaskStatus.COMPLETED,
                             output: {
                                 type: TaskType.WRITE_MEDICATIONS,
@@ -293,11 +312,11 @@ export default function ExecuteWorkflowPage() {
                                     medications: medications.medications ? medications.medications : [],
                                 }
                             },
-                        });
+                          });
                     } catch (error) {
                         throw error;
-                    }
-                    break;
+                        }
+                        break;
 
                 case TaskType.WRITE_ALLERGIES: {
                     // Make generic extract API call to extract allergies
@@ -331,7 +350,7 @@ export default function ExecuteWorkflowPage() {
                     setExtractedAllergies(allergies.allergies ? allergies.allergies : []);
                     
                     // Update task with the extracted allergies
-                    await updateTask(task.id, {
+                await updateTask(task.id, {
                         status: TaskStatus.COMPLETED,
                         output: {
                             type: TaskType.WRITE_ALLERGIES,
@@ -356,15 +375,12 @@ export default function ExecuteWorkflowPage() {
                           schema: {
                             type: 'object',
                             properties: {
-                              type: 'array',
-                              properties: {
-                                name: { type: 'string' },
-                                policyNumber: { type: 'string' },
-                                groupNumber: { type: 'string' },
-                                memberId: { type: 'string' },
-                              },
-                              required: ['name', 'policyNumber', 'groupNumber', 'memberId']
-                            }
+                              name: { type: 'string' },
+                              policyNumber: { type: 'string' },
+                              groupNumber: { type: 'string' },
+                              memberId: { type: 'string' },
+                            },
+                            required: ['name', 'policyNumber', 'groupNumber', 'memberId']
                           }
                         })
                     });
@@ -373,7 +389,10 @@ export default function ExecuteWorkflowPage() {
                         throw new Error(`Extract API error: ${extractResponse.statusText}`);
                     }
                     const insurance = await extractResponse.json();
+                    
+                    // Store the extracted insurance in state
                     setExtractedInsurance(insurance.insurance ? insurance.insurance : null);
+                    
                     // Update task with the extracted insurance
                     await updateTask(task.id, {
                         status: TaskStatus.COMPLETED,
@@ -381,7 +400,7 @@ export default function ExecuteWorkflowPage() {
                             type: TaskType.WRITE_INSURANCE,
                             success: true,
                             data: {
-                                insurance: insurance.insurance ? insurance.insurance : { name: '', policyNumber: '', groupNumber: '', memberId: '' },
+                                insurance: insurance.insurance ? insurance.insurance : null,
                             }
                         },
                     });
@@ -389,8 +408,67 @@ export default function ExecuteWorkflowPage() {
                     break;
                 }
 
-                case TaskType.WRITE_TO_ATHENA: {
+                case TaskType.EXTRACT_PATIENT_PROFILE:
+                    if (!isTaskOfType(TaskType.EXTRACT_PATIENT_PROFILE, task)) {
+                        throw new Error('Invalid task type');
+                    }
 
+                    let textToExtract = '';
+                    if (task.input.data.source.type === 'APPLICATION_MEMORY') {
+                        if (!task.input.data.source.applicationMemoryKey) {
+                            throw new Error('Application memory key is required');
+                        }
+                        // textToExtract = mockData.rawText;
+                        textToExtract = ingestExtractedText;
+                    } else if (task.input.data.source.type === 'BROWSER') {
+                        if (!task.input.data.source.browserLocation) {
+                            throw new Error('Browser location is required');
+                        }
+                        textToExtract = await getBrowserText();
+                    }
+
+                    const profileExtractResponse = await fetch('/api/extract', {
+                        method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            text: textToExtract,
+                            extractionType: 'profile',
+                            schema: {
+                                type: 'object',
+                                properties: {
+                                    name: { type: 'string' },
+                                    dateOfBirth: { type: 'string' },
+                                    gender: { type: 'string' },
+                                    phoneNumber: { type: 'string' },
+                                    email: { type: 'string' },
+                                    address: { type: 'string' }
+                                },
+                                required: ['name', 'dateOfBirth', 'gender']
+                            }
+                        })
+                    });
+
+                    if (!profileExtractResponse.ok) {
+                        throw new Error(`Extract API error: ${profileExtractResponse.statusText}`);
+                    }
+                    const profileData = await profileExtractResponse.json();
+                    
+                    // Store the extracted profile in state
+                    setExtractedProfile(profileData.profile);
+                    
+                    await updateTask(task.id, {
+                        status: TaskStatus.COMPLETED,
+                        output: {
+                            type: TaskType.EXTRACT_PATIENT_PROFILE,
+                            success: true,
+                            data: {
+                                profile: profileData.profile
+                            }
+                        },
+                    });
+                    break;
+
+                case TaskType.WRITE_TO_ATHENA: {
                     // TODO(ambar): feature-ize how you'd manage internally generated state.
                     const mockMeds: Medication[] = [
                         {
@@ -462,7 +540,7 @@ export default function ExecuteWorkflowPage() {
                     } else {
                         throw new Error(`Unsupported field type: ${writeToAthenaBrowserInput.field}`);
                     }
-
+                    
                     // Send command to browser service
                     const commandResponse = await fetch('/api/browser-agent/session', {
                         method: 'POST',
@@ -538,19 +616,134 @@ export default function ExecuteWorkflowPage() {
                     if (!commandResult) {
                         throw new Error('Browser command timed out after multiple attempts');
                     }
-
+                    
                     // Update task with the output
                     await updateTask(task.id, {
                         status: TaskStatus.COMPLETED,
                         output: {
                             type: TaskType.WRITE_TO_ATHENA,
-                            success: true,
-                            data: {
+                        success: true,
+                        data: {
                                 success: true
                             }
                         }
                     });
                     
+                    break;
+                }
+
+                case TaskType.IDENTIFY_CHART_IN_ATHENA: {
+                    if (!isTaskOfType(TaskType.IDENTIFY_CHART_IN_ATHENA, task)) {
+                        throw new Error('Invalid task type');
+                    }
+
+                    // Check if we have profile data
+                    if (!extractedProfile) {
+                        throw new Error('No profile data available. Please run EXTRACT_PATIENT_PROFILE task first.');
+                    }
+
+                    // Construct a clear and specific prompt for the browser service
+                    const browserPrompt = `Go to localhost:8000 (not localhost:8000/ingest) and find the patient chart for ${extractedProfile.name}. Here's how:
+1. Look for a search box or patient lookup field
+2. Enter the patient's name: "${extractedProfile.name}"
+3. In the search results, verify it's the correct patient by checking:
+   - Date of birth: ${extractedProfile.dateOfBirth}.
+4. Click on the matching patient's name to go to their profile
+5. Once on the profile page, confirm you're on the correct patient's chart
+Return the current URL of the patient's chart page.`;
+
+                    // Send command to browser service
+                    const commandResponse = await fetch('/api/browser-agent/session', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            command: {
+                                prompt: browserPrompt
+                            }
+                        }),
+                    });
+                    
+                    if (!commandResponse.ok) {
+                        throw new Error(`Failed to send browser command: ${commandResponse.statusText}`);
+                    }
+                    
+                    const commandData = await commandResponse.json();
+                    const sessionId = commandData.session_id;
+                    const commandId = commandData.command_id;
+                    
+                    if (!sessionId || !commandId) {
+                        throw new Error('Invalid response from browser service: missing session_id or command_id');
+                    }
+                    
+                    // Poll for command completion
+                    const maxAttempts = 30;
+                    let attempts = 0;
+                    let commandResult = null;
+                    
+                    while (attempts < maxAttempts) {
+                        await new Promise(resolve => setTimeout(resolve, 5000));
+                        
+                        const stateResponse = await fetch(`/api/browser-agent/${sessionId}/state`);
+                        if (!stateResponse.ok) {
+                            throw new Error(`Failed to get session state: ${stateResponse.statusText}`);
+                        }
+                        
+                        const stateData = await stateResponse.json();
+                        
+                        // Check if the command has completed
+                        const commandHistory = stateData.command_history || [];
+                        const completedCommand = commandHistory.find((cmd: { command_id: string, result: { status: string } }) => 
+                            cmd.command_id === commandId && 
+                            cmd.result && 
+                            cmd.result.status === 'success'
+                        );
+                        
+                        if (completedCommand) {
+                            commandResult = completedCommand.result;
+                    break;
+                        }
+                        
+                        // Check for failures
+                        const failedCommand = commandHistory.find((cmd: { command_id: string, result: { status: string } }) => 
+                            cmd.command_id === commandId && 
+                            cmd.result && 
+                            cmd.result.status === 'error'
+                        );
+                        
+                        if (failedCommand) {
+                            throw new Error(`Browser command failed: ${failedCommand.result.message || 'Unknown error'}`);
+                        }
+                        
+                        if (stateData.status === 'error') {
+                            throw new Error(`Browser session in error state: ${stateData.error || 'Unknown error'}`);
+                        }
+                        
+                        attempts++;
+                    }
+                    
+                    if (!commandResult) {
+                        throw new Error('Browser command timed out after multiple attempts');
+                    }
+
+                    console.log("seeing command result", commandResult)
+
+                    // Extract the URL from the command result
+                    const chartUrl = commandResult.last_url;
+                    if (!chartUrl) {
+                        throw new Error('Failed to get patient chart URL from browser service');
+                    }
+
+                    // Update task with the output
+                    await updateTask(task.id, { 
+                    status: TaskStatus.COMPLETED,
+                        output: {
+                            type: TaskType.IDENTIFY_CHART_IN_ATHENA,
+                            success: true,
+                            data: {
+                                url: chartUrl
+                            }
+                        }
+                    });
                     break;
                 }
 
@@ -609,7 +802,7 @@ export default function ExecuteWorkflowPage() {
                     return <p className="mt-2 text-sm text-gray-600">No input details available</p>;
                 }
 
-                return (
+    return (
                     <div className="mt-2 text-sm">
                         <p className="font-medium text-gray-700">{writeToAthenaBrowserInput.field}</p>
                         
@@ -633,7 +826,7 @@ export default function ExecuteWorkflowPage() {
                                         </li>
                                     ))}
                                 </ul>
-                            </div>
+                    </div>
                         )}
                         
                         {writeToAthenaBrowserInput.field === 'allergies' && extractedAllergies.length > 0 && (
@@ -667,6 +860,24 @@ export default function ExecuteWorkflowPage() {
                     </div>
                 );
             }
+            case TaskType.IDENTIFY_CHART_IN_ATHENA:
+                if (!isTaskOfType(TaskType.IDENTIFY_CHART_IN_ATHENA, task)) {
+                    return <p className="mt-2 text-sm text-gray-600">Invalid task input</p>;
+                }
+                return (
+                    <div className="mt-2 text-sm">
+                        <p className="font-medium text-gray-700">Patient Profile Search</p>
+                        {extractedProfile ? (
+                            <div className="mt-1 space-y-1">
+                                <p className="text-gray-600">Name: {extractedProfile.name}</p>
+                                <p className="text-gray-600">DOB: {extractedProfile.dateOfBirth}</p>
+                                <p className="text-gray-600">Gender: {extractedProfile.gender}</p>
+                            </div>
+                        ) : (
+                            <p className="text-gray-600 italic">No profile data available</p>
+                        )}
+                    </div>
+                );
             default:
                 return <p className="mt-2 text-sm text-gray-600">No input details available</p>;
         }
@@ -744,6 +955,40 @@ export default function ExecuteWorkflowPage() {
                         <p className="font-medium text-sm text-gray-700">Status: {task.output.success ? 'Success' : 'Failed'}</p>
                     </div>
                 );
+            case TaskType.EXTRACT_PATIENT_PROFILE:
+                const profileData = task.output.data?.profile as Profile;
+                return (
+                    <div className="mt-2">
+                        <p className="font-medium text-sm text-gray-700">Status: {task.output.success ? 'Success' : 'Failed'}</p>
+                        {profileData && (
+                            <div className="mt-1 text-xs text-gray-600">
+                                <p>Name: {profileData.name}</p>
+                                <p>Date of Birth: {profileData.dateOfBirth}</p>
+                                <p>Gender: {profileData.gender}</p>
+                                {profileData.phoneNumber && (
+                                    <p>Phone: {profileData.phoneNumber}</p>
+                                )}
+                                {profileData.email && (
+                                    <p>Email: {profileData.email}</p>
+                                )}
+                                {profileData.address && (
+                                    <p>Address: {profileData.address}</p>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                );
+            case TaskType.IDENTIFY_CHART_IN_ATHENA:
+                return (
+                    <div className="mt-2">
+                        <p className="font-medium text-sm text-gray-700">Status: {task.output.success ? 'Success' : 'Failed'}</p>
+                        {task.output.data?.url && (
+                            <div className="mt-1 text-xs text-gray-600">
+                                <p>Patient Chart URL: {task.output.data.url}</p>
+                            </div>
+                        )}
+                    </div>
+                );
             default:
                 return <p className="text-sm text-gray-600">No output details available</p>;
         }
@@ -791,19 +1036,19 @@ export default function ExecuteWorkflowPage() {
 
                             <div className="p-6">
                                 <h2 className="text-lg font-medium text-gray-900 mb-4">Tasks</h2>
-                                <div className="space-y-4">
+                        <div className="space-y-4">
                                     {workflow.tasks.map((task) => {
                                         const statusStyles = getStatusStyles(task.status);
                                         const isActive = task.id === activeTaskId;
                                         const isExpanded = expandedTasks[task.id] || false;
                                         
                                         return (
-                                            <div 
-                                                key={task.id}
+                                <div 
+                                    key={task.id}
                                                 className={`border rounded-lg overflow-hidden transition-all duration-200 ${statusStyles.border} ${isActive ? 'shadow-md' : 'shadow-sm'}`}
                                             >
                                                 <div className={`px-5 py-4 ${statusStyles.bg}`}>
-                                                    <div className="flex items-center justify-between">
+                                            <div className="flex items-center justify-between">
                                                         <div className="flex items-center space-x-3">
                                                             <div className="flex-shrink-0">
                                                                 {statusStyles.icon}
@@ -826,8 +1071,8 @@ export default function ExecuteWorkflowPage() {
                                                                 {isExpanded ? 'Hide Details' : 'View Details'}
                                                             </button>
                                                             
-                                                            <button
-                                                                onClick={() => executeTask(task)}
+                                                <button
+                                                    onClick={() => executeTask(task)}
                                                                 disabled={task.status === TaskStatus.COMPLETED || task.status === TaskStatus.IN_PROGRESS || isActive}
                                                                 className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
                                                                     task.status === TaskStatus.COMPLETED 
@@ -842,9 +1087,9 @@ export default function ExecuteWorkflowPage() {
                                                                     : task.status === TaskStatus.IN_PROGRESS || isActive
                                                                         ? 'Running...' 
                                                                         : 'Execute'}
-                                                            </button>
-                                                        </div>
-                                                    </div>
+                                                </button>
+                                            </div>
+                                            </div>
                                                     
                                                     {isExpanded && (
                                                         <div className="mt-4 pt-3 border-t border-gray-100">
@@ -852,28 +1097,28 @@ export default function ExecuteWorkflowPage() {
                                                                 <div>
                                                                     <h4 className="text-xs font-semibold uppercase tracking-wider text-gray-500">Input</h4>
                                                                     {renderTaskInput(task)}
-                                                                </div>
+                                        </div>
                                                                 <div>
                                                                     <h4 className="text-xs font-semibold uppercase tracking-wider text-gray-500">Output</h4>
                                                                     {renderTaskOutput(task)}
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    )}
+                                    </div>
+                                        </div>
+                                        </div>
+                                    )}
                                                     
-                                                    {task.error && (
+                                    {task.error && (
                                                         <div className="mt-3 text-sm text-red-600 bg-red-50 rounded-md p-3">
                                                             <div className="font-medium">Error:</div>
                                                             <div>{task.error}</div>
-                                                        </div>
-                                                    )}
-                                                </div>
+                                        </div>
+                                    )}
+                                </div>
                                             </div>
                                         );
                                     })}
                                 </div>
-                            </div>
                         </div>
+                    </div>
 
                         {logs.length > 0 && (
                             <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
@@ -886,9 +1131,9 @@ export default function ExecuteWorkflowPage() {
                                             {log}
                                         </div>
                                     ))}
-                                </div>
-                            </div>
-                        )}
+                    </div>
+                </div>
+            )}
                     </div>
                 )}
             </div>

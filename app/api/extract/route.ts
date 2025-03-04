@@ -182,6 +182,54 @@ Only include information that is explicitly mentioned in the text. Do not make a
         // Return the extracted data
         return NextResponse.json(insuranceParsedResponse, { status: 200 });
       break;
+
+      case 'profile':
+        prompt = `Extract patient profile information from the following text. Include name, date of birth, gender, phone number, email, and address when available.
+        
+Text: ${text}
+
+Only include information that is explicitly mentioned in the text. Do not make assumptions or add information not present in the text.`;
+
+        completion = await openai.chat.completions.create({
+          model: "gpt-4o",
+          messages: [
+            { role: "system", content: "You are a medical data extraction assistant. Extract structured data from medical text according to the specified schema. Only return valid JSON without any additional text." },
+            { role: "user", content: prompt }
+          ],
+          response_format: {
+            type: "json_schema",
+            json_schema: {
+              name: "extracted",
+              schema: {
+                type: "object",
+                properties: {
+                  profile: {
+                    type: "object",
+                    properties: {
+                      name: { type: "string" },
+                      dateOfBirth: { type: "string" },
+                      gender: { type: "string" },
+                      phoneNumber: { type: "string" },
+                      email: { type: "string" },
+                      address: { type: "string" }
+                    },
+                    required: ["name", "dateOfBirth", "gender"]
+                  }
+                }
+              }
+            }
+          }
+        });
+
+        const profileResponseContent = completion.choices[0].message.content;
+        console.log('profileResponseContent', profileResponseContent);
+        if (!profileResponseContent) {
+          throw new Error('Empty response from OpenAI');
+        }
+
+        const profileParsedResponse = JSON.parse(profileResponseContent);
+        return NextResponse.json(profileParsedResponse, { status: 200 });
+      break;
         
       default:
         return NextResponse.json({ error: `Unsupported extraction type: ${extractionType}` }, { status: 400 });
