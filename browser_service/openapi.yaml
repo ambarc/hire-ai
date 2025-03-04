@@ -1,0 +1,212 @@
+openapi: 3.1.0
+info:
+  title: Browser Agent
+  description: A service that orchestrates browser agents given commands.
+  version: 0.1.0
+paths:
+  /:
+    get:
+      summary: Get Debug Ui
+      description: Return debug UI showing all sessions
+      operationId: get_debug_ui__get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            text/html:
+              schema:
+                type: string
+  /api/browser-agent/session:
+    post:
+      summary: Create Session
+      description: Create a new browser session
+      operationId: create_session_api_browser_agent_session_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SessionCreate'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/browser-agent/{session_id}/command:
+    post:
+      summary: Send Command
+      description: Send a command to an existing session
+      operationId: send_command_api_browser_agent__session_id__command_post
+      parameters:
+      - name: session_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Session Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Command'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/browser-agent/{session_id}/commands:
+    get:
+      summary: Get Command History
+      description: Get command history for a session
+      operationId: get_command_history_api_browser_agent__session_id__commands_get
+      parameters:
+      - name: session_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Session Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/browser-agent/{session_id}/state:
+    get:
+      summary: Get Session State
+      description: Get full session state
+      operationId: get_session_state_api_browser_agent__session_id__state_get
+      parameters:
+      - name: session_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Session Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/browser-agent/{session_id}:
+    delete:
+      summary: End Session
+      description: End a session
+      operationId: end_session_api_browser_agent__session_id__delete
+      parameters:
+      - name: session_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Session Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/browser-agent/sessions:
+    get:
+      summary: List Sessions
+      description: List all active sessions
+      operationId: list_sessions_api_browser_agent_sessions_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+components:
+  schemas:
+    Command:
+      properties:
+        prompt:
+          type: string
+          title: Prompt
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
+        id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Id
+      type: object
+      required:
+      - prompt
+      title: Command
+      description: Command to be executed in a browser session
+    HTTPValidationError:
+      properties:
+        detail:
+          items:
+            $ref: '#/components/schemas/ValidationError'
+          type: array
+          title: Detail
+      type: object
+      title: HTTPValidationError
+    SessionCreate:
+      properties:
+        command:
+          $ref: '#/components/schemas/Command'
+      type: object
+      title: SessionCreate
+    ValidationError:
+      properties:
+        loc:
+          items:
+            anyOf:
+            - type: string
+            - type: integer
+          type: array
+          title: Location
+        msg:
+          type: string
+          title: Message
+        type:
+          type: string
+          title: Error Type
+      type: object
+      required:
+      - loc
+      - msg
+      - type
+      title: ValidationError

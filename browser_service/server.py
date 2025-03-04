@@ -13,7 +13,7 @@ from collections import deque
 import uuid
 import asyncio
 
-app = FastAPI()
+app = FastAPI(title="Browser Agent", description="A service that orchestrates browser agents given commands.")
 
 # Get the current directory
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -134,9 +134,7 @@ class BrowserSession:
             
             self.status = "running"
             self._update_state()
-
-            
-            
+  
             # Ensure browser is healthy
             print("Debug: Ensuring browser health")
             if not await self.ensure_healthy_browser():
@@ -187,11 +185,14 @@ class BrowserSession:
                         summary = f"Error converting result: {str(e)}"
                         actions = []
             
+            history = await self.agent.run()
+            last_url = history.urls()[-1]
             self.result = {
                 "status": "success",
                 "command_id": self.current_command.id,
                 "actions": actions,
                 "summary": summary,
+                "last_url": last_url
             }
             print(f"Debug: Final result: {self.result}")
 
