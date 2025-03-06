@@ -565,8 +565,8 @@
     // Function to fetch and display task types
     async function fetchAndDisplayTaskTypes() {
       const taskTypesList = document.getElementById('taskTypesList');
-      taskTypesList.innerHTML = '';
-
+      const taskTypeSelect = document.getElementById('taskType');
+      
       try {
         const response = await fetch('/api/task-types');
         if (!response.ok) {
@@ -575,40 +575,76 @@
 
         const taskTypes = await response.json();
         
-        if (taskTypes.length === 0) {
-          taskTypesList.innerHTML = `
-            <div class="py-4 text-center text-gray-500">
-              No task types registered yet
-            </div>
-          `;
-          return;
+        // Clear existing options in select (except the placeholder)
+        while (taskTypeSelect.options.length > 1) {
+          taskTypeSelect.remove(1);
         }
+        
+        // Clear the task types list
+        taskTypesList.innerHTML = '';
 
+        // Add task types to both the list and select
         taskTypes.forEach(taskType => {
+          // Add to select
+          const option = document.createElement('option');
+          option.value = taskType.type;
+          option.textContent = taskType.type;
+          taskTypeSelect.appendChild(option);
+
+          // Add to list
           const taskTypeElement = document.createElement('div');
           taskTypeElement.className = 'py-4';
           taskTypeElement.innerHTML = `
-            <div class="mb-4">
-              <h3 class="text-lg font-semibold text-gray-900">${taskType.type}</h3>
-              <p class="mt-1 text-sm text-gray-600">${taskType.description}</p>
-            </div>
-            <div class="grid grid-cols-2 gap-4">
+            <div class="space-y-4">
               <div>
-                <h4 class="text-sm font-medium text-gray-700 mb-2">Input Schema</h4>
-                <div class="bg-gray-50 rounded-md p-3">
-                  <pre class="text-sm text-gray-600">${JSON.stringify(taskType.input, null, 2)}</pre>
-                </div>
+                <h3 class="text-lg font-medium text-gray-900">${taskType.type}</h3>
+                <p class="mt-1 text-sm text-gray-600">${taskType.description}</p>
               </div>
               <div>
-                <h4 class="text-sm font-medium text-gray-700 mb-2">Output Schema</h4>
-                <div class="bg-gray-50 rounded-md p-3">
-                  <pre class="text-sm text-gray-600">${JSON.stringify(taskType.output, null, 2)}</pre>
-                </div>
+                <h4 class="text-sm font-medium text-gray-700">Input Schema</h4>
+                <pre class="mt-1 p-2 bg-gray-50 rounded-md text-sm text-gray-600 overflow-x-auto">
+${JSON.stringify(taskType.input, null, 2)}
+                </pre>
+              </div>
+              <div>
+                <h4 class="text-sm font-medium text-gray-700">Output Schema</h4>
+                <pre class="mt-1 p-2 bg-gray-50 rounded-md text-sm text-gray-600 overflow-x-auto">
+${JSON.stringify(taskType.output, null, 2)}
+                </pre>
               </div>
             </div>
           `;
           taskTypesList.appendChild(taskTypeElement);
         });
+
+        // Update task type change handler
+        taskTypeSelect.addEventListener('change', () => {
+          const taskInputFields = document.getElementById('taskInputFields');
+          const selectedType = taskTypeSelect.value;
+          
+          if (!selectedType) {
+            taskInputFields.innerHTML = '';
+            return;
+          }
+
+          const selectedTaskType = taskTypes.find(t => t.type === selectedType);
+          if (!selectedTaskType) {
+            taskInputFields.innerHTML = '';
+            return;
+          }
+
+          // Create input fields based on the schema
+          taskInputFields.innerHTML = Object.entries(selectedTaskType.input)
+            .map(([key, schema]) => `
+              <div>
+                <label for="input_${key}" class="block text-sm font-medium text-gray-700">${key}</label>
+                <input type="text" id="input_${key}" name="input_${key}" required="${!schema.optional}"
+                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                  placeholder="Enter ${key}">
+              </div>
+            `).join('');
+        });
+
       } catch (error) {
         console.error('Error fetching task types:', error);
         taskTypesList.innerHTML = `
