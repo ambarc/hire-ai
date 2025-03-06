@@ -19,9 +19,10 @@ export async function taskTypeRoutes(fastify: FastifyInstance, options: TaskType
     schema: {
       body: {
         type: 'object',
-        required: ['type', 'input', 'output'],
+        required: ['type', 'description', 'input', 'output'],
         properties: {
           type: { type: 'string' },
+          description: { type: 'string' },
           input: {
             type: 'object',
             additionalProperties: {
@@ -48,14 +49,19 @@ export async function taskTypeRoutes(fastify: FastifyInstance, options: TaskType
       }
     }
   }, async (request, reply) => {
-    const { type, input, output } = request.body as {
+    const { type, description, input, output } = request.body as {
       type: string;
+      description: string;
       input: Record<string, unknown>;
       output: Record<string, unknown>;
     };
 
     try {
-      await workflowUseCases.registerTaskType(type, { input, output });
+      await workflowUseCases.registerTaskType(type, { 
+        description,
+        input, 
+        output 
+      });
       reply.code(201).send({ message: 'Task type registered successfully' });
     } catch (error) {
       if (error instanceof Error && error.message.includes('already exists')) {

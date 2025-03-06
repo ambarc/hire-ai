@@ -10,6 +10,8 @@ import { Config } from '../../config';
 import path from 'path';
 import fs from 'fs';
 
+const API_VERSION = 'v0.0.1';
+
 export async function createServer(
   config: Config,
   workflowUseCases: WorkflowUseCases
@@ -29,7 +31,7 @@ export async function createServer(
       info: {
         title: 'Workflow Service API',
         description: 'API for managing workflows and tasks',
-        version: '1.0.0'
+        version: API_VERSION
       },
       servers: [
         {
@@ -96,6 +98,11 @@ export async function createServer(
   // Redirect root to admin
   server.get('/', async (request, reply) => {
     reply.redirect('/admin');
+  });
+
+  // Version endpoint
+  server.get('/api/_version', async () => {
+    return { version: API_VERSION };
   });
 
   return server;

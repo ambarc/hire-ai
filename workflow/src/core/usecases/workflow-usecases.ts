@@ -89,19 +89,33 @@ export class WorkflowUseCases {
     return this.workflowRepository.updateTask(workflowId, taskId, updatedTask);
   }
 
-  async registerTaskType(type: string, schema: { input: Record<string, unknown>; output: Record<string, unknown> }): Promise<void> {
+  async registerTaskType(type: string, schema: { 
+    description: string;
+    input: Record<string, unknown>; 
+    output: Record<string, unknown>;
+  }): Promise<void> {
     await this.taskTypeRegistry.registerTaskType(type, schema);
   }
 
-  async getAvailableTaskTypes(): Promise<Array<{ type: string; input: Record<string, unknown>; output: Record<string, unknown> }>> {
+  async getAvailableTaskTypes(): Promise<Array<{ 
+    type: string;
+    description: string;
+    input: Record<string, unknown>;
+    output: Record<string, unknown>;
+  }>> {
     return this.taskTypeRegistry.getAllTaskTypes();
   }
 
-  async getTaskType(type: string): Promise<{ input: Record<string, unknown>; output: Record<string, unknown> } | null> {
+  async getTaskType(type: string): Promise<{ 
+    description: string;
+    input: Record<string, unknown>;
+    output: Record<string, unknown>;
+  } | null> {
     return this.taskTypeRegistry.getTaskType(type);
   }
 
-  validateTaskType(type: string): boolean {
-    return this.taskTypeRegistry.getTaskType(type) !== null;
+  async validateTaskType(type: string): Promise<boolean> {
+    const taskType = await this.taskTypeRegistry.getTaskType(type);
+    return taskType !== null;
   }
 } 

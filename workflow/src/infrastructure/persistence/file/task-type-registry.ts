@@ -23,7 +23,14 @@ export class FileTaskTypeRegistry implements TaskTypeRegistry {
     return path.join(this.taskTypesDir, `${type}.json`);
   }
 
-  async registerTaskType(type: string, schema: { input: Record<string, unknown>; output: Record<string, unknown> }): Promise<void> {
+  async registerTaskType(
+    type: string, 
+    schema: { 
+      description: string;
+      input: Record<string, unknown>; 
+      output: Record<string, unknown>;
+    }
+  ): Promise<void> {
     const taskTypePath = this.getTaskTypePath(type);
     
     try {
@@ -45,7 +52,11 @@ export class FileTaskTypeRegistry implements TaskTypeRegistry {
     }
   }
 
-  async getTaskType(type: string): Promise<{ input: Record<string, unknown>; output: Record<string, unknown> } | null> {
+  async getTaskType(type: string): Promise<{ 
+    description: string;
+    input: Record<string, unknown>; 
+    output: Record<string, unknown>;
+  } | null> {
     try {
       const taskTypePath = this.getTaskTypePath(type);
       const data = await fs.readFile(taskTypePath, 'utf-8');
@@ -58,7 +69,12 @@ export class FileTaskTypeRegistry implements TaskTypeRegistry {
     }
   }
 
-  async getAllTaskTypes(): Promise<Array<{ type: string; input: Record<string, unknown>; output: Record<string, unknown> }>> {
+  async getAllTaskTypes(): Promise<Array<{ 
+    type: string;
+    description: string;
+    input: Record<string, unknown>;
+    output: Record<string, unknown>;
+  }>> {
     try {
       const files = await fs.readdir(this.taskTypesDir);
       const taskTypeFiles = files.filter(file => file.endsWith('.json'));
