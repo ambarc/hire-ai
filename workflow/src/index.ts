@@ -38,54 +38,54 @@ async function main() {
     const taskTypeRegistry = new InMemoryTaskTypeRegistry();
     
     // Register task types
-    taskTypeRegistry.registerTaskType('READ_OBESITY_INTAKE_FORM', {
-      input: { url: { type: 'string' } },
-      output: { rawText: { type: 'string', optional: true } }
-    });
+    // taskTypeRegistry.registerTaskType('READ_OBESITY_INTAKE_FORM', {
+    //   input: { url: { type: 'string' } },
+    //   output: { rawText: { type: 'string', optional: true } }
+    // });
     
-    taskTypeRegistry.registerTaskType('EXTRACT_PATIENT_PROFILE', {
-      input: { 
-        source: { 
-          type: 'object', 
-          properties: {
-            type: { type: 'string', enum: ['APPLICATION_MEMORY', 'BROWSER'] },
-            applicationMemoryKey: { type: 'string', optional: true },
-            browserLocation: { type: 'string', optional: true }
-          }
-        }
-      },
-      output: { 
-        profile: { 
-          type: 'object', 
-          properties: {
-            name: { type: 'string' },
-            dateOfBirth: { type: 'string' },
-            gender: { type: 'string' },
-            phoneNumber: { type: 'string', optional: true },
-            email: { type: 'string', optional: true },
-            address: { type: 'string', optional: true }
-          }
-        }
-      }
-    });
+    // taskTypeRegistry.registerTaskType('EXTRACT_PATIENT_PROFILE', {
+    //   input: { 
+    //     source: { 
+    //       type: 'object', 
+    //       properties: {
+    //         type: { type: 'string', enum: ['APPLICATION_MEMORY', 'BROWSER'] },
+    //         applicationMemoryKey: { type: 'string', optional: true },
+    //         browserLocation: { type: 'string', optional: true }
+    //       }
+    //     }
+    //   },
+    //   output: { 
+    //     profile: { 
+    //       type: 'object', 
+    //       properties: {
+    //         name: { type: 'string' },
+    //         dateOfBirth: { type: 'string' },
+    //         gender: { type: 'string' },
+    //         phoneNumber: { type: 'string', optional: true },
+    //         email: { type: 'string', optional: true },
+    //         address: { type: 'string', optional: true }
+    //       }
+    //     }
+    //   }
+    // });
 
-    taskTypeRegistry.registerTaskType('IDENTIFY_CHART_IN_ATHENA', {
-      input: { 
-        profile: { 
-          type: 'object', 
-          optional: true,
-          properties: {
-            name: { type: 'string' },
-            dateOfBirth: { type: 'string' },
-            gender: { type: 'string' },
-            phoneNumber: { type: 'string', optional: true },
-            email: { type: 'string', optional: true },
-            address: { type: 'string', optional: true }
-          }
-        }
-      },
-      output: { url: { type: 'string' } }
-    });
+    // taskTypeRegistry.registerTaskType('IDENTIFY_CHART_IN_ATHENA', {
+    //   input: { 
+    //     profile: { 
+    //       type: 'object', 
+    //       optional: true,
+    //       properties: {
+    //         name: { type: 'string' },
+    //         dateOfBirth: { type: 'string' },
+    //         gender: { type: 'string' },
+    //         phoneNumber: { type: 'string', optional: true },
+    //         email: { type: 'string', optional: true },
+    //         address: { type: 'string', optional: true }
+    //       }
+    //     }
+    //   },
+    //   output: { url: { type: 'string' } }
+    // });
 
     // Initialize repository based on configuration
     let workflowRepository;
