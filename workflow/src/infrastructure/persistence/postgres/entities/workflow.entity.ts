@@ -8,9 +8,6 @@ export class WorkflowEntity {
   id!: string;
 
   @Column()
-  version!: string;
-
-  @Column()
   name!: string;
 
   @Column()

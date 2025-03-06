@@ -5,6 +5,8 @@ import { WorkflowUseCases } from './core/usecases/workflow-usecases';
 import { FileWorkflowRepository } from './infrastructure/persistence/file/workflow-repository';
 import { FileTaskTypeRegistry } from './infrastructure/persistence/file/task-type-registry';
 import { PostgresWorkflowRepository } from './infrastructure/persistence/postgres/workflow-repository';
+import { InMemoryWorkflowRepository } from './infrastructure/persistence/workflow-repository';
+import { InMemoryTaskTypeRegistry } from './infrastructure/persistence/task-type-registry';
 import { createServer, startServer } from './infrastructure/api/server';
 import { WorkflowEntity } from './infrastructure/persistence/postgres/entities/workflow.entity';
 import { TaskEntity } from './infrastructure/persistence/postgres/entities/task.entity';
@@ -40,10 +42,13 @@ async function main() {
       // TODO: Implement PostgreSQL-based task type registry if needed
       const baseDir = path.resolve(process.cwd(), config.FILE_STORAGE_PATH);
       taskTypeRegistry = new FileTaskTypeRegistry(baseDir);
-    } else {
+    } else if (config.STORAGE_TYPE === 'file') {
       const baseDir = path.resolve(process.cwd(), config.FILE_STORAGE_PATH);
       taskTypeRegistry = new FileTaskTypeRegistry(baseDir);
-    }
+    } else {
+      console.log('Using in-memory task type registry');
+      taskTypeRegistry = new InMemoryTaskTypeRegistry();
+    } 
 
     // Initialize repository based on configuration
     let workflowRepository;
@@ -53,10 +58,13 @@ async function main() {
       await dataSource.initialize();
       console.log('PostgreSQL connection established');
       workflowRepository = new PostgresWorkflowRepository(dataSource);
-    } else {
+    } else if (config.STORAGE_TYPE === 'file') {
       console.log('Using file storage');
       const baseDir = path.resolve(process.cwd(), config.FILE_STORAGE_PATH);
       workflowRepository = new FileWorkflowRepository(baseDir);
+    } else {
+      console.log('Using in-memory storage');
+      workflowRepository = new InMemoryWorkflowRepository();
     }
 
     // Initialize use cases

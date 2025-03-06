@@ -8,7 +8,7 @@ const configSchema = z.object({
   SERVER_PORT: z.string().transform(val => parseInt(val, 10)).default('3100'),
   
   // Storage configuration
-  STORAGE_TYPE: z.enum(['file', 'postgres']).default('file'),
+  STORAGE_TYPE: z.enum(['file', 'postgres', 'memory']).default('memory'),
   FILE_STORAGE_PATH: z.string().default('./.workflows'),
   
   // PostgreSQL configuration

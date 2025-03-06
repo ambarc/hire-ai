@@ -9,7 +9,6 @@ export enum WorkflowStatus {
 
 export interface Workflow {
   id: string;
-  version: string;
   name: string;
   description: string;
   tasks: Task[];
@@ -22,7 +21,6 @@ export interface Workflow {
 export interface CreateWorkflowDTO {
   name: string;
   description: string;
-  version: string;
   tasks: Task[];
   metadata?: Record<string, unknown>;
 }
@@ -30,7 +28,6 @@ export interface CreateWorkflowDTO {
 export interface UpdateWorkflowDTO {
   name?: string;
   description?: string;
-  version?: string;
   status?: WorkflowStatus;
   metadata?: Record<string, unknown>;
 } 

@@ -17,7 +17,6 @@ export class PostgresWorkflowRepository implements WorkflowRepository {
   private toEntity(workflow: Workflow): WorkflowEntity {
     const entity = new WorkflowEntity();
     entity.id = workflow.id;
-    entity.version = workflow.version;
     entity.name = workflow.name;
     entity.description = workflow.description;
     entity.status = workflow.status;
@@ -43,7 +42,6 @@ export class PostgresWorkflowRepository implements WorkflowRepository {
   private toDomain(entity: WorkflowEntity): Workflow {
     return {
       id: entity.id,
-      version: entity.version,
       name: entity.name,
       description: entity.description,
       status: entity.status,

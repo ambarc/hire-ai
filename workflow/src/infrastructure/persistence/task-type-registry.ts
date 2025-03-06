@@ -2,7 +2,6 @@ import { TaskTypeRegistry } from '../../core/interfaces/repositories';
 
 export class InMemoryTaskTypeRegistry implements TaskTypeRegistry {
   private taskTypes: Map<string, { 
-    version: string;
     description: string;
     input: Record<string, unknown>; 
     output: Record<string, unknown>;
@@ -11,7 +10,6 @@ export class InMemoryTaskTypeRegistry implements TaskTypeRegistry {
   async registerTaskType(
     type: string, 
     schema: { 
-      version: string;
       description: string;
       input: Record<string, unknown>; 
       output: Record<string, unknown>;
@@ -24,7 +22,6 @@ export class InMemoryTaskTypeRegistry implements TaskTypeRegistry {
   }
 
   async getTaskType(type: string): Promise<{ 
-    version: string;
     description: string;
     input: Record<string, unknown>; 
     output: Record<string, unknown>;
@@ -34,7 +31,6 @@ export class InMemoryTaskTypeRegistry implements TaskTypeRegistry {
 
   async getAllTaskTypes(): Promise<Array<{ 
     type: string;
-    version: string;
     description: string;
     input: Record<string, unknown>; 
     output: Record<string, unknown>;
