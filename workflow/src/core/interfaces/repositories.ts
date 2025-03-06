@@ -11,7 +11,7 @@ export interface WorkflowRepository {
 }
 
 export interface TaskTypeRegistry {
-  registerTaskType(type: string, schema: { input: Record<string, unknown>; output: Record<string, unknown> }): void;
-  getTaskType(type: string): { input: Record<string, unknown>; output: Record<string, unknown> } | null;
-  getAllTaskTypes(): Array<{ type: string; input: Record<string, unknown>; output: Record<string, unknown> }>;
+  registerTaskType(type: string, schema: { input: Record<string, unknown>; output: Record<string, unknown> }): Promise<void>;
+  getTaskType(type: string): Promise<{ input: Record<string, unknown>; output: Record<string, unknown> } | null>;
+  getAllTaskTypes(): Promise<Array<{ type: string; input: Record<string, unknown>; output: Record<string, unknown> }>>;
 } 

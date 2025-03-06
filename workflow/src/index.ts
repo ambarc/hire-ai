@@ -3,8 +3,8 @@ import { DataSource } from 'typeorm';
 import loadConfig from './config';
 import { WorkflowUseCases } from './core/usecases/workflow-usecases';
 import { FileWorkflowRepository } from './infrastructure/persistence/file/workflow-repository';
+import { FileTaskTypeRegistry } from './infrastructure/persistence/file/task-type-registry';
 import { PostgresWorkflowRepository } from './infrastructure/persistence/postgres/workflow-repository';
-import { InMemoryTaskTypeRegistry } from './infrastructure/persistence/task-type-registry';
 import { createServer, startServer } from './infrastructure/api/server';
 import { WorkflowEntity } from './infrastructure/persistence/postgres/entities/workflow.entity';
 import { TaskEntity } from './infrastructure/persistence/postgres/entities/task.entity';
@@ -35,57 +35,15 @@ async function main() {
     console.log(`Starting workflow service in ${config.NODE_ENV} mode`);
 
     // Initialize task type registry
-    const taskTypeRegistry = new InMemoryTaskTypeRegistry();
-    
-    // Register task types
-    // taskTypeRegistry.registerTaskType('READ_OBESITY_INTAKE_FORM', {
-    //   input: { url: { type: 'string' } },
-    //   output: { rawText: { type: 'string', optional: true } }
-    // });
-    
-    // taskTypeRegistry.registerTaskType('EXTRACT_PATIENT_PROFILE', {
-    //   input: { 
-    //     source: { 
-    //       type: 'object', 
-    //       properties: {
-    //         type: { type: 'string', enum: ['APPLICATION_MEMORY', 'BROWSER'] },
-    //         applicationMemoryKey: { type: 'string', optional: true },
-    //         browserLocation: { type: 'string', optional: true }
-    //       }
-    //     }
-    //   },
-    //   output: { 
-    //     profile: { 
-    //       type: 'object', 
-    //       properties: {
-    //         name: { type: 'string' },
-    //         dateOfBirth: { type: 'string' },
-    //         gender: { type: 'string' },
-    //         phoneNumber: { type: 'string', optional: true },
-    //         email: { type: 'string', optional: true },
-    //         address: { type: 'string', optional: true }
-    //       }
-    //     }
-    //   }
-    // });
-
-    // taskTypeRegistry.registerTaskType('IDENTIFY_CHART_IN_ATHENA', {
-    //   input: { 
-    //     profile: { 
-    //       type: 'object', 
-    //       optional: true,
-    //       properties: {
-    //         name: { type: 'string' },
-    //         dateOfBirth: { type: 'string' },
-    //         gender: { type: 'string' },
-    //         phoneNumber: { type: 'string', optional: true },
-    //         email: { type: 'string', optional: true },
-    //         address: { type: 'string', optional: true }
-    //       }
-    //     }
-    //   },
-    //   output: { url: { type: 'string' } }
-    // });
+    let taskTypeRegistry;
+    if (config.STORAGE_TYPE === 'postgres') {
+      // TODO: Implement PostgreSQL-based task type registry if needed
+      const baseDir = path.resolve(process.cwd(), config.FILE_STORAGE_PATH);
+      taskTypeRegistry = new FileTaskTypeRegistry(baseDir);
+    } else {
+      const baseDir = path.resolve(process.cwd(), config.FILE_STORAGE_PATH);
+      taskTypeRegistry = new FileTaskTypeRegistry(baseDir);
+    }
 
     // Initialize repository based on configuration
     let workflowRepository;

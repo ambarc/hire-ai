@@ -44,3 +44,4 @@ browser_service/__pycache__
 *.pyc
 
 workflow/dist/*
+workflow/.workflows
