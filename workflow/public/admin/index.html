@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Workflow Service Admin</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            gray: {
+              50: '#F9FAFB',
+              100: '#F3F4F6',
+              200: '#E5E7EB',
+              300: '#D1D5DB',
+              400: '#9CA3AF',
+              500: '#6B7280',
+              600: '#4B5563',
+              700: '#374151',
+              800: '#1F2937',
+              900: '#111827'
+            },
+            indigo: {
+              50: '#EEF2FF',
+              100: '#E0E7FF',
+              200: '#C7D2FE',
+              300: '#A5B4FC',
+              400: '#818CF8',
+              500: '#6366F1',
+              600: '#4F46E5',
+              700: '#4338CA',
+              800: '#3730A3',
+              900: '#312E81'
+            }
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="min-h-screen bg-gray-50">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    <div class="mb-8">
+      <h1 class="text-3xl font-bold text-gray-900">Workflow Service Admin</h1>
+      <p class="mt-2 text-sm text-gray-600">Manage your workflows and tasks</p>
+    </div>
+
+    <!-- Register Task Type Form -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-8">
+      <h2 class="text-xl font-semibold text-gray-900 mb-4">Register New Task Type</h2>
+      <form id="registerTaskTypeForm" class="space-y-4">
+        <div>
+          <label for="taskTypeName" class="block text-sm font-medium text-gray-700">Task Type Name</label>
+          <input type="text" id="taskTypeName" name="taskTypeName" required
+            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+            placeholder="e.g., BROWSER_NAVIGATE">
+        </div>
+        <div>
+          <label for="taskTypeLabel" class="block text-sm font-medium text-gray-700">Display Label</label>
+          <input type="text" id="taskTypeLabel" name="taskTypeLabel" required
+            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+            placeholder="e.g., Browser Navigate">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Input Schema</label>
+          <div id="inputSchemaFields" class="space-y-4">
+            <!-- Input fields will be added here -->
+          </div>
+          <button type="button" id="addInputFieldBtn"
+            class="mt-2 inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+            Add Input Field
+          </button>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Output Schema</label>
+          <div id="outputSchemaFields" class="space-y-4">
+            <!-- Output fields will be added here -->
+          </div>
+          <button type="button" id="addOutputFieldBtn"
+            class="mt-2 inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+            Add Output Field
+          </button>
+        </div>
+        <div class="flex justify-end">
+          <button type="submit"
+            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+            Register Task Type
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Task Types List -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-8">
+      <h2 class="text-xl font-semibold text-gray-900 mb-4">Registered Task Types</h2>
+      <div id="taskTypesList" class="divide-y divide-gray-200">
+        <!-- Task types will be added here dynamically -->
+      </div>
+    </div>
+
+    <!-- Create Workflow Form -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-8">
+      <h2 class="text-xl font-semibold text-gray-900 mb-4">Create New Workflow</h2>
+      <form id="createWorkflowForm" class="space-y-4">
+        <div>
+          <label for="name" class="block text-sm font-medium text-gray-700">Name</label>
+          <input type="text" id="name" name="name" required
+            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+            placeholder="Enter workflow name">
+        </div>
+        <div>
+          <label for="description" class="block text-sm font-medium text-gray-700">Description</label>
+          <textarea id="description" name="description" rows="3"
+            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+            placeholder="Enter workflow description"></textarea>
+        </div>
+        <div>
+          <label for="tasks" class="block text-sm font-medium text-gray-700">Tasks</label>
+          <div id="tasksList" class="mt-2 space-y-4">
+            <!-- Tasks will be added here dynamically -->
+          </div>
+          <button type="button" id="addTaskBtn"
+            class="mt-2 inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+            Add Task
+          </button>
+        </div>
+        <div class="flex justify-end">
+          <button type="submit"
+            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+            Create Workflow
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Workflows List -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+      <div class="px-6 py-4 border-b border-gray-200">
+        <h2 class="text-xl font-semibold text-gray-900">Workflows</h2>
+      </div>
+      <div id="workflowsList" class="divide-y divide-gray-200">
+        <!-- Workflows will be added here dynamically -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Task Form Modal -->
+  <div id="taskModal" class="hidden fixed inset-0 bg-gray-500 bg-opacity-75 overflow-y-auto">
+    <div class="flex min-h-full items-center justify-center p-4">
+      <div class="relative transform overflow-hidden rounded-lg bg-white px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg sm:p-6">
+        <div class="absolute right-0 top-0 pr-4 pt-4">
+          <button type="button" id="closeTaskModal"
+            class="rounded-md bg-white text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+            <span class="sr-only">Close</span>
+            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        <div class="sm:flex sm:items-start">
+          <div class="mt-3 text-center sm:mt-0 sm:text-left w-full">
+            <h3 class="text-lg font-semibold leading-6 text-gray-900">Add Task</h3>
+            <form id="taskForm" class="mt-4 space-y-4">
+              <div>
+                <label for="taskType" class="block text-sm font-medium text-gray-700">Task Type</label>
+                <select id="taskType" name="type" required
+                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+                  <option value="">Select a task type</option>
+                  <!-- Task types will be added here dynamically -->
+                </select>
+              </div>
+              <div>
+                <label for="taskDescription" class="block text-sm font-medium text-gray-700">Description</label>
+                <textarea id="taskDescription" name="description" rows="3"
+                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                  placeholder="Enter task description"></textarea>
+              </div>
+              <div id="taskInputFields">
+                <!-- Task-specific input fields will be added here dynamically -->
+              </div>
+              <div class="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
+                <button type="submit"
+                  class="inline-flex w-full justify-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 sm:ml-3 sm:w-auto">
+                  Add Task
+                </button>
+                <button type="button" id="cancelTaskBtn"
+                  class="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto">
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Task types and their input fields
+    const taskTypes = {
+      'BROWSER_NAVIGATE': {
+        label: 'Browser Navigate',
+        fields: [
+          { name: 'url', label: 'URL', type: 'text', required: true }
+        ]
+      },
+      'BROWSER_CLICK': {
+        label: 'Browser Click',
+        fields: [
+          { name: 'selector', label: 'Selector', type: 'text', required: true }
+        ]
+      },
+      'BROWSER_TYPE': {
+        label: 'Browser Type',
+        fields: [
+          { name: 'selector', label: 'Selector', type: 'text', required: true },
+          { name: 'text', label: 'Text', type: 'text', required: true }
+        ]
+      },
+      'BROWSER_EXTRACT': {
+        label: 'Browser Extract',
+        fields: [
+          { name: 'selector', label: 'Selector', type: 'text', required: true },
+          { name: 'attribute', label: 'Attribute', type: 'text', required: true }
+        ]
+      }
+    };
+
+    // Initialize task type select
+    const taskTypeSelect = document.getElementById('taskType');
+    Object.entries(taskTypes).forEach(([value, { label }]) => {
+      const option = document.createElement('option');
+      option.value = value;
+      option.textContent = label;
+      taskTypeSelect.appendChild(option);
+    });
+
+    // Handle task type change
+    taskTypeSelect.addEventListener('change', () => {
+      const taskInputFields = document.getElementById('taskInputFields');
+      const selectedType = taskTypeSelect.value;
+      
+      if (!selectedType) {
+        taskInputFields.innerHTML = '';
+        return;
+      }
+
+      const fields = taskTypes[selectedType].fields;
+      taskInputFields.innerHTML = fields.map(field => `
+        <div>
+          <label for="${field.name}" class="block text-sm font-medium text-gray-700">${field.label}</label>
+          <input type="${field.type}" id="${field.name}" name="${field.name}" required
+            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+            placeholder="Enter ${field.label.toLowerCase()}">
+        </div>
+      `).join('');
+    });
+
+    // Modal handling
+    const taskModal = document.getElementById('taskModal');
+    const addTaskBtn = document.getElementById('addTaskBtn');
+    const closeTaskModal = document.getElementById('closeTaskModal');
+    const cancelTaskBtn = document.getElementById('cancelTaskBtn');
+    const taskForm = document.getElementById('taskForm');
+
+    function showTaskModal() {
+      taskModal.classList.remove('hidden');
+    }
+
+    function hideTaskModal() {
+      taskModal.classList.add('hidden');
+      taskForm.reset();
+      document.getElementById('taskInputFields').innerHTML = '';
+    }
+
+    addTaskBtn.addEventListener('click', showTaskModal);
+    closeTaskModal.addEventListener('click', hideTaskModal);
+    cancelTaskBtn.addEventListener('click', hideTaskModal);
+
+    // Handle task form submission
+    taskForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const formData = new FormData(taskForm);
+      const task = {
+        type: formData.get('type'),
+        description: formData.get('description'),
+        input: {}
+      };
+
+      // Add task-specific input fields
+      const selectedType = formData.get('type');
+      taskTypes[selectedType].fields.forEach(field => {
+        task.input[field.name] = formData.get(field.name);
+      });
+
+      // Add task to the list
+      const tasksList = document.getElementById('tasksList');
+      const taskElement = document.createElement('div');
+      taskElement.className = 'bg-gray-50 rounded-md p-4 border border-gray-200';
+      taskElement.innerHTML = `
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-sm font-medium text-gray-900">${taskTypes[task.type].label}</p>
+            <p class="mt-1 text-sm text-gray-500">${task.description || 'No description'}</p>
+          </div>
+          <button type="button" class="text-red-600 hover:text-red-800">
+            <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+            </svg>
+          </button>
+        </div>
+      `;
+
+      // Add remove task functionality
+      taskElement.querySelector('button').addEventListener('click', () => {
+        taskElement.remove();
+      });
+
+      tasksList.appendChild(taskElement);
+      hideTaskModal();
+    });
+
+    // Update workflow form submission
+    document.getElementById('createWorkflowForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const submitButton = e.target.querySelector('button[type="submit"]');
+      const originalText = submitButton.innerHTML;
+      submitButton.disabled = true;
+      submitButton.innerHTML = `
+        <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        Creating...
+      `;
+      
+      const formData = new FormData(e.target);
+      const tasks = Array.from(document.getElementById('tasksList').children).map(taskElement => {
+        const type = taskElement.querySelector('.text-gray-900').textContent;
+        const description = taskElement.querySelector('.text-gray-500').textContent;
+        return {
+          type: Object.entries(taskTypes).find(([_, { label }]) => label === type)[0],
+          description: description === 'No description' ? '' : description,
+          status: 'NOT_STARTED'
+        };
+      });
+
+      const workflow = {
+        name: formData.get('name'),
+        description: formData.get('description'),
+        tasks,
+        version: '1.0.0'
+      };
+      
+      try {
+        const response = await fetch('/api/workflows', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(workflow)
+        });
+        
+        if (response.ok) {
+          e.target.reset();
+          document.getElementById('tasksList').innerHTML = '';
+          await fetchWorkflows();
+        } else {
+          throw new Error('Failed to create workflow');
+        }
+      } catch (error) {
+        console.error('Error creating workflow:', error);
+        alert('Failed to create workflow. Please try again.');
+      } finally {
+        submitButton.disabled = false;
+        submitButton.innerHTML = originalText;
+      }
+    });
+
+    // Utility function to format dates
+    function formatDate(dateString) {
+      return new Date(dateString).toLocaleString();
+    }
+
+    // Function to get status badge styling
+    function getStatusBadgeClass(status) {
+      switch (status) {
+        case 'COMPLETED':
+          return 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-600/20';
+        case 'IN_PROGRESS':
+          return 'bg-blue-50 text-blue-700 ring-1 ring-blue-600/20';
+        case 'FAILED':
+          return 'bg-red-50 text-red-700 ring-1 ring-red-600/20';
+        default:
+          return 'bg-gray-50 text-gray-600 ring-1 ring-gray-500/20';
+      }
+    }
+
+    // Function to render workflows
+    function renderWorkflows(workflows) {
+      const workflowsList = document.getElementById('workflowsList');
+      if (workflows.length === 0) {
+        workflowsList.innerHTML = `
+          <div class="p-6 text-center text-gray-500">
+            No workflows found. Create one to get started.
+          </div>
+        `;
+        return;
+      }
+
+      workflowsList.innerHTML = workflows.map(workflow => `
+        <div class="p-6 hover:bg-gray-50 transition-colors duration-150">
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <h3 class="text-lg font-medium text-gray-900">${workflow.name}</h3>
+              <p class="mt-1 text-sm text-gray-500">${workflow.description || 'No description'}</p>
+            </div>
+            <span class="badge ${getStatusBadgeClass(workflow.status)}">
+              ${workflow.status}
+            </span>
+          </div>
+          <div class="mt-4 space-y-4">
+            <div class="text-sm text-gray-500 space-y-1">
+              <p>Created: ${formatDate(workflow.createdAt)}</p>
+              <p>Updated: ${formatDate(workflow.updatedAt)}</p>
+            </div>
+            <div class="space-y-2">
+              <h4 class="text-sm font-medium text-gray-900">Tasks (${workflow.tasks.length})</h4>
+              ${workflow.tasks.map(task => `
+                <div class="bg-gray-50 rounded-md p-3 border border-gray-200">
+                  <div class="flex items-center justify-between">
+                    <div>
+                      <p class="text-sm font-medium text-gray-900">${task.type}</p>
+                      <p class="mt-1 text-sm text-gray-500">${task.description || 'No description'}</p>
+                    </div>
+                    <span class="badge ${getStatusBadgeClass(task.status)}">
+                      ${task.status}
+                    </span>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+            <div class="flex justify-end space-x-3 pt-2">
+              <button onclick="deleteWorkflow('${workflow.id}')"
+                class="btn btn-danger">
+                Delete
+              </button>
+              <a href="/workflows/${workflow.id}/execute"
+                class="btn btn-primary">
+                Execute
+              </a>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // Function to fetch and render workflows
+    async function fetchWorkflows() {
+      try {
+        const response = await fetch('/api/workflows');
+        const workflows = await response.json();
+        renderWorkflows(workflows);
+      } catch (error) {
+        console.error('Error fetching workflows:', error);
+        const workflowsList = document.getElementById('workflowsList');
+        workflowsList.innerHTML = `
+          <div class="p-6">
+            <div class="rounded-md bg-red-50 p-4">
+              <div class="flex">
+                <div class="flex-shrink-0">
+                  <svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+                  </svg>
+                </div>
+                <div class="ml-3">
+                  <h3 class="text-sm font-medium text-red-800">Error loading workflows</h3>
+                  <div class="mt-2 text-sm text-red-700">
+                    Please try refreshing the page.
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+    }
+
+    // Function to delete a workflow
+    async function deleteWorkflow(id) {
+      if (!confirm('Are you sure you want to delete this workflow?')) return;
+      
+      try {
+        const response = await fetch(`/api/workflows/${id}`, {
+          method: 'DELETE'
+        });
+        
+        if (response.ok) {
+          await fetchWorkflows();
+        } else {
+          throw new Error('Failed to delete workflow');
+        }
+      } catch (error) {
+        console.error('Error deleting workflow:', error);
+        alert('Failed to delete workflow. Please try again.');
+      }
+    }
+
+    // Task Type Registration Form Handling
+    const registerTaskTypeForm = document.getElementById('registerTaskTypeForm');
+    const addInputFieldBtn = document.getElementById('addInputFieldBtn');
+    const addOutputFieldBtn = document.getElementById('addOutputFieldBtn');
+    const inputSchemaFields = document.getElementById('inputSchemaFields');
+    const outputSchemaFields = document.getElementById('outputSchemaFields');
+
+    function createSchemaField(container, isInput = true) {
+      const fieldDiv = document.createElement('div');
+      fieldDiv.className = 'flex items-center space-x-4';
+      
+      const nameInput = document.createElement('div');
+      nameInput.className = 'flex-1';
+      nameInput.innerHTML = `
+        <label class="block text-sm font-medium text-gray-700">Field Name</label>
+        <input type="text" name="${isInput ? 'input' : 'output'}Fields[]" required
+          class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+          placeholder="e.g., url">
+      `;
+
+      const typeSelect = document.createElement('div');
+      typeSelect.className = 'flex-1';
+      typeSelect.innerHTML = `
+        <label class="block text-sm font-medium text-gray-700">Field Type</label>
+        <select name="${isInput ? 'input' : 'output'}Types[]" required
+          class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+          <option value="string">String</option>
+          <option value="number">Number</option>
+          <option value="boolean">Boolean</option>
+          <option value="object">Object</option>
+          <option value="array">Array</option>
+        </select>
+      `;
+
+      const removeBtn = document.createElement('button');
+      removeBtn.type = 'button';
+      removeBtn.className = 'mt-6 text-gray-400 hover:text-gray-500';
+      removeBtn.innerHTML = `
+        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      `;
+      removeBtn.onclick = () => fieldDiv.remove();
+
+      fieldDiv.appendChild(nameInput);
+      fieldDiv.appendChild(typeSelect);
+      fieldDiv.appendChild(removeBtn);
+      container.appendChild(fieldDiv);
+    }
+
+    addInputFieldBtn.addEventListener('click', () => createSchemaField(inputSchemaFields, true));
+    addOutputFieldBtn.addEventListener('click', () => createSchemaField(outputSchemaFields, false));
+
+    // Function to render task types
+    async function fetchAndRenderTaskTypes() {
+      try {
+        const response = await fetch('/api/task-types');
+        const taskTypes = await response.json();
+        const taskTypesList = document.getElementById('taskTypesList');
+
+        if (taskTypes.length === 0) {
+          taskTypesList.innerHTML = `
+            <div class="py-4 text-center text-gray-500">
+              No task types registered yet.
+            </div>
+          `;
+          return;
+        }
+
+        taskTypesList.innerHTML = taskTypes.map(taskType => `
+          <div class="py-4 first:pt-0 last:pb-0">
+            <div class="flex items-start justify-between">
+              <div>
+                <h3 class="text-base font-semibold text-gray-900">${taskType.type}</h3>
+                <div class="mt-2">
+                  <div class="mb-3">
+                    <h4 class="text-sm font-medium text-gray-700">Input Schema:</h4>
+                    <div class="mt-1 grid grid-cols-2 gap-4">
+                      ${Object.entries(taskType.inputSchema).map(([field, schema]) => `
+                        <div class="bg-gray-50 rounded p-2 text-sm">
+                          <span class="font-medium">${field}:</span> 
+                          <span class="text-gray-600">${schema.type}</span>
+                        </div>
+                      `).join('')}
+                    </div>
+                  </div>
+                  <div>
+                    <h4 class="text-sm font-medium text-gray-700">Output Schema:</h4>
+                    <div class="mt-1 grid grid-cols-2 gap-4">
+                      ${Object.entries(taskType.outputSchema).map(([field, schema]) => `
+                        <div class="bg-gray-50 rounded p-2 text-sm">
+                          <span class="font-medium">${field}:</span> 
+                          <span class="text-gray-600">${schema.type}</span>
+                        </div>
+                      `).join('')}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        `).join('');
+      } catch (error) {
+        console.error('Error fetching task types:', error);
+        const taskTypesList = document.getElementById('taskTypesList');
+        taskTypesList.innerHTML = `
+          <div class="py-4">
+            <div class="rounded-md bg-red-50 p-4">
+              <div class="flex">
+                <div class="flex-shrink-0">
+                  <svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+                  </svg>
+                </div>
+                <div class="ml-3">
+                  <h3 class="text-sm font-medium text-red-800">Error loading task types</h3>
+                  <div class="mt-2 text-sm text-red-700">
+                    Please try refreshing the page.
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+    }
+
+    // Update the task type registration form submission to refresh the task types list
+    registerTaskTypeForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const formData = new FormData(e.target);
+      
+      const inputFields = Array.from(formData.getAll('inputFields[]'));
+      const inputTypes = Array.from(formData.getAll('inputTypes[]'));
+      const outputFields = Array.from(formData.getAll('outputFields[]'));
+      const outputTypes = Array.from(formData.getAll('outputTypes[]'));
+
+      const taskType = {
+        type: formData.get('taskTypeName'),
+        input: Object.fromEntries(inputFields.map((field, i) => [field, { type: inputTypes[i] }])),
+        output: Object.fromEntries(outputFields.map((field, i) => [field, { type: outputTypes[i] }]))
+      };
+
+      try {
+        const response = await fetch('/api/task-types', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(taskType),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to register task type');
+        }
+
+        // Clear the form
+        e.target.reset();
+        inputSchemaFields.innerHTML = '';
+        outputSchemaFields.innerHTML = '';
+        
+        // Show success message
+        alert('Task type registered successfully!');
+        
+        // Refresh the task types list
+        await fetchAndRenderTaskTypes();
+        
+        // Refresh the task types in the task modal
+        const newTaskType = {
+          [taskType.type]: {
+            label: formData.get('taskTypeLabel'),
+            fields: Object.entries(taskType.input).map(([name, schema]) => ({
+              name,
+              label: name.charAt(0).toUpperCase() + name.slice(1),
+              type: schema.type === 'string' ? 'text' : schema.type,
+              required: true
+            }))
+          }
+        };
+        Object.assign(taskTypes, newTaskType);
+        
+        // Update task type select in the task modal
+        const option = document.createElement('option');
+        option.value = taskType.type;
+        option.textContent = formData.get('taskTypeLabel');
+        taskTypeSelect.appendChild(option);
+      } catch (error) {
+        console.error('Error:', error);
+        alert('Failed to register task type: ' + error.message);
+      }
+    });
+
+    // Initial loads
+    fetchWorkflows();
+    fetchAndRenderTaskTypes();
+  </script>
+</body>
+</html> 

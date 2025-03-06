@@ -14,10 +14,10 @@ fi
 echo "Compiling TypeScript..."
 npx tsc
 
-# Create dist/public directory if it doesn't exist
+# Create dist/public/admin directory if it doesn't exist
 echo "Copying public files..."
-mkdir -p dist/public
-cp -r public/* dist/public/
+mkdir -p dist/public/admin
+cp -r public/admin/* dist/public/admin/
 
 # Start the service
 echo "Starting workflow service..."

@@ -67,12 +67,12 @@ async function createServer(config, workflowUseCases) {
         return { status: 'ok' };
     });
     // Serve admin UI
-    server.get('/', async (request, reply) => {
+    server.get('/admin', async (request, reply) => {
         // Look for the index.html file in the public directory relative to the current file
-        let adminUiPath = path_1.default.join(__dirname, '..', '..', '..', 'public', 'index.html');
+        let adminUiPath = path_1.default.join(__dirname, '..', '..', '..', 'public', 'admin', 'index.html');
         // If running from the dist directory, adjust the path
         if (!fs_1.default.existsSync(adminUiPath)) {
-            adminUiPath = path_1.default.join(__dirname, '..', '..', 'public', 'index.html');
+            adminUiPath = path_1.default.join(__dirname, '..', '..', 'public', 'admin', 'index.html');
         }
         try {
             const content = fs_1.default.readFileSync(adminUiPath, 'utf8');
@@ -82,6 +82,10 @@ async function createServer(config, workflowUseCases) {
             console.error(`Error reading admin UI file: ${err}`);
             reply.code(500).send({ error: 'Failed to load admin UI' });
         }
+    });
+    // Redirect root to admin
+    server.get('/', async (request, reply) => {
+        reply.redirect('/admin');
     });
     return server;
 }

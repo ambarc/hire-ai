@@ -75,13 +75,13 @@ export async function createServer(
   });
 
   // Serve admin UI
-  server.get('/', async (request, reply) => {
+  server.get('/admin', async (request, reply) => {
     // Look for the index.html file in the public directory relative to the current file
-    let adminUiPath = path.join(__dirname, '..', '..', '..', 'public', 'index.html');
+    let adminUiPath = path.join(__dirname, '..', '..', '..', 'public', 'admin', 'index.html');
     
     // If running from the dist directory, adjust the path
     if (!fs.existsSync(adminUiPath)) {
-      adminUiPath = path.join(__dirname, '..', '..', 'public', 'index.html');
+      adminUiPath = path.join(__dirname, '..', '..', 'public', 'admin', 'index.html');
     }
     
     try {
@@ -91,6 +91,11 @@ export async function createServer(
       console.error(`Error reading admin UI file: ${err}`);
       reply.code(500).send({ error: 'Failed to load admin UI' });
     }
+  });
+
+  // Redirect root to admin
+  server.get('/', async (request, reply) => {
+    reply.redirect('/admin');
   });
 
   return server;

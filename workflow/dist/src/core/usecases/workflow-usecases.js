@@ -84,5 +84,11 @@ class WorkflowUseCases {
     validateTaskType(type) {
         return this.taskTypeRegistry.getTaskType(type) !== null;
     }
+    registerTaskType(type, schema) {
+        if (this.taskTypeRegistry.getTaskType(type)) {
+            throw new Error(`Task type '${type}' already exists`);
+        }
+        this.taskTypeRegistry.registerTaskType(type, schema);
+    }
 }
 exports.WorkflowUseCases = WorkflowUseCases;
