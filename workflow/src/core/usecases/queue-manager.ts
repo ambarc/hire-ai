@@ -13,6 +13,7 @@ export class QueueManager {
   ) {}
 
   async enqueueTask(workflowId: string, taskId: string, priority = 0): Promise<void> {
+    console.log('calling enqueue task:', workflowId, taskId, priority);
     const workflow = await this.workflowRepository.findById(workflowId);
     if (!workflow) {
       throw new Error('Workflow not found');
@@ -36,6 +37,8 @@ export class QueueManager {
       }
     });
 
+    console.log('Enqueuing task:', workflowId, taskId, priority);
+
     // Add to queue
     await this.taskQueue.enqueue(workflowId, taskId, priority);
   }
@@ -57,14 +60,19 @@ export class QueueManager {
       return;
     }
 
+    console.log('going to search for workers')
+
     // Get available worker
     const worker = await this.workerPool.getAvailableWorker(task.type);
+    console.log('worker:', worker);
     if (!worker) {
       // Re-queue the task if no worker is available
+      console.log('no worker found, re-queuing task');
       await this.taskQueue.enqueue(workflowId, taskId, queuedTask.priority);
       return;
     }
 
+    console.log('Processing task:', workflowId, taskId);
     try {
       // Update task status to IN_PROGRESS
       await this.workflowRepository.updateTask(workflowId, taskId, {
@@ -79,6 +87,7 @@ export class QueueManager {
       // Execute the task
       const result = await this.taskExecutor.execute(workflowId, taskId);
 
+      console.log('Task result post execution:', result);
       // Update task based on result
       if (result.success) {
         await this.workflowRepository.updateTask(workflowId, taskId, {

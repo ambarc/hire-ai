@@ -14,6 +14,9 @@ export class InMemoryTaskQueue implements TaskQueue {
       attempts: 0
     };
 
+    console.trace()
+    console.log('Enqueuing task:', queuedTask);
+
     // Insert task in priority order
     const insertIndex = this.pendingTasks.findIndex(t => t.priority < priority);
     if (insertIndex === -1) {
@@ -90,6 +93,7 @@ export class InMemoryTaskQueue implements TaskQueue {
   }
 
   async markTaskFailed(workflowId: string, taskId: string): Promise<void> {
+    console.log('Marking task failed:', workflowId, taskId);
     const index = this.inProgressTasks.findIndex(
       t => t.workflowId === workflowId && t.taskId === taskId
     );
@@ -97,9 +101,9 @@ export class InMemoryTaskQueue implements TaskQueue {
       const task = this.inProgressTasks[index];
       this.inProgressTasks.splice(index, 1);
       // Requeue the task if it hasn't exceeded max attempts
-      if (task.attempts < 3) { // TODO: Make max attempts configurable
-        await this.enqueue(task.workflowId, task.taskId, task.priority);
-      }
+      // if (task.attempts < 2) { // TODO: Make max attempts configurable
+      //   await this.enqueue(task.workflowId, task.taskId, task.priority);
+      // }
     }
   }
 
