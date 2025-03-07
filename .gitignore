@@ -45,3 +45,5 @@ browser_service/__pycache__
 
 workflow/dist/*
 workflow/.workflows
+
+scratch/*

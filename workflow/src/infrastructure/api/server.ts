@@ -65,18 +65,18 @@ export async function createServer(
 
   // Register routes
   await server.register(workflowRoutes, { 
-    prefix: '/api/workflows',
+    prefix: '/workflows',
     workflowUseCases,
     queueManager
   });
 
   await server.register(taskTypeRoutes, {
-    prefix: '/api/task-types',
+    prefix: '/task-types',
     workflowUseCases
   });
 
   await server.register(queueRoutes, {
-    prefix: '/api/queue',
+    prefix: '/queue',
     queueManager
   });
 
@@ -110,12 +110,12 @@ export async function createServer(
   });
 
   // Version endpoint
-  server.get('/api/_version', async () => {
+  server.get('/_version', async () => {
     return { version: API_VERSION };
   });
 
   // New endpoint to manually process the next task in the queue
-  server.post('/api/queue/process-next', async (req, reply) => {
+  server.post('/queue/process-next', async (req, reply) => {
     try {
       await queueManager.processNextTask();
       return { success: true, message: 'Next task processing initiated' };

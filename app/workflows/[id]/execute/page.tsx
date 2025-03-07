@@ -121,7 +121,7 @@ export default function ExecuteWorkflowPage() {
         const fetchWorkflow = async () => {
             try {
                 console.log('fetching workflow');
-                const response = await fetch(`/api/workflow/${params.id}`);
+                const response = await fetch(`/workflow/${params.id}`);
                 if (!response.ok) throw new Error('Failed to fetch workflow');
                 const workflow = await response.json();
                 setWorkflow(workflow);
@@ -144,7 +144,7 @@ export default function ExecuteWorkflowPage() {
 
     const updateTask = async (taskId: string, updates: Partial<Task>) => {
         try {
-            const response = await fetch(`/api/workflow/${params.id}/task/${taskId}`, {
+            const response = await fetch(`/workflow/${params.id}/task/${taskId}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(updates)

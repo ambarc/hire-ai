@@ -28,7 +28,6 @@ stderr_logfile=/var/log/supervisor/browser-service-error.log
 [program:workflow-service]
 command=node /app/workflow/dist/src/index.js
 directory=/app/workflow
-environment=NODE_ENV="production",SERVER_PORT="3100",STORAGE_TYPE="%(ENV_STORAGE_TYPE)s",PG_HOST="%(ENV_PG_HOST)s",PG_PORT="%(ENV_PG_PORT)s",PG_USER="%(ENV_PG_USER)s",PG_PASSWORD="%(ENV_PG_PASSWORD)s",PG_DATABASE="%(ENV_PG_DATABASE)s"
 autostart=true
 autorestart=true
 stdout_logfile=/var/log/supervisor/workflow-service.log
@@ -37,7 +36,7 @@ stderr_logfile=/var/log/supervisor/workflow-service-error.log
 [program:frontend]
 command=node /app/node_modules/.bin/next start
 directory=/app
-environment=NODE_ENV="production",PORT="3000",POSTGRES_URL="%(ENV_POSTGRES_URL)s",POSTGRES_PRISMA_URL="%(ENV_POSTGRES_PRISMA_URL)s",SUPABASE_URL="%(ENV_SUPABASE_URL)s",NEXT_PUBLIC_SUPABASE_URL="%(ENV_NEXT_PUBLIC_SUPABASE_URL)s",SUPABASE_SERVICE_ROLE_KEY="%(ENV_SUPABASE_SERVICE_ROLE_KEY)s",NEXT_PUBLIC_SUPABASE_ANON_KEY="%(ENV_NEXT_PUBLIC_SUPABASE_ANON_KEY)s",OPENAI_API_KEY="%(ENV_OPENAI_API_KEY)s"
+environment=NODE_ENV="production",PORT="3000",SUPABASE_URL="%(ENV_SUPABASE_URL)s",NEXT_PUBLIC_SUPABASE_URL="%(ENV_NEXT_PUBLIC_SUPABASE_URL)s",SUPABASE_SERVICE_ROLE_KEY="%(ENV_SUPABASE_SERVICE_ROLE_KEY)s",NEXT_PUBLIC_SUPABASE_ANON_KEY="%(ENV_NEXT_PUBLIC_SUPABASE_ANON_KEY)s",OPENAI_API_KEY="%(ENV_OPENAI_API_KEY)s"
 autostart=true
 autorestart=true
 stdout_logfile=/var/log/supervisor/frontend.log
