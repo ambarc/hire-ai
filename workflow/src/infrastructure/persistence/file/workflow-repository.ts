@@ -121,6 +121,13 @@ export class FileWorkflowRepository implements WorkflowRepository {
     workflow.tasks[taskIndex] = {
       ...workflow.tasks[taskIndex],
       ...data,
+      executionDetails: data.executionDetails 
+        ? { 
+            ...workflow.tasks[taskIndex].executionDetails,
+            ...data.executionDetails,
+            attempts: data.executionDetails.attempts ?? workflow.tasks[taskIndex].executionDetails?.attempts ?? 0
+          } 
+        : workflow.tasks[taskIndex].executionDetails,
       updatedAt: new Date()
     };
 

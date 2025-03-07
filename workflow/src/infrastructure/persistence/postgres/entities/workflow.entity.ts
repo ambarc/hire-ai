@@ -1,37 +1,49 @@
-import { Entity, PrimaryColumn, Column, OneToMany, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import { EntitySchema } from 'typeorm';
 import { WorkflowStatus } from '../../../../core/entities/workflow';
 import { TaskEntity } from './task.entity';
 
-@Entity('workflows')
-export class WorkflowEntity {
-  @PrimaryColumn('uuid')
-  id!: string;
+export interface WorkflowEntity {
+  id: string;
+  name: string;
+  description: string;
+  status: WorkflowStatus;
+  createdAt: Date;
+  updatedAt: Date;
+  tasks?: TaskEntity[];
+}
 
-  @Column()
-  name!: string;
-
-  @Column()
-  description!: string;
-
-  @Column({
-    type: 'enum',
-    enum: WorkflowStatus,
-    default: WorkflowStatus.NOT_STARTED
-  })
-  status!: WorkflowStatus;
-
-  @OneToMany(() => TaskEntity, task => task.workflow, {
-    cascade: true,
-    eager: true
-  })
-  tasks!: TaskEntity[];
-
-  @CreateDateColumn()
-  createdAt!: Date;
-
-  @UpdateDateColumn()
-  updatedAt!: Date;
-
-  @Column('jsonb', { nullable: true })
-  metadata?: Record<string, unknown>;
-} 
+export const WorkflowEntitySchema = new EntitySchema<WorkflowEntity>({
+  name: 'workflows',
+  columns: {
+    id: {
+      type: 'uuid',
+      primary: true
+    },
+    name: {
+      type: String
+    },
+    description: {
+      type: String
+    },
+    status: {
+      type: 'enum',
+      enum: WorkflowStatus,
+      default: WorkflowStatus.NOT_STARTED
+    },
+    createdAt: {
+      type: Date,
+      createDate: true
+    },
+    updatedAt: {
+      type: Date,
+      updateDate: true
+    }
+  },
+  relations: {
+    tasks: {
+      type: 'one-to-many',
+      target: 'tasks',
+      inverseSide: 'workflow_id'
+    }
+  }
+}); 

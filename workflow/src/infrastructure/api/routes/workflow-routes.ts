@@ -1,17 +1,19 @@
 import { FastifyInstance, FastifyPluginOptions } from 'fastify';
 import { WorkflowUseCases } from '../../../core/usecases/workflow-usecases';
+import { QueueManager } from '../../../core/usecases/queue-manager';
 import { CreateWorkflowDTO, UpdateWorkflowDTO } from '../../../core/entities/workflow';
 import { UpdateTaskDTO } from '../../../core/entities/task';
 
 interface WorkflowRouteOptions extends FastifyPluginOptions {
   workflowUseCases: WorkflowUseCases;
+  queueManager: QueueManager;
 }
 
 export async function workflowRoutes(
   fastify: FastifyInstance,
   options: WorkflowRouteOptions
 ): Promise<void> {
-  const { workflowUseCases } = options;
+  const { workflowUseCases, queueManager } = options;
 
   // List all workflows
   fastify.get('/', async () => {
@@ -84,6 +86,56 @@ export async function workflowRoutes(
         }
         if (error.message === 'Task not found') {
           return reply.status(404).send({ error: 'Task not found' });
+        }
+      }
+      throw error;
+    }
+  });
+
+  // Enqueue a task for execution
+  fastify.post<{
+    Params: { id: string; taskId: string };
+    Body: { priority?: number };
+  }>('/:id/tasks/:taskId/enqueue', async (request, reply) => {
+    try {
+      const { id: workflowId, taskId } = request.params;
+      const { priority } = request.body;
+
+      await queueManager.enqueueTask(workflowId, taskId, priority);
+      return reply.status(202).send({ 
+        message: 'Task queued successfully',
+        workflowId,
+        taskId
+      });
+    } catch (error) {
+      if (error instanceof Error) {
+        if (error.message.includes('not found')) {
+          return reply.status(404).send({ error: error.message });
+        }
+        if (error.message.includes('already in state')) {
+          return reply.status(400).send({ error: error.message });
+        }
+      }
+      throw error;
+    }
+  });
+
+  // Cancel a task execution
+  fastify.post<{
+    Params: { id: string; taskId: string };
+  }>('/:id/tasks/:taskId/cancel', async (request, reply) => {
+    try {
+      const { id: workflowId, taskId } = request.params;
+      await queueManager.cancelTask(workflowId, taskId);
+      return reply.status(200).send({ 
+        message: 'Task cancelled successfully',
+        workflowId,
+        taskId
+      });
+    } catch (error) {
+      if (error instanceof Error) {
+        if (error.message.includes('not found')) {
+          return reply.status(404).send({ error: error.message });
         }
       }
       throw error;
