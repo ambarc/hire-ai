@@ -6,12 +6,13 @@ import { PostgresWorkflowRepository } from './postgres/workflow-repository';
 import { PostgresTaskTypeRegistry } from './postgres/task-type-registry';
 import { InMemoryTaskTypeRegistry } from './task-type-registry';
 import { InMemoryWorkflowRepository } from './workflow-repository';
-import { config } from '../../config';
+import loadConfig from '../../config';
 
 export function createRepositories(): {
   workflowRepository: WorkflowRepository;
   taskTypeRegistry: TaskTypeRegistry;
 } {
+  const config = loadConfig();
   switch (config.STORAGE_TYPE) {
     case 'file':
       return {
@@ -36,6 +37,17 @@ export function createRepositories(): {
 }
 
 function getDataSource(): DataSource {
-  // Implementation to get your TypeORM DataSource
-  // This could be imported from elsewhere in your application
+  // Create and return an actual DataSource instance
+  const dataSource = new DataSource({
+    type: "postgres",
+    host: "localhost",
+    port: 5432,
+    username: "postgres",
+    password: "postgres",
+    database: "workflow",
+    entities: [__dirname + "/**/*.entity{.ts,.js}"],
+    synchronize: true
+  });
+  
+  return dataSource;
 } 

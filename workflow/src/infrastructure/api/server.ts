@@ -5,7 +5,9 @@ import swaggerUi from '@fastify/swagger-ui';
 import fastifyStatic from '@fastify/static';
 import { workflowRoutes } from './routes/workflow-routes';
 import { taskTypeRoutes } from './routes/task-type-routes';
+import { queueRoutes } from './routes/queue-routes';
 import { WorkflowUseCases } from '../../core/usecases/workflow-usecases';
+import { QueueManager } from '../../core/usecases/queue-manager';
 import { Config } from '../../config';
 import path from 'path';
 import fs from 'fs';
@@ -14,7 +16,8 @@ const API_VERSION = 'v0.0.1';
 
 export async function createServer(
   config: Config,
-  workflowUseCases: WorkflowUseCases
+  workflowUseCases: WorkflowUseCases,
+  queueManager: QueueManager
 ): Promise<FastifyInstance> {
   const server = fastify({
     logger: true
@@ -63,12 +66,18 @@ export async function createServer(
   // Register routes
   await server.register(workflowRoutes, { 
     prefix: '/api/workflows',
-    workflowUseCases
+    workflowUseCases,
+    queueManager
   });
 
   await server.register(taskTypeRoutes, {
     prefix: '/api/task-types',
     workflowUseCases
+  });
+
+  await server.register(queueRoutes, {
+    prefix: '/api/queue',
+    queueManager
   });
 
   // Health check route
@@ -103,6 +112,17 @@ export async function createServer(
   // Version endpoint
   server.get('/api/_version', async () => {
     return { version: API_VERSION };
+  });
+
+  // New endpoint to manually process the next task in the queue
+  server.post('/api/queue/process-next', async (req, reply) => {
+    try {
+      await queueManager.processNextTask();
+      return { success: true, message: 'Next task processing initiated' };
+    } catch (error) {
+      console.error('Error processing next task:', error);
+      reply.code(500).send({ error: 'Failed to process next task' });
+    }
   });
 
   return server;
