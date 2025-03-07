@@ -12,8 +12,8 @@ import { InMemoryTaskQueue } from './infrastructure/persistence/memory/task-queu
 import { InMemoryWorkerPool } from './infrastructure/persistence/memory/worker-pool';
 import { LocalTaskExecutor } from './infrastructure/execution/local-executor';
 import { createServer, startServer } from './infrastructure/api/server';
-import { WorkflowEntity } from './infrastructure/persistence/postgres/entities/workflow.entity';
-import { TaskEntity } from './infrastructure/persistence/postgres/entities/task.entity';
+import { WorkflowEntitySchema } from './infrastructure/persistence/postgres/entities/workflow.entity';
+import { TaskEntitySchema } from './infrastructure/persistence/postgres/entities/task.entity';
 
 // Function to create a PostgreSQL data source
 function createDataSource(config: ReturnType<typeof loadConfig>) {
@@ -30,7 +30,7 @@ function createDataSource(config: ReturnType<typeof loadConfig>) {
     database: config.PG_DATABASE,
     synchronize: config.NODE_ENV === 'development',
     logging: config.NODE_ENV === 'development',
-    entities: [WorkflowEntity, TaskEntity],
+    entities: [WorkflowEntitySchema, TaskEntitySchema],
   });
 }
 

@@ -1,29 +1,41 @@
-import { DataSource, Repository } from 'typeorm';
-import { Entity, Column, PrimaryColumn } from 'typeorm';
+import { DataSource, Repository, EntitySchema } from 'typeorm';
 // import { TaskType } from '../../../core/domain/task-type';
 import { TaskTypeRegistry } from '../../../core/interfaces/repositories';
 
-@Entity('TaskType')
-class TaskTypeEntity {
-  @PrimaryColumn()
-  type!: string;
-
-  @Column('text')
-  description!: string;
-
-  @Column('jsonb')
-  input!: Record<string, unknown>;
-
-  @Column('jsonb')
-  output!: Record<string, unknown>;
+// Define the interface for the entity
+export interface TaskTypeEntity {
+  type: string;
+  description: string;
+  input: Record<string, unknown>;
+  output: Record<string, unknown>;
 }
+
+// Create the entity schema
+export const TaskTypeEntitySchema = new EntitySchema<TaskTypeEntity>({
+  name: 'TaskType',
+  columns: {
+    type: {
+      type: String,
+      primary: true
+    },
+    description: {
+      type: String
+    },
+    input: {
+      type: 'jsonb'
+    },
+    output: {
+      type: 'jsonb'
+    }
+  }
+});
 
 // Using string type instead of TaskType domain object
 export class PostgresTaskTypeRegistry implements TaskTypeRegistry {
   private repository: Repository<TaskTypeEntity>;
 
   constructor(private dataSource: DataSource) {
-    this.repository = this.dataSource.getRepository(TaskTypeEntity);
+    this.repository = this.dataSource.getRepository(TaskTypeEntitySchema);
   }
 
   async registerTaskType(

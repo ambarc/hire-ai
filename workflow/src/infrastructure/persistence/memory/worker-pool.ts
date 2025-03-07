@@ -15,11 +15,14 @@ export class InMemoryWorkerPool implements WorkerPool {
     console.log('initializing default worker');
     const defaultWorker: Worker = {
       id: `default-worker-${uuidv4()}`,
-      name: 'Default In-Memory Worker',
       status: WorkerStatus.AVAILABLE,
       capabilities: {
         supportedTaskTypes: ['default', 'processing', 'calculation', 'validation'],
-        maxConcurrentTasks: 5
+        maxConcurrentTasks: 5,
+        resourceRequirements: {
+          memory: 512,
+          cpu: 1
+        }
       },
       lastHeartbeat: new Date(),
       currentTasks: []

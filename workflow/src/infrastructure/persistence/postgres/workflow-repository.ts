@@ -2,40 +2,39 @@ import { DataSource, Repository } from 'typeorm';
 import { WorkflowRepository } from '../../../core/interfaces/repositories';
 import { Workflow, CreateWorkflowDTO, UpdateWorkflowDTO } from '../../../core/entities/workflow';
 import { UpdateTaskDTO } from '../../../core/entities/task';
-import { WorkflowEntity } from './entities/workflow.entity';
-import { TaskEntity } from './entities/task.entity';
+import { WorkflowEntitySchema, WorkflowEntity } from './entities/workflow.entity';
+import { TaskEntitySchema, TaskEntity } from './entities/task.entity';
 
 export class PostgresWorkflowRepository implements WorkflowRepository {
   private workflowRepo: Repository<WorkflowEntity>;
   private taskRepo: Repository<TaskEntity>;
 
   constructor(dataSource: DataSource) {
-    this.workflowRepo = dataSource.getRepository(WorkflowEntity);
-    this.taskRepo = dataSource.getRepository(TaskEntity);
+    this.workflowRepo = dataSource.getRepository(WorkflowEntitySchema);
+    this.taskRepo = dataSource.getRepository(TaskEntitySchema);
   }
 
   private toEntity(workflow: Workflow): WorkflowEntity {
-    const entity = new WorkflowEntity();
-    entity.id = workflow.id;
-    entity.name = workflow.name;
-    entity.description = workflow.description;
-    entity.status = workflow.status;
-    entity.createdAt = workflow.createdAt;
-    entity.updatedAt = workflow.updatedAt;
-    entity.metadata = workflow.metadata;
-    entity.tasks = workflow.tasks.map(task => {
-      const taskEntity = new TaskEntity();
-      taskEntity.id = task.id;
-      taskEntity.type = task.type;
-      taskEntity.description = task.description;
-      taskEntity.status = task.status;
-      taskEntity.input = task.input;
-      taskEntity.output = task.output;
-      taskEntity.error = task.error;
-      taskEntity.createdAt = task.createdAt;
-      taskEntity.updatedAt = task.updatedAt;
-      return taskEntity;
-    });
+    const entity: WorkflowEntity = {
+      id: workflow.id,
+      name: workflow.name,
+      description: workflow.description,
+      status: workflow.status,
+      createdAt: workflow.createdAt,
+      updatedAt: workflow.updatedAt,
+      tasks: workflow.tasks.map(task => ({
+        id: task.id,
+        type: task.type,
+        description: task.description,
+        status: task.status,
+        input: task.input,
+        output: task.output,
+        error: task.error,
+        createdAt: task.createdAt,
+        updatedAt: task.updatedAt,
+        workflow_id: workflow.id
+      }))
+    };
     return entity;
   }
 
@@ -45,7 +44,7 @@ export class PostgresWorkflowRepository implements WorkflowRepository {
       name: entity.name,
       description: entity.description,
       status: entity.status,
-      tasks: entity.tasks.map(task => ({
+      tasks: (entity.tasks || []).map(task => ({
         id: task.id,
         type: task.type,
         description: task.description,
@@ -57,8 +56,7 @@ export class PostgresWorkflowRepository implements WorkflowRepository {
         updatedAt: task.updatedAt
       })),
       createdAt: entity.createdAt,
-      updatedAt: entity.updatedAt,
-      metadata: entity.metadata
+      updatedAt: entity.updatedAt
     };
   }
 
@@ -118,6 +116,13 @@ export class PostgresWorkflowRepository implements WorkflowRepository {
     workflow.tasks[taskIndex] = {
       ...workflow.tasks[taskIndex],
       ...data,
+      executionDetails: data.executionDetails 
+        ? { 
+            ...workflow.tasks[taskIndex].executionDetails,
+            ...data.executionDetails,
+            attempts: data.executionDetails.attempts ?? workflow.tasks[taskIndex].executionDetails?.attempts ?? 0
+          } 
+        : workflow.tasks[taskIndex].executionDetails,
       updatedAt: new Date()
     };
 
