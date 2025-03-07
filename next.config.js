@@ -6,6 +6,10 @@ const nextConfig = {
         source: '/api/browser-agent/:path*',
         destination: 'http://localhost:3001/api/browser-agent/:path*',
       },
+      {
+        source: '/api/workflow/:path*',
+        destination: 'http://localhost:3100/:path*',
+      },
     ];
   },
 };

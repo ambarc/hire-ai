@@ -2,9 +2,9 @@ import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import * as dotenv from 'dotenv';
 
-// Load environment variables from .env.local
+// Load environment variables from .env
 if (process.env.NODE_ENV !== 'production') {
-  dotenv.config({ path: '.env.local' });
+  dotenv.config({ path: '.env' });
 }
 
 const supabase = createClient(
