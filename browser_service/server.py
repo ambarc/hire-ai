@@ -12,6 +12,7 @@ from langchain_openai import ChatOpenAI
 from collections import deque
 import uuid
 import asyncio
+import platform
 
 app = FastAPI(title="Browser Agent", description="A service that orchestrates browser agents given commands.")
 
@@ -36,10 +37,24 @@ class SessionCreate(BaseModel):
     command: Command = None
 
 def get_browser():
-    # TODO: Make this configurable
+    # Determine Chrome path based on operating system
+    if platform.system() == "Darwin":  # macOS
+        chrome_instance_path = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
+    else:  # Linux/Unix (including Docker containers)
+        chrome_instance_path = '/usr/bin/chromium'
+        
+    # Check if the path exists, use alternative if not
+    if not os.path.exists(chrome_instance_path):
+        if platform.system() == "Darwin":
+            # Fallback for macOS
+            chrome_instance_path = '/Applications/Chromium.app/Contents/MacOS/Chromium'
+        else:
+            # Fallback for Linux/Unix
+            chrome_instance_path = '/usr/bin/google-chrome'
+
     browser = Browser(
         config=BrowserConfig(
-            chrome_instance_path='/usr/bin/chromium'
+            chrome_instance_path=chrome_instance_path
         )
     )
     return browser
