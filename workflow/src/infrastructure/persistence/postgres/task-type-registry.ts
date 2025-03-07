@@ -26,8 +26,18 @@ export class PostgresTaskTypeRegistry implements TaskTypeRegistry {
     this.repository = this.dataSource.getRepository(TaskTypeEntity);
   }
 
-  async registerTaskType(taskType: string): Promise<void> {
-    await this.repository.save(taskType);
+  async registerTaskType(
+    type: string, 
+    schema: { 
+      description: string;
+      input: Record<string, unknown>; 
+      output: Record<string, unknown>;
+    }
+  ): Promise<void> {
+    await this.repository.save({
+      type,
+      ...schema
+    });
   }
 
   async getTaskType(type: string): Promise<{
