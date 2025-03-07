@@ -13,7 +13,7 @@ export default function EditWorkflowPage() {
 
     const fetchWorkflow = useCallback(async () => {
         try {
-            const response = await fetch(`/api/workflow/${params.id}`);
+            const response = await fetch(`/workflow/${params.id}`);
             if (!response.ok) throw new Error('Failed to fetch workflow');
             const data = await response.json();
             setWorkflow(data);

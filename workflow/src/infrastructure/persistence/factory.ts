@@ -19,13 +19,13 @@ export function createRepositories(): {
         workflowRepository: new FileWorkflowRepository(config.FILE_STORAGE_PATH),
         taskTypeRegistry: new FileTaskTypeRegistry(config.FILE_STORAGE_PATH)
       };
-    case 'postgres':
-      // Assuming you have a dataSource configured elsewhere
-      const dataSource = getDataSource(); // You'll need to implement this
-      return {
-        workflowRepository: new PostgresWorkflowRepository(dataSource),
-        taskTypeRegistry: new PostgresTaskTypeRegistry(dataSource)
-      };
+    // case 'postgres':
+    //   // Assuming you have a dataSource configured elsewhere
+    //   const dataSource = getDataSource(); // You'll need to implement this
+    //   return {
+    //     workflowRepository: new PostgresWorkflowRepository(dataSource),
+    //     taskTypeRegistry: new PostgresTaskTypeRegistry(dataSource)
+    //   };
     case 'memory':
       return {
         workflowRepository: new InMemoryWorkflowRepository(),

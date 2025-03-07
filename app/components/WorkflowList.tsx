@@ -15,7 +15,7 @@ export default function WorkflowList() {
 
     const fetchWorkflows = async () => {
         try {
-            const response = await fetch('/api/workflow');
+            const response = await fetch('/workflow');
             if (!response.ok) throw new Error('Failed to fetch workflows');
             const data = await response.json();
             setWorkflows(data);
@@ -30,7 +30,7 @@ export default function WorkflowList() {
         if (!confirm('Are you sure you want to delete this workflow?')) return;
         
         try {
-            const response = await fetch(`/api/workflow/${id}`, {
+            const response = await fetch(`/workflow/${id}`, {
                 method: 'DELETE'
             });
             if (!response.ok) throw new Error('Failed to delete workflow');
