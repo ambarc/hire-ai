@@ -22,8 +22,9 @@ static_dir = os.path.join(current_dir, "static")
 # Create static directory if it doesn't exist
 os.makedirs(static_dir, exist_ok=True)
 
-# Mount static files directory using absolute path
+# Mount static files directory at both paths
 app.mount("/static", StaticFiles(directory=static_dir), name="static")
+app.mount("/browser-agent/static", StaticFiles(directory=static_dir), name="browser_agent_static")
 
 class Command(BaseModel):
     """Command to be executed in a browser session"""
@@ -35,9 +36,10 @@ class SessionCreate(BaseModel):
     command: Command = None
 
 def get_browser():
+    # TODO: Make this configurable
     browser = Browser(
         config=BrowserConfig(
-            chrome_instance_path='/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
+            chrome_instance_path='/usr/bin/chromium'
         )
     )
     return browser
@@ -265,8 +267,19 @@ async def get_debug_ui():
     <html>
     <head>
         <title>Browser Agent Debug UI</title>
-        <link rel="stylesheet" href="/static/css/debug.css">
         <script>
+            // Determine if we're being accessed through Next.js
+            const isNextJs = window.location.pathname.startsWith('/browser-agent');
+            // API calls always use /api/browser-agent when through Next.js
+            const apiBaseUrl = isNextJs ? '/api/browser-agent' : '/api/browser-agent';
+            // Static files use /browser-agent/static when through Next.js
+            const staticBaseUrl = isNextJs ? '/browser-agent/static' : '/static';
+        </script>
+        <link rel="stylesheet" id="debug-css">
+        <script>
+            // Set the CSS href dynamically
+            document.getElementById('debug-css').href = `${staticBaseUrl}/css/debug.css`;
+
             // Auto-refresh page every 5 seconds
             function refreshPage() {
                 if (!document.querySelector('form:focus-within')) {
@@ -282,7 +295,7 @@ async def get_debug_ui():
                 const prompt = form.querySelector('#prompt').value;
 
                 try {
-                    const response = await fetch('/api/browser-agent/session', {
+                    const response = await fetch(`${apiBaseUrl}/session`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'
@@ -352,7 +365,7 @@ async def get_debug_ui():
             const prompt = document.getElementById(`prompt-${sessionId}`).value;
             
             try {
-                const response = await fetch(`/api/browser-agent/${sessionId}/command`, {
+                const response = await fetch(`${apiBaseUrl}/${sessionId}/command`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'

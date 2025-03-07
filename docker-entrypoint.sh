@@ -8,6 +8,11 @@ if ! command -v supervisord &> /dev/null; then
     rm -rf /var/lib/apt/lists/*
 fi
 
+# Set default values for configurable parameters
+BROWSER_HOST="${BROWSER_HOST:-0.0.0.0}"
+BROWSER_PORT="${BROWSER_PORT:-3001}"
+BROWSER_WORKERS="${BROWSER_WORKERS:-1}"
+
 # Create supervisor configuration
 cat > /etc/supervisor/conf.d/services.conf << EOF
 [supervisord]
@@ -17,11 +22,13 @@ logfile=/var/log/supervisor/supervisord.log
 pidfile=/var/run/supervisord.pid
 
 [program:browser-service]
-command=/app/venv/bin/python /app/browser_service/server.py
-directory=/app/browser_service
-environment=PORT="3001",HOST="0.0.0.0",HEADLESS="True",OPENAI_API_KEY="%(ENV_OPENAI_API_KEY)s"
+command=/app/venv/bin/uvicorn browser_service.server:app --host ${BROWSER_HOST} --port ${BROWSER_PORT} --workers ${BROWSER_WORKERS}
+directory=/app
+environment=PORT="${BROWSER_PORT}",HOST="${BROWSER_HOST}",HEADLESS="True",OPENAI_API_KEY="%(ENV_OPENAI_API_KEY)s"
 autostart=true
 autorestart=true
+startsecs=10
+stopwaitsecs=10
 stdout_logfile=/var/log/supervisor/browser-service.log
 stderr_logfile=/var/log/supervisor/browser-service-error.log
 
