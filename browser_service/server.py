@@ -12,6 +12,7 @@ from langchain_openai import ChatOpenAI
 from collections import deque
 import uuid
 import asyncio
+import platform
 
 app = FastAPI(title="Browser Agent", description="A service that orchestrates browser agents given commands.")
 
@@ -22,8 +23,123 @@ static_dir = os.path.join(current_dir, "static")
 # Create static directory if it doesn't exist
 os.makedirs(static_dir, exist_ok=True)
 
-# Mount static files directory using absolute path
+# Mount static files directory at both paths
 app.mount("/static", StaticFiles(directory=static_dir), name="static")
+app.mount("/browser-agent/static", StaticFiles(directory=static_dir), name="browser_agent_static")
+
+# Browser configuration from environment
+CONNECTION_MODE = os.getenv('CONNECTION_MODE', 'cdp')  # Options: application, cdp
+CHROME_HOST = os.getenv('CHROME_HOST', 'localhost')
+CHROME_PORT = os.getenv('CHROME_PORT', '9222')
+CHROME_CDP_URL = os.getenv('CHROME_CDP_URL', f'http://{CHROME_HOST}:{CHROME_PORT}')
+HEADLESS = os.getenv('HEADLESS', 'False').lower() == 'true'
+DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
+
+# Check if running in Docker by looking for container environment
+def is_running_in_docker():
+    try:
+        with open('/proc/self/cgroup', 'r') as f:
+            return any('docker' in line for line in f)
+    except:
+        return False
+
+# Determine if we should use CDP to connect to host Chrome
+in_docker = is_running_in_docker()
+
+if in_docker:
+    # When in Docker, use CDP to connect to Chrome on the host
+    cdp_url = "ws://host.docker.internal:9222"
+    chrome_instance_path = None  # Not needed when using CDP
+else:
+    # When running directly on the host
+    cdp_url = None
+    if platform.system() == "Darwin":  # macOS
+        chrome_instance_path = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
+    else:  # Linux/Unix
+        chrome_instance_path = '/usr/bin/chromium'
+    
+    # Check if the path exists, use alternative if not
+    if not os.path.exists(chrome_instance_path):
+        if platform.system() == "Darwin":
+            # Fallback for macOS
+            chrome_instance_path = '/Applications/Chromium.app/Contents/MacOS/Chromium'
+        else:
+            # Fallback for Linux/Unix
+            chrome_instance_path = '/usr/bin/google-chrome'
+
+def get_chrome_path():
+    """Get the Chrome executable path based on the platform"""
+    if platform.system() == "Darwin":  # macOS
+        paths = [
+            '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+            '/Applications/Chromium.app/Contents/MacOS/Chromium'
+        ]
+    else:  # Linux/Unix
+        paths = [
+            '/usr/bin/google-chrome',
+            '/usr/bin/chromium',
+            '/usr/bin/chromium-browser'
+        ]
+    
+    for path in paths:
+        if os.path.exists(path):
+            return path
+    
+    raise Exception("Chrome/Chromium not found in standard locations")
+
+def get_browser():
+    """Get a browser instance based on the configured connection mode"""
+    print(f"\n=== Browser Configuration ===")
+    print(f"Connection Mode: {CONNECTION_MODE}")
+    print(f"Chrome Host: {CHROME_HOST}")
+    print(f"Chrome Port: {CHROME_PORT}")
+    print(f"Chrome CDP URL: {CHROME_CDP_URL}")
+    print(f"Headless Mode: {HEADLESS}")
+    print(f"Debug Mode: {DEBUG}")
+    print(f"Running in Docker: {is_running_in_docker()}")
+    
+    try:
+        if CONNECTION_MODE == 'cdp':
+            print(f"Connecting to Chrome using CDP URL: {CHROME_CDP_URL}")
+            chrome_path = None
+            cdp_url = CHROME_CDP_URL
+            
+            browser = Browser(
+                config=BrowserConfig(
+                    cdp_url=cdp_url
+                )
+            )
+            
+        elif CONNECTION_MODE == 'application':
+            print("Starting Chrome as an application")
+            chrome_path = get_chrome_path()
+            cdp_url = None
+            launch_args = []
+            
+            if HEADLESS:
+                print("Using headless mode")
+                launch_args.append('--headless=new')  # Modern headless mode
+                
+            browser = Browser(
+                config=BrowserConfig(
+                    chrome_instance_path=chrome_path,
+                    launch_args=launch_args
+                )
+            )
+            
+        else:
+            raise ValueError(f"Invalid CONNECTION_MODE: {CONNECTION_MODE}")
+        
+        print(f"\n=== Browser Instance Created ===")
+        print(f"Chrome Path: {chrome_path or 'Not used'}")
+        print(f"CDP URL: {cdp_url or 'Not used'}")
+        print(f"=== End Browser Configuration ===\n")
+        
+        return browser
+            
+    except Exception as e:
+        print(f"Error initializing browser: {e}")
+        raise
 
 class Command(BaseModel):
     """Command to be executed in a browser session"""
@@ -33,14 +149,6 @@ class Command(BaseModel):
 
 class SessionCreate(BaseModel):
     command: Command = None
-
-def get_browser():
-    browser = Browser(
-        config=BrowserConfig(
-            chrome_instance_path='/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
-        )
-    )
-    return browser
 
 class BrowserSession:
     def __init__(self):
@@ -265,8 +373,19 @@ async def get_debug_ui():
     <html>
     <head>
         <title>Browser Agent Debug UI</title>
-        <link rel="stylesheet" href="/static/css/debug.css">
         <script>
+            // Determine if we're being accessed through Next.js
+            const isNextJs = window.location.pathname.startsWith('/browser-agent');
+            // API calls always use /api/browser-agent when through Next.js
+            const apiBaseUrl = isNextJs ? '/api/browser-agent' : '/browser-agent';
+            // Static files use /browser-agent/static when through Next.js
+            const staticBaseUrl = isNextJs ? '/browser-agent/static' : '/static';
+        </script>
+        <link rel="stylesheet" id="debug-css">
+        <script>
+            // Set the CSS href dynamically
+            document.getElementById('debug-css').href = `${staticBaseUrl}/css/debug.css`;
+
             // Auto-refresh page every 5 seconds
             function refreshPage() {
                 if (!document.querySelector('form:focus-within')) {
@@ -282,7 +401,7 @@ async def get_debug_ui():
                 const prompt = form.querySelector('#prompt').value;
 
                 try {
-                    const response = await fetch('/api/browser-agent/session', {
+                    const response = await fetch(`${apiBaseUrl}/session`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'
@@ -352,7 +471,7 @@ async def get_debug_ui():
             const prompt = document.getElementById(`prompt-${sessionId}`).value;
             
             try {
-                const response = await fetch(`/api/browser-agent/${sessionId}/command`, {
+                const response = await fetch(`${apiBaseUrl}/${sessionId}/command`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -379,7 +498,7 @@ async def get_debug_ui():
     
     return HTMLResponse(content=html)
 
-@app.post("/api/browser-agent/session")
+@app.post("/browser-agent/session")
 async def create_session(data: SessionCreate):
     """Create a new browser session"""
     try:
@@ -411,7 +530,7 @@ async def create_session(data: SessionCreate):
         print("getting create session error" + str(e))
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/api/browser-agent/{session_id}/command")
+@app.post("/browser-agent/{session_id}/command")
 async def send_command(session_id: str, command: Command):
     """Send a command to an existing session"""
     if session_id not in sessions:
@@ -435,7 +554,7 @@ async def send_command(session_id: str, command: Command):
         "session_id": session_id
     }
 
-@app.get("/api/browser-agent/{session_id}/commands")
+@app.get("/browser-agent/{session_id}/commands")
 async def get_command_history(session_id: str):
     """Get command history for a session"""
     if session_id not in sessions:
@@ -444,7 +563,7 @@ async def get_command_history(session_id: str):
     browser_session = sessions[session_id]
     return browser_session.get_command_history()
 
-@app.get("/api/browser-agent/{session_id}/state")
+@app.get("/browser-agent/{session_id}/state")
 async def get_session_state(session_id: str):
     """Get full session state"""
     if session_id not in sessions:
@@ -453,7 +572,7 @@ async def get_session_state(session_id: str):
     browser_session = sessions[session_id]
     return browser_session.get_state()
 
-@app.delete("/api/browser-agent/{session_id}")
+@app.delete("/browser-agent/{session_id}")
 async def end_session(session_id: str):
     """End a session"""
     if session_id not in sessions:
@@ -464,7 +583,7 @@ async def end_session(session_id: str):
     del sessions[session_id]
     return {"status": "success"}
 
-@app.get("/api/browser-agent/sessions")
+@app.get("/browser-agent/sessions")
 async def list_sessions():
     """List all active sessions"""
     return [

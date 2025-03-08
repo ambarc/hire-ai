@@ -26,7 +26,11 @@ services:
       - STORAGE_TYPE=memory
       
       # Browser service configuration
-      - HEADLESS=True
+      - CONNECTION_MODE=${CONNECTION_MODE:-cdp}  # Options: application, cdp
+      - CHROME_HOST=${CHROME_HOST:-host.docker.internal}
+      - CHROME_PORT=${CHROME_PORT:-9222}
+      - CHROME_CDP_URL=${CHROME_CDP_URL:-} # looks like ws://host.docker.internal:9222/devtools/browser/14721d96-6cf2-40f1-a873-6150cfc33a13
+      - HEADLESS=${HEADLESS:-False}
       - VIEWPORT_WIDTH=1280
       - VIEWPORT_HEIGHT=720
       - DEBUG=${DEBUG:-False}
