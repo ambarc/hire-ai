@@ -11,17 +11,28 @@ import { QueueManager } from '../../core/usecases/queue-manager';
 import { Config } from '../../config';
 import path from 'path';
 import fs from 'fs';
+import { CloudWorker } from '../../workers/cloud-worker';
+import { WorkflowStore } from '../../core/interfaces/workflow-store';
 
 const API_VERSION = 'v0.0.1';
 
 export async function createServer(
   config: Config,
   workflowUseCases: WorkflowUseCases,
-  queueManager: QueueManager
+  queueManager: QueueManager,
+  workflowStore: WorkflowStore
 ): Promise<FastifyInstance> {
   const server = fastify({
     logger: true
   });
+
+  // Initialize cloud worker
+  const cloudWorker = new CloudWorker(queueManager, workflowUseCases);
+  
+  // Start the worker if enabled in config
+  if (config.ENABLE_WORKER) {
+    await cloudWorker.start();
+  }
 
   // Register CORS
   await server.register(cors, {
@@ -123,6 +134,40 @@ export async function createServer(
       console.error('Error processing next task:', error);
       reply.code(500).send({ error: 'Failed to process next task' });
     }
+  });
+
+  // Add new endpoints for queue management
+  server.post('/workflows/:id/queue', async (request, reply) => {
+    try {
+      const { id } = request.params as { id: string };
+      await queueManager.queueWorkflow(id);
+      return { success: true, message: `Workflow ${id} queued successfully` };
+    } catch (error) {
+      console.error('Error queueing workflow:', error);
+      reply.code(500).send({ error: error?.message });
+    }
+  });
+
+  server.post('/workflows/:workflowId/tasks/:taskId/queue', async (request, reply) => {
+    try {
+      const { workflowId, taskId } = request.params as { workflowId: string; taskId: string };
+      await queueManager.queueTask(workflowId, taskId);
+      return { success: true, message: `Task ${taskId} queued successfully` };
+    } catch (error) {
+      console.error('Error queueing task:', error);
+      reply.code(500).send({ error: `${error?.message}` });
+    }
+  });
+
+  // Worker control endpoints
+  server.post('/worker/start', async () => {
+    await cloudWorker.start();
+    return { success: true, message: 'Worker started' };
+  });
+
+  server.post('/worker/stop', async () => {
+    await cloudWorker.stop();
+    return { success: true, message: 'Worker stopped' };
   });
 
   return server;

@@ -89,6 +89,14 @@ export class WorkflowUseCases {
     return this.workflowRepository.updateTask(workflowId, taskId, updatedTask);
   }
 
+  async updateTaskStatus(workflowId: string, taskId: string, status: TaskStatus): Promise<Workflow> {
+    return this.updateTask(workflowId, taskId, { status });
+  }
+
+  async updateTaskOutput(workflowId: string, taskId: string, output: any): Promise<Workflow> {
+    return this.updateTask(workflowId, taskId, { output });
+  }
+
   async registerTaskType(type: string, schema: { 
     description: string;
     input: Record<string, unknown>; 

@@ -105,6 +105,7 @@ export default function ExecuteWorkflowPage() {
     
     const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
     const [expandedTasks, setExpandedTasks] = useState<Record<string, boolean>>({});
+    const [isProcessing, setIsProcessing] = useState(false);
 
     const toggleTaskDetails = (taskId: string) => {
         setExpandedTasks(prev => ({
@@ -121,7 +122,9 @@ export default function ExecuteWorkflowPage() {
         const fetchWorkflow = async () => {
             try {
                 console.log('fetching workflow');
-                const response = await fetch(`/workflow/${params.id}`);
+
+                
+                const response = await fetch(`/api/workflow/workflows/${params.id}`);
                 if (!response.ok) throw new Error('Failed to fetch workflow');
                 const workflow = await response.json();
                 setWorkflow(workflow);
@@ -761,6 +764,32 @@ Return the current URL of the patient's chart page.`;
         }
     };
 
+    const processNextTask = async () => {
+        try {
+            setIsProcessing(true);
+            const response = await fetch('/api/workflow/queue/process-next', {
+                method: 'POST',
+            });
+            
+            if (!response.ok) {
+                throw new Error('Failed to process next task');
+            }
+            
+            addLog('Triggered next task processing');
+            
+            // Refresh workflow data to get updated task statuses
+            const workflowResponse = await fetch(`/api/workflow/workflows/${params.id}`);
+            if (!workflowResponse.ok) throw new Error('Failed to fetch workflow');
+            const updatedWorkflow = await workflowResponse.json();
+            setWorkflow(updatedWorkflow);
+        } catch (error) {
+            addLog(`Error processing next task: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            setError(error instanceof Error ? error.message : 'Failed to process next task');
+        } finally {
+            setIsProcessing(false);
+        }
+    };
+
     // Function to render task input details
     const renderTaskInput = (task: Task) => {
         switch (task.type) {
@@ -996,147 +1025,157 @@ Return the current URL of the patient's chart page.`;
 
     if (status === 'loading') {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-gray-50">
-                <div className="flex flex-col items-center">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
-                    <p className="mt-4 text-gray-600">Loading workflow...</p>
-                </div>
+            <div className="p-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
             </div>
         );
     }
 
-    if (error) {
+    if (status === 'error' || !workflow) {
         return (
-            <div className="max-w-4xl mx-auto p-8">
-                <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-red-700 shadow-sm">
-                    <h2 className="text-lg font-semibold mb-2">Error</h2>
-                    <p>{error}</p>
+            <div className="p-8">
+                <div className="bg-red-50 border border-red-200 rounded p-4 text-red-700">
+                    {error || 'Failed to load workflow'}
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen bg-gray-50 py-12">
-            <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-                {workflow && (
-                    <div className="space-y-8">
-                        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                            <div className="px-6 py-5 border-b border-gray-100 bg-gray-50">
+        <div className="p-8 max-w-7xl mx-auto">
+            <div className="mb-8 flex justify-between items-center">
+                <div>
+                    <h1 className="text-2xl font-bold text-gray-900">{workflow.name}</h1>
+                    <p className="text-gray-500">ID: {workflow.id}</p>
+                </div>
+                <button
+                    onClick={processNextTask}
+                    disabled={isProcessing}
+                    className={`px-4 py-2 rounded-md text-white font-medium ${
+                        isProcessing 
+                            ? 'bg-blue-400 cursor-not-allowed' 
+                            : 'bg-blue-600 hover:bg-blue-700'
+                    }`}
+                >
+                    {isProcessing ? (
+                        <span className="flex items-center">
+                            <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            Processing...
+                        </span>
+                    ) : (
+                        'Process Next Task'
+                    )}
+                </button>
+            </div>
+
+            <div className="space-y-4">
+                {workflow.tasks.map((task) => {
+                    const statusStyles = getStatusStyles(task.status);
+                    const isExpanded = expandedTasks[task.id];
+
+                    return (
+                        <div 
+                            key={task.id}
+                            className={`border rounded-lg overflow-hidden ${statusStyles.border}`}
+                        >
+                            <div 
+                                className={`${statusStyles.bg} p-4 cursor-pointer`}
+                                onClick={() => toggleTaskDetails(task.id)}
+                            >
                                 <div className="flex items-center justify-between">
-                                    <h1 className="text-xl font-semibold text-gray-900">{workflow.name}</h1>
-                                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusStyles(workflow.status).bg} ${getStatusStyles(workflow.status).text}`}>
-                                        {workflow.status}
-                                    </span>
+                                    <div className="flex items-center space-x-3">
+                                        {statusStyles.icon}
+                                        <div>
+                                            <h3 className={`font-medium ${statusStyles.text}`}>
+                                                {formatTaskType(task.type)}
+                                            </h3>
+                                            <p className="text-sm text-gray-500">
+                                                ID: {task.id}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center space-x-4">
+                                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusStyles.bg} ${statusStyles.text}`}>
+                                            {task.status}
+                                        </span>
+                                        <svg 
+                                            className={`w-5 h-5 text-gray-400 transform transition-transform ${isExpanded ? 'rotate-180' : ''}`} 
+                                            fill="none" 
+                                            stroke="currentColor" 
+                                            viewBox="0 0 24 24"
+                                        >
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                                        </svg>
+                                    </div>
                                 </div>
-                                {workflow.description && (
-                                    <p className="mt-2 text-sm text-gray-600">{workflow.description}</p>
-                                )}
                             </div>
 
-                            <div className="p-6">
-                                <h2 className="text-lg font-medium text-gray-900 mb-4">Tasks</h2>
-                        <div className="space-y-4">
-                                    {workflow.tasks.map((task) => {
-                                        const statusStyles = getStatusStyles(task.status);
-                                        const isActive = task.id === activeTaskId;
-                                        const isExpanded = expandedTasks[task.id] || false;
+                            {isExpanded && (
+                                <div className="p-4 bg-white border-t">
+                                    <div className="space-y-4">
+                                        <div>
+                                            <h4 className="text-sm font-medium text-gray-500">Input</h4>
+                                            <pre className="mt-1 text-sm text-gray-900 bg-gray-50 p-2 rounded">
+                                                {JSON.stringify(task.input, null, 2)}
+                                            </pre>
+                                        </div>
                                         
-                                        return (
-                                <div 
-                                    key={task.id}
-                                                className={`border rounded-lg overflow-hidden transition-all duration-200 ${statusStyles.border} ${isActive ? 'shadow-md' : 'shadow-sm'}`}
-                                            >
-                                                <div className={`px-5 py-4 ${statusStyles.bg}`}>
-                                            <div className="flex items-center justify-between">
-                                                        <div className="flex items-center space-x-3">
-                                                            <div className="flex-shrink-0">
-                                                                {statusStyles.icon}
-                                                            </div>
-                                                            <div>
-                                                                <h3 className="font-medium text-gray-900">
-                                                                    {formatTaskType(task.type)}
-                                                                </h3>
-                                                                <p className="text-sm text-gray-600 mt-0.5">
-                                                                    {task.description}
-                                                                </p>
-                                                            </div>
-                                                        </div>
-                                                        
-                                                        <div className="flex items-center space-x-2">
-                                                            <button
-                                                                onClick={() => toggleTaskDetails(task.id)}
-                                                                className="px-3 py-1 rounded-md text-xs font-medium text-gray-600 hover:bg-gray-100 transition-colors"
-                                                            >
-                                                                {isExpanded ? 'Hide Details' : 'View Details'}
-                                                            </button>
-                                                            
-                                                <button
-                                                    onClick={() => executeTask(task)}
-                                                                disabled={task.status === TaskStatus.COMPLETED || task.status === TaskStatus.IN_PROGRESS || isActive}
-                                                                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                                                                    task.status === TaskStatus.COMPLETED 
-                                                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
-                                                                        : task.status === TaskStatus.IN_PROGRESS || isActive
-                                                                            ? 'bg-blue-100 text-blue-700 cursor-not-allowed'
-                                                                            : 'bg-indigo-600 text-white hover:bg-indigo-700'
-                                                                }`}
-                                                            >
-                                                                {task.status === TaskStatus.COMPLETED 
-                                                                    ? 'Completed' 
-                                                                    : task.status === TaskStatus.IN_PROGRESS || isActive
-                                                                        ? 'Running...' 
-                                                                        : 'Execute'}
-                                                </button>
+                                        {task.output && (
+                                            <div>
+                                                <h4 className="text-sm font-medium text-gray-500">Output</h4>
+                                                <pre className="mt-1 text-sm text-gray-900 bg-gray-50 p-2 rounded">
+                                                    {JSON.stringify(task.output, null, 2)}
+                                                </pre>
                                             </div>
-                                            </div>
-                                                    
-                                                    {isExpanded && (
-                                                        <div className="mt-4 pt-3 border-t border-gray-100">
-                                                            <div className="grid grid-cols-2 gap-4">
-                                                                <div>
-                                                                    <h4 className="text-xs font-semibold uppercase tracking-wider text-gray-500">Input</h4>
-                                                                    {renderTaskInput(task)}
-                                        </div>
-                                                                <div>
-                                                                    <h4 className="text-xs font-semibold uppercase tracking-wider text-gray-500">Output</h4>
-                                                                    {renderTaskOutput(task)}
-                                    </div>
-                                        </div>
-                                        </div>
-                                    )}
-                                                    
-                                    {task.error && (
-                                                        <div className="mt-3 text-sm text-red-600 bg-red-50 rounded-md p-3">
-                                                            <div className="font-medium">Error:</div>
-                                                            <div>{task.error}</div>
-                                        </div>
-                                    )}
-                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                        </div>
-                    </div>
+                                        )}
 
-                        {logs.length > 0 && (
-                            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                                <div className="px-6 py-4 border-b border-gray-100">
-                                    <h2 className="text-lg font-medium text-gray-900">Execution Logs</h2>
+                                        {task.error && (
+                                            <div>
+                                                <h4 className="text-sm font-medium text-red-500">Error</h4>
+                                                <pre className="mt-1 text-sm text-red-600 bg-red-50 p-2 rounded">
+                                                    {task.error}
+                                                </pre>
+                                            </div>
+                                        )}
+
+                                        {task.executionDetails && (
+                                            <div>
+                                                <h4 className="text-sm font-medium text-gray-500">Execution Details</h4>
+                                                <div className="mt-1 text-sm text-gray-600">
+                                                    <p>Attempts: {task.executionDetails.attempts}</p>
+                                                    {task.executionDetails.queuedAt && (
+                                                        <p>Queued: {new Date(task.executionDetails.queuedAt).toLocaleString()}</p>
+                                                    )}
+                                                    {task.executionDetails.startedAt && (
+                                                        <p>Started: {new Date(task.executionDetails.startedAt).toLocaleString()}</p>
+                                                    )}
+                                                    {task.executionDetails.completedAt && (
+                                                        <p>Completed: {new Date(task.executionDetails.completedAt).toLocaleString()}</p>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
-                                <div className="p-4 max-h-96 overflow-y-auto bg-gray-50 font-mono text-sm">
-                                    {logs.map((log, index) => (
-                                        <div key={index} className="py-1 border-b border-gray-100 last:border-0">
-                                            {log}
-                                        </div>
-                                    ))}
+                            )}
+                        </div>
+                    );
+                })}
+            </div>
+
+            {logs.length > 0 && (
+                <div className="mt-8">
+                    <h2 className="text-lg font-medium text-gray-900 mb-4">Execution Logs</h2>
+                    <div className="bg-gray-900 text-gray-100 p-4 rounded-lg">
+                        <pre className="whitespace-pre-wrap text-sm">
+                            {logs.join('\n')}
+                        </pre>
                     </div>
                 </div>
             )}
-                    </div>
-                )}
-            </div>
         </div>
     );
 } 
