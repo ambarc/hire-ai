@@ -384,7 +384,13 @@ DEBUG: {DEBUG}
             </pre>
         </div>
 
-        <h3>Update Configuration:</h3>
+        <h3>Configuration Presets</h3>
+        <div class="preset-buttons" style="margin-bottom: 20px;">
+            <button onclick="applyPreset('host')" type="button">Host Browser (Docker)</button>
+            <button onclick="applyPreset('local')" type="button">Local Application</button>
+        </div>
+
+        <h3>Manual Configuration:</h3>
         <form class="config-form" onsubmit="updateConfig(event)">
             <label for="connection_mode">Connection Mode:</label>
             <select id="connection_mode" required>
@@ -486,10 +492,70 @@ DEBUG: {DEBUG}
                 margin-top: 10px;
                 border-radius: 3px;
             }}
+            .preset-buttons {{
+                display: flex;
+                gap: 10px;
+                margin-bottom: 20px;
+            }}
+            .preset-buttons button {{
+                padding: 10px 20px;
+                border: none;
+                border-radius: 5px;
+                background: #007bff;
+                color: white;
+                cursor: pointer;
+            }}
+            .preset-buttons button:hover {{
+                background: #0056b3;
+            }}
         </style>
         <script>
             // Set the CSS href dynamically
             document.getElementById('debug-css').href = `${{staticBaseUrl}}/css/debug.css`;
+
+            // Configuration presets
+            const presets = {{
+                host: {{
+                    connection_mode: 'cdp',
+                    chrome_host: 'host.docker.internal',
+                    chrome_port: '9222',
+                    chrome_cdp_url: null,
+                    headless: false,
+                    debug: true
+                }},
+                local: {{
+                    connection_mode: 'application',
+                    chrome_host: 'localhost',
+                    chrome_port: '9222',
+                    chrome_cdp_url: null,
+                    headless: true,
+                    debug: false
+                }}
+            }};
+
+            // Apply configuration preset
+            async function applyPreset(presetName) {{
+                const config = presets[presetName];
+                if (!config) return;
+
+                try {{
+                    const response = await fetch(`${{apiBaseUrl}}/config/reset`, {{
+                        method: 'POST',
+                        headers: {{
+                            'Content-Type': 'application/json'
+                        }},
+                        body: JSON.stringify(config)
+                    }});
+
+                    if (!response.ok) {{
+                        throw new Error('Failed to apply preset');
+                    }}
+
+                    location.reload();
+                }} catch (error) {{
+                    alert('Error applying preset: ' + error.message);
+                }}
+            }}
 
             // Auto-refresh page every 5 seconds
             function refreshPage() {{
