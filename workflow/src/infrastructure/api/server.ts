@@ -12,7 +12,6 @@ import { Config } from '../../config';
 import path from 'path';
 import fs from 'fs';
 import { CloudWorker } from '../../workers/cloud-worker';
-import { WorkflowStore } from '../../core/interfaces/workflow-store';
 
 const API_VERSION = 'v0.0.1';
 
@@ -20,7 +19,6 @@ export async function createServer(
   config: Config,
   workflowUseCases: WorkflowUseCases,
   queueManager: QueueManager,
-  workflowStore: WorkflowStore
 ): Promise<FastifyInstance> {
   const server = fastify({
     logger: true
@@ -89,6 +87,33 @@ export async function createServer(
   await server.register(queueRoutes, {
     prefix: '/queue',
     queueManager
+  });
+
+  // Direct task execution endpoint
+  server.post('/execute-task', async (request, reply) => {
+    try {
+      const { taskId, workflowId } = request.body as { taskId: string; workflowId: string };
+      
+      // Get the workflow and task
+      const workflow = await workflowUseCases.getWorkflow(workflowId);
+      if (!workflow) {
+        return reply.code(404).send({ error: 'Workflow not found' });
+      }
+
+      const task = workflow.tasks.find(t => t.id === taskId);
+      if (!task) {
+        return reply.code(404).send({ error: 'Task not found' });
+      }
+
+      // Execute the task directly using the cloud worker
+      const result = await cloudWorker.executeTask(task);
+      console.log('---cloud worker result--------', task, '-----------');
+      
+      return reply.send(result);
+    } catch (error) {
+      console.error('Error executing task:', error);
+      reply.code(500).send({ error: error instanceof Error ? error.message : 'Unknown error' });
+    }
   });
 
   // Health check route

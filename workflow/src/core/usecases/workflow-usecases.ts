@@ -11,7 +11,7 @@ export class WorkflowUseCases {
 
   async createWorkflow(data: CreateWorkflowDTO): Promise<Workflow> {
     const now = new Date();
-    const workflowId = uuidv4();
+    const workflowId = data.id || uuidv4();
     
     // Generate IDs for tasks if they don't have one
     const tasksWithIds = data.tasks.map(task => {
@@ -27,6 +27,7 @@ export class WorkflowUseCases {
       return task;
     });
 
+    
     const workflow = {
       ...data,
       id: workflowId,

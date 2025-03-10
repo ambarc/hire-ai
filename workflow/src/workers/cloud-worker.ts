@@ -76,32 +76,78 @@ export class CloudWorker {
 
   private async verifyServiceConnections(): Promise<void> {
     // Check browser service connection
-    try {
-      const response = await axios.get(`${BROWSER_SERVICE_URL}/health`);
-      if (response.status === 200) {
-        this.logger.info('Successfully connected to browser service');
-      } else {
-        this.logger.warn(`Browser service responded with status: ${response.status}`);
-      }
-    } catch (error) {
-      this.logger.warn(`Could not connect to browser service: ${error.message}`);
-    }
+    // try {
+    //   const response = await axios.get(`${BROWSER_SERVICE_URL}/health`);
+    //   if (response.status === 200) {
+    //     this.logger.info('Successfully connected to browser service');
+    //   } else {
+    //     this.logger.warn(`Browser service responded with status: ${response.status}`);
+    //   }
+    // } catch (error) {
+    //   this.logger.warn(`Could not connect to browser service: ${error.message}`);
+    // }
 
-    // Check OpenAI connection if configured
-    if (this.openai) {
-      try {
-        // Simple model list call to verify API key works
-        await this.openai.models.list();
-        this.logger.info('Successfully connected to OpenAI API');
-      } catch (error) {
-        this.logger.error(`OpenAI API connection failed: ${error.message}`);
-      }
-    }
+    // // Check OpenAI connection if configured
+    // if (this.openai) {
+    //   try {
+    //     // Simple model list call to verify API key works
+    //     await this.openai.models.list();
+    //     this.logger.info('Successfully connected to OpenAI API');
+    //   } catch (error) {
+    //     this.logger.error(`OpenAI API connection failed: ${error.message}`);
+    //   }
+    // }
   }
 
   public async stop(): Promise<void> {
     this.logger.info('Stopping cloud worker');
     this.isRunning = false;
+  }
+
+  public async executeTask(task: Task): Promise<any> {
+    this.logger.info(`Executing task ${task.id} of type ${task.type} directly`);
+    
+    // Get the handler for this task type
+    const handler = this.taskHandlers.get(task.type);
+    if (!handler) {
+      throw new Error(`No handler registered for task type: ${task.type}`);
+    }
+
+    
+
+    try {
+      // Execute the task
+      const result = await handler(task);
+
+      if (result.success === false) {
+        throw new Error(result.error || 'Task failed with success: false');
+      }
+
+      console.log('---result from handler--------', result, '-----------');
+      // Update task status
+      task.status = TaskStatus.COMPLETED;
+      task.output = result;
+      task.executionDetails = {
+        ...task.executionDetails,
+        attempts: (task.executionDetails?.attempts || 0) + 1,
+        startedAt: new Date().toISOString(),
+        completedAt: new Date().toISOString()
+      };
+
+      return result;
+    } catch (error) {
+      // Update task status on failure
+      task.status = TaskStatus.FAILED;
+      task.error = error instanceof Error ? error.message : String(error);
+      task.executionDetails = {
+        ...task.executionDetails,
+        attempts: (task.executionDetails?.attempts || 0) + 1,
+        startedAt: new Date().toISOString(),
+        completedAt: new Date().toISOString()
+      };
+
+      throw error;
+    }
   }
 
   private async processNextTask(): Promise<void> {
@@ -130,28 +176,34 @@ export class CloudWorker {
 
           // Execute the task
           const result = await handler(nextTask);
+
+          const status = result.success === false ? TaskStatus.FAILED : TaskStatus.COMPLETED;
+
+          console.log('---result--------', result, '-----------');
           
-          // Update task with result and mark as COMPLETED
+          // Update task with result
           await this.workflowUseCases.updateTaskOutput(
             nextTask.workflowId,
             nextTask.id,
             result
           );
           
+          // Check result.success to determine task status
+        
           await this.workflowUseCases.updateTaskStatus(
             nextTask.workflowId,
             nextTask.id,
-            TaskStatus.COMPLETED
+            status
           );
           
-          this.logger.info(`Task completed: ${nextTask.id}`);
+          this.logger.info(`Task ${status.toLowerCase()}: ${nextTask.id}`);
           
           // Check if there are any tasks that can now be queued
           await this.queueManager.queueReadyTasks(nextTask.workflowId);
         } catch (error) {
           this.logger.error(`Error processing task ${nextTask.id}: ${error}`);
           
-          // Mark task as failed
+          // Mark as failed for execution errors
           await this.workflowUseCases.updateTaskStatus(
             nextTask.workflowId,
             nextTask.id,
@@ -305,79 +357,107 @@ export class CloudWorker {
   }
 
   private async handleReadObesityIntakeForm(task: Task): Promise<any> {
-    this.logger.info(`Reading obesity intake form from: ${task.input.url}`);
+    this.logger.info(`Reading obesity intake form`);
     
     try {
-      // Navigate to the patient chart
-      await this.callBrowserService('/browser/navigate', 'POST', {
-        url: task.input.url,
-        waitForSelector: '.patient-chart'
-      });
-      
-      // Navigate to forms section
-      await this.callBrowserService('/browser/click', 'POST', {
-        selector: '#forms-tab'
-      });
-      
-      // Extract form content
-      const formContent = await this.callBrowserService('/browser/extract', 'POST', {
-        selector: '.obesity-intake-form',
-        attribute: 'innerText'
-      });
-      
-      // Use OpenAI to extract structured data from the form
-      if (this.openai) {
-        const prompt = `
-          Extract the following information from this obesity intake form:
-          - Height
-          - Weight
-          - BMI
-          - Obesity history
-          
-          Form content:
-          ${formContent}
-          
-          Return the data in JSON format with keys: height, weight, bmi, obesityHistory
-        `;
+        // Define browser prompt with clear instructions
+        const browserPrompt = "go to localhost:8000/ingest and scroll through the whole page. Scan all the text on the page and return it. Return the text itself. Do not summarize.";
         
-        const extractedData = await this.processWithOpenAI(prompt);
-        try {
-          return {
-            formData: JSON.parse(extractedData)
-          };
-        } catch (e) {
-          this.logger.warn(`Could not parse OpenAI response as JSON: ${e.message}`);
-          return {
-            formData: {
-              rawText: formContent,
-              aiExtracted: extractedData
+        // Create a new browser session
+        const commandResponse = await fetch('/api/browser-agent/session', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                command: {
+                    prompt: browserPrompt
+                }
+            }),
+        });
+        
+        if (!commandResponse.ok) {
+            throw new Error(`Failed to send browser command: ${commandResponse.statusText}`);
+        }
+        
+        const commandData = await commandResponse.json();
+        const sessionId = commandData.session_id;
+        const commandId = commandData.command_id;
+        
+        if (!sessionId || !commandId) {
+            throw new Error('Invalid response from browser service: missing session_id or command_id');
+        }
+        
+        // Poll for command completion
+        const maxAttempts = 30; // Prevent infinite polling
+        let attempts = 0;
+        let commandResult = null;
+        
+        while (attempts < maxAttempts) {
+            this.logger.info(`Polling for command completion: ${attempts} of ${maxAttempts}`);
+            await new Promise(resolve => setTimeout(resolve, 5000)); // Poll every 5 seconds
+            
+            const stateResponse = await fetch(`/api/browser-agent/${sessionId}/state`);
+            if (!stateResponse.ok) {
+                throw new Error(`Failed to get session state: ${stateResponse.statusText}`);
             }
-          };
+            
+            const stateData = await stateResponse.json();
+            
+            // Check if the command has completed
+            const commandHistory = stateData.command_history || [];
+            const completedCommand = commandHistory.find((cmd: { command_id: string, result: { status: string } }) => 
+                cmd.command_id === commandId && 
+                cmd.result && 
+                cmd.result.status === 'success'
+            );
+            
+            if (completedCommand) {
+                commandResult = completedCommand.result;
+                break;
+            }
+            
+            // Check if the command failed
+            const failedCommand = commandHistory.find((cmd: { command_id: string, result: { status: string } }) => 
+                cmd.command_id === commandId && 
+                cmd.result && 
+                cmd.result.status === 'error'
+            );
+            
+            if (failedCommand) {
+                throw new Error(`Browser command failed: ${failedCommand.result.message || 'Unknown error'}`);
+            }
+            
+            // If the session is in error state, throw an error
+            if (stateData.status === 'error') {
+                throw new Error(`Browser session in error state: ${stateData.error || 'Unknown error'}`);
+            }
+            
+            attempts++;
         }
-      }
-      
-      // Fallback for development or when OpenAI is not available
-      return {
-        formData: {
-          height: "5'10\"",
-          weight: "220 lbs",
-          bmi: 31.5,
-          obesityHistory: "Patient has struggled with weight for 10 years"
+        
+        if (!commandResult) {
+            throw new Error('Browser command timed out after multiple attempts');
         }
-      };
-    } catch (error) {
-      this.logger.error(`Error reading obesity intake form: ${error.message}`);
-      await this.simulateCloudProcessing(3000);
-      
-      // Return mock data for development
-      return {
-        formData: {
-          height: "5'10\"",
-          weight: "220 lbs",
-          bmi: 31.5,
-          obesityHistory: "Patient has struggled with weight for 10 years"
-        }
-      };
+        
+        // Extract the text from the command result
+        const extractedText = commandResult.summary || '';
+        this.logger.info(`Successfully extracted text of length: ${extractedText.length}`);
+        
+        // Return success with the extracted text
+        return {
+            type: 'READ_OBESITY_INTAKE_FORM',
+            success: true,
+            data: {
+                rawText: extractedText
+            }
+        };
+        
+    } catch (error: unknown) {
+        this.logger.error(`Error reading obesity intake form: ${error instanceof Error ? error.message : String(error)}`);
+        return {
+            type: 'READ_OBESITY_INTAKE_FORM',
+            success: false,
+            error: error instanceof Error ? error.message : String(error)
+        };
     }
   }
 
