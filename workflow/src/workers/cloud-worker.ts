@@ -7,6 +7,8 @@ import OpenAI from 'openai';
 import axios from 'axios';
 import * as dotenv from 'dotenv';
 
+import mockData from './mockData.json';
+
 // Load environment variables
 dotenv.config();
 
@@ -157,7 +159,7 @@ export class CloudWorker {
     // Update task status to IN_PROGRESS and set execution details
     const startTime = new Date();
     await this.workflowUseCases.updateTask(
-      task.workflow_id, // TODO(ambar): unify casing for workflow service internals and externals (eugh)
+      task.workflow_id,
       task.id,
       {
         status: TaskStatus.IN_PROGRESS,
@@ -182,9 +184,9 @@ export class CloudWorker {
 
       // Update task with result, COMPLETED status, and execution details
       const completionTime = new Date();
-      console.log('---handler done--------', task.workflow_id, task.id, result, '-----------');
+      console.log('---handler done--------', task.workflowId, task.id, result, '-----------');
       await this.workflowUseCases.updateTask(
-        task.workflow_id, // TODO(ambar): unify casing for workflow service internals and externals (eugh)
+        task.workflow_id,
         task.id,
         {
           status: TaskStatus.COMPLETED,
@@ -200,22 +202,25 @@ export class CloudWorker {
       );
 
       return result;
-    } catch (error) {
+    } catch (err) {
+      const error = err as Error;
+      const errorMessage = error.message || 'Unknown error occurred';
+      
       // Update task with error, FAILED status, and execution details
       const completionTime = new Date();
       await this.workflowUseCases.updateTask(
-        task.workflow_id, // TODO(ambar): unify casing for workflow service internals and externals (eugh)
+        task.workflow_id,
         task.id,
         {
           status: TaskStatus.FAILED,
-          error: error instanceof Error ? error.message : String(error),
+          error: errorMessage,
           executionDetails: {
             ...task.executionDetails,
             attempts: (task.executionDetails?.attempts || 0) + 1,
             startedAt: startTime,
             completedAt: completionTime,
             workerId: this.workerId,
-            lastError: error instanceof Error ? error.message : String(error)
+            lastError: errorMessage
           }
         }
       );
@@ -235,7 +240,7 @@ export class CloudWorker {
         
         // Update task status to IN_PROGRESS
         await this.workflowUseCases.updateTaskStatus(
-          nextTask.workflowId,
+          nextTask.workflow_id,
           nextTask.id,
           TaskStatus.IN_PROGRESS
         );
@@ -257,7 +262,7 @@ export class CloudWorker {
           
           // Update task with result
           await this.workflowUseCases.updateTaskOutput(
-            nextTask.workflowId,
+            nextTask.workflow_id,
             nextTask.id,
             result
           );
@@ -265,7 +270,7 @@ export class CloudWorker {
           // Check result.success to determine task status
         
           await this.workflowUseCases.updateTaskStatus(
-            nextTask.workflowId,
+            nextTask.workflow_id,
             nextTask.id,
             status
           );
@@ -279,7 +284,7 @@ export class CloudWorker {
           
           // Mark as failed for execution errors
           await this.workflowUseCases.updateTaskStatus(
-            nextTask.workflowId,
+            nextTask.workflow_id,
             nextTask.id,
             TaskStatus.FAILED,
           );
@@ -341,8 +346,9 @@ export class CloudWorker {
       }
       
       return response.data;
-    } catch (error) {
-      this.logger.error(`Browser service call failed: ${error.message}`);
+    } catch (err) {
+      const error = err as Error;
+      this.logger.error(`Browser service call failed: ${error.message || 'Unknown error'}`);
       throw error;
     }
   }
@@ -369,64 +375,103 @@ export class CloudWorker {
         max_tokens: mergedOptions.max_tokens
       });
       
-      return response.choices[0].message.content;
-    } catch (error) {
-      this.logger.error(`OpenAI API call failed: ${error.message}`);
+      const content = response.choices[0].message?.content;
+      if (!content) {
+        throw new Error('No content in OpenAI response');
+      }
+      
+      return content;
+    } catch (err) {
+      const error = err as Error;
+      this.logger.error(`OpenAI API call failed: ${error.message || 'Unknown error'}`);
       throw error;
     }
   }
 
   // Task handlers
   private async handleIdentifyChartAthena(task: Task): Promise<any> {
-    this.logger.info(`Identifying chart in Athena for patient: ${task.input.name}`);
-    
+    console.log('\n=== Starting handleIdentifyChartAthena ===');
+    console.log('Input:', JSON.stringify(task.input, null, 2));
+    this.logger.info(`Identifying Athena chart for profile: ${task.input.profileText}`);
+    const extractedText = JSON.stringify(mockData)
     try {
-      // Call browser service to navigate to Athena
-      const browserResponse = await this.callBrowserService('/browser/navigate', 'POST', {
-        url: `${task.input.athena_base_url}/search`,
-        waitForSelector: '#patient-search-input'
-      });
-      
-      // Call browser service to search for patient
-      await this.callBrowserService('/browser/type', 'POST', {
-        selector: '#patient-search-input',
-        text: task.input.name
-      });
-      
-      await this.callBrowserService('/browser/click', 'POST', {
-        selector: '#search-button'
-      });
-      
-      // Wait for results and extract patient URL
-      const searchResults = await this.callBrowserService('/browser/extract', 'POST', {
-        selector: '.patient-result',
-        attribute: 'href'
-      });
-      
-      if (!searchResults || searchResults.length === 0) {
-        return {
-          chartFound: false,
-          message: 'No patient chart found'
-        };
+      // Check OpenAI initialization
+      console.log('\nStep 1: Checking OpenAI client...');
+      if (!this.openai) {
+        console.log('❌ OpenAI client not initialized');
+        throw new Error('OpenAI client is not initialized');
       }
-      
-      const patientUrl = searchResults[0];
-      const patientId = patientUrl.split('/').pop();
-      
-      return {
-        url: patientUrl,
-        patientId: patientId,
-        chartFound: true
+      console.log('✅ OpenAI client ready');
+
+      // Extract profile information
+      console.log('\nStep 2: Extracting profile information...');
+      console.log('Profile text:', extractedText); // task.input.profileText);
+      const extractedProfile = await this.extract(extractedText, 'profile');
+      const profile = (extractedProfile as ProfileExtraction).profile;
+      console.log('Extracted profile:', JSON.stringify(profile, null, 2));
+
+      // Validate profile information
+      console.log('\nStep 3: Validating profile information...');
+      if (!profile.name || !profile.dateOfBirth) {
+        console.log('❌ Missing required profile information');
+        console.log('Name present:', !!profile.name);
+        console.log('DOB present:', !!profile.dateOfBirth);
+        throw new Error('Could not extract required profile information (name and DOB)');
+      }
+      console.log('✅ Profile validation passed');
+
+      // Construct and execute browser command
+      console.log('\nStep 4: Constructing browser command...');
+      const browserPrompt = `
+        Navigate to http://localhost:8000.
+        Search for patient "${profile.name}".
+        Look for a patient with date of birth "${profile.dateOfBirth}".
+        If found, click to open their chart.
+        Verify you're on the correct chart by confirming the name and date of birth match exactly.
+      `;
+      console.log('Browser prompt:', browserPrompt);
+
+      console.log('\nStep 5: Executing browser command...');
+      const commandResult = await this.executeBrowserCommand(browserPrompt);
+      console.log('Browser command result:', JSON.stringify(commandResult, null, 2));
+
+      // Validate browser command result
+      console.log('\nStep 6: Validating browser command result...');
+      if (!commandResult || !commandResult.last_url) {
+        console.log('❌ Invalid browser command result');
+        console.log('Command result:', commandResult);
+        throw new Error('Failed to navigate to patient chart');
+      }
+      console.log('✅ Browser command validation passed');
+
+      // Prepare success response
+      console.log('\nStep 7: Preparing success response...');
+      const response = {
+        success: true,
+        chartUrl: commandResult.last_url,
+        profile: {
+          name: profile.name,
+          dateOfBirth: profile.dateOfBirth,
+          gender: profile.gender
+        }
       };
+      console.log('Response:', JSON.stringify(response, null, 2));
+      console.log('=== Completed handleIdentifyChartAthena successfully ===\n');
+      return response;
+
     } catch (error) {
-      this.logger.error(`Error identifying chart: ${error.message}`);
+      console.log('\n❌ Error in handleIdentifyChartAthena:');
+      console.log('Error:', error instanceof Error ? error.message : String(error));
+      console.log('Stack:', error instanceof Error ? error.stack : 'No stack trace available');
+      this.logger.error(`Error identifying Athena chart: ${error instanceof Error ? error.message : String(error)}`);
       
-      // Simulate success for development purposes
-      return {
-        url: `https://athena.example.com/patient/${uuidv4()}`,
-        patientId: uuidv4(),
-        chartFound: true
+      const errorResponse = {
+        success: false,
+        error: error instanceof Error ? error.message : String(error)
       };
+      console.log('Error response:', JSON.stringify(errorResponse, null, 2));
+      console.log('=== Completed handleIdentifyChartAthena with error ===\n');
+      return errorResponse;
     }
   }
 
@@ -569,8 +614,6 @@ export class CloudWorker {
         }
       }
       
-      await this.simulateCloudProcessing(1500);
-      
       // Fallback mock data
       return {
         profile: {
@@ -582,7 +625,6 @@ export class CloudWorker {
       };
     } catch (error) {
       this.logger.error(`Error extracting patient profile: ${error.message}`);
-      await this.simulateCloudProcessing(1500);
       
       return {
         profile: {
@@ -640,9 +682,7 @@ export class CloudWorker {
           };
         }
       }
-      
-      await this.simulateCloudProcessing(2500);
-      
+    
       // Fallback mock data
       return {
         medications: [
@@ -652,7 +692,6 @@ export class CloudWorker {
       };
     } catch (error) {
       this.logger.error(`Error extracting medications: ${error.message}`);
-      await this.simulateCloudProcessing(2500);
       
       return {
         medications: [
@@ -665,7 +704,6 @@ export class CloudWorker {
 
   private async handleExtractAllergies(task: Task): Promise<any> {
     this.logger.info(`Extracting allergies from: ${task.input.url}`);
-    await this.simulateCloudProcessing(1000);
     
     return {
       allergies: [
@@ -677,7 +715,6 @@ export class CloudWorker {
 
   private async handleExtractInsurance(task: Task): Promise<any> {
     this.logger.info(`Extracting insurance from: ${task.input.url}`);
-    await this.simulateCloudProcessing(1800);
     
     return {
       insurance: {
@@ -692,7 +729,6 @@ export class CloudWorker {
   private async handleWriteMedications(task: Task): Promise<any> {
     this.logger.info(`Writing medications to: ${task.input.url}`);
     this.logger.info(`Medications data: ${task.input.medications}`);
-    await this.simulateCloudProcessing(2200);
     
     return {
       success: true,
@@ -704,7 +740,6 @@ export class CloudWorker {
   private async handleWriteAllergies(task: Task): Promise<any> {
     this.logger.info(`Writing allergies to: ${task.input.url}`);
     this.logger.info(`Allergies data: ${task.input.allergies}`);
-    await this.simulateCloudProcessing(1700);
     
     return {
       success: true,
@@ -716,19 +751,12 @@ export class CloudWorker {
   private async handleWriteInsurance(task: Task): Promise<any> {
     this.logger.info(`Writing insurance to: ${task.input.url}`);
     this.logger.info(`Insurance data: ${task.input.insurance}`);
-    await this.simulateCloudProcessing(1500);
     
     return {
       success: true,
       insuranceWritten: true,
       timestamp: new Date().toISOString()
     };
-  }
-
-  // Helper method to simulate cloud processing
-  private async simulateCloudProcessing(ms: number): Promise<void> {
-    this.logger.debug(`Simulating cloud processing for ${ms}ms`);
-    return new Promise(resolve => setTimeout(resolve, ms));
   }
 
   private async extract(text: string, extractionType: ExtractionType): Promise<ExtractionResult> {
@@ -844,7 +872,7 @@ Only include information that is explicitly mentioned in the text. Do not make a
 
     try {
       const completion = await this.openai.chat.completions.create({
-        model: "gpt-4",
+        model: "gpt-4o",
         messages: [
           { 
             role: "system", 
@@ -853,7 +881,27 @@ Only include information that is explicitly mentioned in the text. Do not make a
           { role: "user", content: prompt }
         ],
         response_format: {
-          type: "json_object"
+          type: "json_schema",
+          json_schema: {
+            name: "extracted",
+            schema: {
+              type: "object",
+              properties: {
+                profile: {
+                  type: "object",
+                  properties: {
+                    name: { type: "string" },
+                    dateOfBirth: { type: "string" },
+                    gender: { type: "string" },
+                    phoneNumber: { type: "string" },
+                    email: { type: "string" },
+                    address: { type: "string" }
+                  },
+                  required: ["name", "dateOfBirth"]
+                }
+              }
+            }
+          }
         }
       });
 
