@@ -106,12 +106,31 @@ export class CloudWorker {
 
   public async executeTask(task: Task): Promise<any> {
     this.logger.info(`Executing task ${task.id} of type ${task.type} directly`);
+    this.logger.info(`Task: ${JSON.stringify(task)}`);
     
     // Get the handler for this task type
     const handler = this.taskHandlers.get(task.type);
     if (!handler) {
       throw new Error(`No handler registered for task type: ${task.type}`);
     }
+
+    // Update task status to IN_PROGRESS and set execution details
+    const startTime = new Date();
+    await this.workflowUseCases.updateTask(
+      task.workflow_id, // TODO(ambar): unify casing for workflow service internals and externals (eugh)
+      task.id,
+      {
+        status: TaskStatus.IN_PROGRESS,
+        executionDetails: {
+          ...task.executionDetails,
+          attempts: (task.executionDetails?.attempts || 0) + 1,
+          startedAt: startTime,
+          workerId: this.workerId
+        }
+      }
+    );
+
+    console.log('will execute task, task:', task);
 
     try {
       // Execute the task
@@ -121,28 +140,44 @@ export class CloudWorker {
         throw new Error(result.error || 'Task failed with success: false');
       }
 
-      console.log('---result from handler--------', result, '-----------');
-      // Update task status
-      task.status = TaskStatus.COMPLETED;
-      task.output = result;
-      task.executionDetails = {
-        ...task.executionDetails,
-        attempts: (task.executionDetails?.attempts || 0) + 1,
-        startedAt: new Date().toISOString(),
-        completedAt: new Date().toISOString()
-      };
+      // Update task with result, COMPLETED status, and execution details
+      const completionTime = new Date();
+      await this.workflowUseCases.updateTask(
+        task.workflow_id, // TODO(ambar): unify casing for workflow service internals and externals (eugh)
+        task.id,
+        {
+          status: TaskStatus.COMPLETED,
+          output: result,
+          executionDetails: {
+            ...task.executionDetails,
+            attempts: (task.executionDetails?.attempts || 0) + 1,
+            startedAt: startTime,
+            completedAt: completionTime,
+            workerId: this.workerId
+          }
+        }
+      );
 
       return result;
     } catch (error) {
-      // Update task status on failure
-      task.status = TaskStatus.FAILED;
-      task.error = error instanceof Error ? error.message : String(error);
-      task.executionDetails = {
-        ...task.executionDetails,
-        attempts: (task.executionDetails?.attempts || 0) + 1,
-        startedAt: new Date().toISOString(),
-        completedAt: new Date().toISOString()
-      };
+      // Update task with error, FAILED status, and execution details
+      const completionTime = new Date();
+      await this.workflowUseCases.updateTask(
+        task.workflow_id, // TODO(ambar): unify casing for workflow service internals and externals (eugh)
+        task.id,
+        {
+          status: TaskStatus.FAILED,
+          error: error instanceof Error ? error.message : String(error),
+          executionDetails: {
+            ...task.executionDetails,
+            attempts: (task.executionDetails?.attempts || 0) + 1,
+            startedAt: startTime,
+            completedAt: completionTime,
+            workerId: this.workerId,
+            lastError: error instanceof Error ? error.message : String(error)
+          }
+        }
+      );
 
       throw error;
     }

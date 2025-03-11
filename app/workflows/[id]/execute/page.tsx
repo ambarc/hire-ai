@@ -105,8 +105,6 @@ export default function ExecuteWorkflowPage() {
     
     const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
     const [expandedTasks, setExpandedTasks] = useState<Record<string, boolean>>({});
-    const [isProcessing, setIsProcessing] = useState(false);
-    const [executingTaskId, setExecutingTaskId] = useState<string | null>(null);
 
     const toggleTaskDetails = (taskId: string) => {
         setExpandedTasks(prev => ({
@@ -165,7 +163,6 @@ export default function ExecuteWorkflowPage() {
     };
 
     const executeTask = async (taskId: string) => {
-        setExecutingTaskId(taskId);
         try {
             const response = await fetch('/api/workflow/execute-task', {
                 method: 'POST',
@@ -179,16 +176,12 @@ export default function ExecuteWorkflowPage() {
             if (!response.ok) {
                 throw new Error('Failed to execute task');
             }
-            // No need to manually fetch workflow - polling will handle updates
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to execute task');
-        } finally {
-            setExecutingTaskId(null);
         }
     };
 
     const processNextTask = async () => {
-        setIsProcessing(true);
         try {
             const response = await fetch('/api/workflow/queue/process-next', {
                 method: 'POST',
@@ -208,8 +201,6 @@ export default function ExecuteWorkflowPage() {
             }
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to process task');
-        } finally {
-            setIsProcessing(false);
         }
     };
 
@@ -502,14 +493,14 @@ export default function ExecuteWorkflowPage() {
                                                 e.stopPropagation();
                                                 executeTask(task.id);
                                             }}
-                                            disabled={executingTaskId === task.id}
+                                            disabled={task.status === TaskStatus.IN_PROGRESS}
                                             className={`px-3 py-1 rounded-md text-white text-sm font-medium ${
-                                                executingTaskId === task.id
+                                                task.status === TaskStatus.IN_PROGRESS
                                                     ? 'bg-gray-400 cursor-not-allowed'
                                                     : 'bg-blue-600 hover:bg-blue-700'
                                             }`}
                                         >
-                                            {executingTaskId === task.id ? (
+                                            {task.status === TaskStatus.IN_PROGRESS ? (
                                                 <span className="flex items-center">
                                                     <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>

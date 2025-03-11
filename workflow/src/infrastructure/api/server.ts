@@ -100,6 +100,8 @@ export async function createServer(
         return reply.code(404).send({ error: 'Workflow not found' });
       }
 
+      console.log('---workflow--------', workflow, '-----------');
+
       const task = workflow.tasks.find(t => t.id === taskId);
       if (!task) {
         return reply.code(404).send({ error: 'Task not found' });

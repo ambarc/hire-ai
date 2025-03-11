@@ -72,6 +72,7 @@ export class WorkflowUseCases {
   }
 
   async updateTask(workflowId: string, taskId: string, data: UpdateTaskDTO): Promise<Workflow> {
+    console.log('---updateTask--------', workflowId, taskId, data, '-----------');
     const workflow = await this.workflowRepository.findById(workflowId);
     if (!workflow) {
       throw new Error('Workflow not found');
