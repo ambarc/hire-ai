@@ -19,6 +19,7 @@ export interface Workflow {
 }
 
 export interface CreateWorkflowDTO {
+  id?: string;
   name: string;
   description: string;
   tasks: Task[];

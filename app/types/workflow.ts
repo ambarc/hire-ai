@@ -197,6 +197,15 @@ export type TaskOutput = {
 }
 
 // Task definition
+export interface TaskExecutionDetails {
+    queuedAt?: string;
+    startedAt?: string;
+    completedAt?: string;
+    attempts: number;
+    lastError?: string;
+    workerId?: string;
+}
+
 export interface Task {
     id: string;
     type: TaskType;
@@ -207,6 +216,7 @@ export interface Task {
     createdAt: string;
     updatedAt: string;
     error?: string;
+    executionDetails?: TaskExecutionDetails;
 }
 
 // Workflow definition

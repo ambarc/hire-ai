@@ -11,7 +11,7 @@ export interface TaskEntity {
   error?: string;
   createdAt: Date;
   updatedAt: Date;
-  workflow_id: string;
+  workflowId: string;
 }
 
 export const TaskEntitySchema = new EntitySchema<TaskEntity>({
@@ -51,16 +51,16 @@ export const TaskEntitySchema = new EntitySchema<TaskEntity>({
       type: Date,
       updateDate: true
     },
-    workflow_id: {
+    workflowId: {
       type: 'uuid'
     }
   },
   relations: {
-    workflow_id: {
+    workflowId: {
       type: 'many-to-one',
       target: 'workflows',
       joinColumn: {
-        name: 'workflow_id'
+        name: 'workflowId'
       },
       onDelete: 'CASCADE'
     }

@@ -3,14 +3,24 @@ import { WorkerPool } from '../interfaces/worker';
 import { TaskExecutor } from '../interfaces/executor';
 import { WorkflowRepository } from '../interfaces/repositories';
 import { TaskStatus, Task } from '../entities/task';
+import { WorkflowUseCases } from './workflow-usecases';
+import { Logger } from '../../utils/logger';
+import { EventEmitter } from 'events';
 
-export class QueueManager {
+export class QueueManager extends EventEmitter {
+  private queue: Task[] = [];
+  private logger: Logger;
+
   constructor(
     private taskQueue: TaskQueue,
     private workerPool: WorkerPool,
     private taskExecutor: TaskExecutor,
-    private workflowRepository: WorkflowRepository
-  ) {}
+    private workflowRepository: WorkflowRepository,
+    private workflowUseCases: WorkflowUseCases
+  ) {
+    super();
+    this.logger = new Logger('QueueManager');
+  }
 
   async enqueueTask(workflowId: string, taskId: string, priority = 0): Promise<void> {
     console.log('calling enqueue task:', workflowId, taskId, priority);
@@ -146,6 +156,113 @@ export class QueueManager {
     // Update task status to CANCELLED
     await this.workflowRepository.updateTask(workflowId, taskId, {
       status: TaskStatus.CANCELLED
+    });
+  }
+
+  public async queueTask(workflowId: string, taskId: string): Promise<void> {
+    const workflow = await this.workflowUseCases.getWorkflow(workflowId);
+    if (!workflow) {
+      throw new Error(`Workflow not found: ${workflowId}`);
+    }
+
+    const task = workflow.tasks.find(t => t.id === taskId);
+    if (!task) {
+      throw new Error(`Task not found: ${taskId} in workflow ${workflowId}`);
+    }
+
+    // Check if task is already in the queue
+    const isAlreadyQueued = this.queue.some(t => t.id === taskId);
+    if (isAlreadyQueued) {
+      this.logger.warn(`Task ${taskId} is already in the queue`);
+      return;
+    }
+
+    // Check if task is eligible to be queued (all dependencies completed)
+    const canBeQueued = this.canTaskBeQueued(workflow.tasks, task);
+    if (!canBeQueued) {
+      throw new Error(`Task ${taskId} cannot be queued because its dependencies are not completed`);
+    }
+
+    // Add task to queue
+    const queuedTask = {
+      ...task,
+      workflowId
+    };
+    
+    this.queue.push(queuedTask);
+    
+    // Update task status to QUEUED
+    await this.workflowUseCases.updateTaskStatus(workflowId, taskId, TaskStatus.QUEUED);
+    
+    this.logger.info(`Task ${taskId} added to queue`);
+    this.emit('taskQueued', queuedTask);
+  }
+
+  public async queueWorkflow(workflowId: string): Promise<void> {
+    const workflow = await this.workflowUseCases.getWorkflow(workflowId);
+    if (!workflow) {
+      throw new Error(`Workflow not found: ${workflowId}`);
+    }
+
+    this.logger.info(`Queueing all eligible tasks for workflow: ${workflowId}`);
+    
+    // Find tasks with no dependencies or all dependencies completed
+    const tasksToQueue = workflow.tasks.filter(task => 
+      this.canTaskBeQueued(workflow.tasks, task) && 
+      task.status === TaskStatus.NOT_STARTED
+    );
+
+    for (const task of tasksToQueue) {
+      await this.queueTask(workflowId, task.id);
+    }
+
+    this.logger.info(`Queued ${tasksToQueue.length} tasks for workflow: ${workflowId}`);
+  }
+
+  public async queueReadyTasks(workflowId: string): Promise<void> {
+    const workflow = await this.workflowUseCases.getWorkflow(workflowId);
+    if (!workflow) {
+      throw new Error(`Workflow not found: ${workflowId}`);
+    }
+
+    // Find tasks that are ready to be queued after a task completion
+    const tasksToQueue = workflow.tasks.filter(task => 
+      task.status === TaskStatus.NOT_STARTED && 
+      this.canTaskBeQueued(workflow.tasks, task)
+    );
+
+    for (const task of tasksToQueue) {
+      await this.queueTask(workflowId, task.id);
+    }
+
+    if (tasksToQueue.length > 0) {
+      this.logger.info(`Queued ${tasksToQueue.length} newly eligible tasks for workflow: ${workflowId}`);
+    }
+  }
+
+  public async getNextTask(): Promise<Task | null> {
+    if (this.queue.length === 0) {
+      return null;
+    }
+
+    // Get the first task in the queue
+    const task = this.queue.shift();
+    this.logger.info(`Retrieved task ${task?.id} from queue`);
+    this.emit('taskDequeued', task);
+    
+    return task ?? null;
+  }
+
+  private canTaskBeQueued(allTasks: Task[], task: Task): boolean {
+    // If task has no dependencies, it can be queued
+    if (!task.dependencies || task.dependencies.length === 0) {
+      return true;
+    }
+
+    // Check if all dependencies are completed
+    return task.dependencies.every(depId => {
+      const dependency = allTasks.find(t => t.id === depId);
+      return dependency && dependency.status === TaskStatus.COMPLETED;
     });
   }
 } 

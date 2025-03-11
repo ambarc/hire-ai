@@ -11,7 +11,7 @@ export class WorkflowUseCases {
 
   async createWorkflow(data: CreateWorkflowDTO): Promise<Workflow> {
     const now = new Date();
-    const workflowId = uuidv4();
+    const workflowId = data.id || uuidv4();
     
     // Generate IDs for tasks if they don't have one
     const tasksWithIds = data.tasks.map(task => {
@@ -27,6 +27,7 @@ export class WorkflowUseCases {
       return task;
     });
 
+    
     const workflow = {
       ...data,
       id: workflowId,
@@ -71,6 +72,7 @@ export class WorkflowUseCases {
   }
 
   async updateTask(workflowId: string, taskId: string, data: UpdateTaskDTO): Promise<Workflow> {
+    console.log('---updateTask--------', workflowId, taskId, data, '-----------');
     const workflow = await this.workflowRepository.findById(workflowId);
     if (!workflow) {
       throw new Error('Workflow not found');
@@ -87,6 +89,14 @@ export class WorkflowUseCases {
     };
 
     return this.workflowRepository.updateTask(workflowId, taskId, updatedTask);
+  }
+
+  async updateTaskStatus(workflowId: string, taskId: string, status: TaskStatus): Promise<Workflow> {
+    return this.updateTask(workflowId, taskId, { status });
+  }
+
+  async updateTaskOutput(workflowId: string, taskId: string, output: any): Promise<Workflow> {
+    return this.updateTask(workflowId, taskId, { output });
   }
 
   async registerTaskType(type: string, schema: { 

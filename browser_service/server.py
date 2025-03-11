@@ -123,7 +123,7 @@ def get_browser():
             browser = Browser(
                 config=BrowserConfig(
                     chrome_instance_path=chrome_path,
-                    launch_args=launch_args
+                    # launch_args=launch_args
                 )
             )
             
@@ -368,82 +368,65 @@ async def get_debug_ui():
         session.get_state() for session in sessions.values()
     ]
     
-    html = """
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <title>Browser Agent Debug UI</title>
-        <script>
-            // Determine if we're being accessed through Next.js
-            const isNextJs = window.location.pathname.startsWith('/browser-agent');
-            // API calls always use /api/browser-agent when through Next.js
-            const apiBaseUrl = isNextJs ? '/api/browser-agent' : '/browser-agent';
-            // Static files use /browser-agent/static when through Next.js
-            const staticBaseUrl = isNextJs ? '/browser-agent/static' : '/static';
-        </script>
-        <link rel="stylesheet" id="debug-css">
-        <script>
-            // Set the CSS href dynamically
-            document.getElementById('debug-css').href = `${staticBaseUrl}/css/debug.css`;
-
-            // Auto-refresh page every 5 seconds
-            function refreshPage() {
-                if (!document.querySelector('form:focus-within')) {
-                    location.reload();
-                }
-            }
-            setInterval(refreshPage, 5000);
-
-            // Handle form submission
-            async function createSession(event) {
-                event.preventDefault();
-                const form = event.target;
-                const prompt = form.querySelector('#prompt').value;
-
-                try {
-                    const response = await fetch(`${apiBaseUrl}/session`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            command: {
-                                prompt: prompt,
-                            }
-                        })
-                    });
-
-                    if (!response.ok) {
-                        console.log(response)
-                        throw new Error('Failed to create session! ' + JSON.stringify(response));
-                    }
-
-                    // Reload page to show new session
-                    location.reload();
-                } catch (error) {
-                    alert('Error creating session: ' + error.message);
-                }
-            }
-        </script>
-    </head>
-    <body>
-        <h1>Browser Agent Sessions</h1>
-
-        <div class="create-form">
-            <h2>Create New Session</h2>
-            <form onsubmit="createSession(event)">
-                <div class="form-group">
-                    <label for="prompt">Task Prompt:</label>
-                    <textarea id="prompt" placeholder="Enter task instructions here..."></textarea>
-                </div>
-                <button type="submit">Create Session</button>
-            </form>
+    # Create the configuration section HTML
+    config_section = f"""
+    <div class="config-section">
+        <h2>Agent Configuration</h2>
+        <div class="current-config">
+            <h3>Current Configuration:</h3>
+            <pre>
+CONNECTION_MODE: {CONNECTION_MODE}
+CHROME_HOST: {CHROME_HOST}
+CHROME_PORT: {CHROME_PORT}
+CHROME_CDP_URL: {CHROME_CDP_URL}
+HEADLESS: {HEADLESS}
+DEBUG: {DEBUG}
+            </pre>
         </div>
+
+        <h3>Configuration Presets</h3>
+        <div class="preset-buttons" style="margin-bottom: 20px;">
+            <button onclick="applyPreset('host')" type="button">Host Browser (Docker)</button>
+            <button onclick="applyPreset('local')" type="button">Local Application</button>
+        </div>
+
+        <h3>Manual Configuration:</h3>
+        <form class="config-form" onsubmit="updateConfig(event)">
+            <label for="connection_mode">Connection Mode:</label>
+            <select id="connection_mode" required>
+                <option value="cdp"{' selected' if CONNECTION_MODE == 'cdp' else ''}>CDP</option>
+                <option value="application"{' selected' if CONNECTION_MODE == 'application' else ''}>Application</option>
+            </select>
+
+            <label for="chrome_host">Chrome Host:</label>
+            <input type="text" id="chrome_host" value="{CHROME_HOST}" required>
+
+            <label for="chrome_port">Chrome Port:</label>
+            <input type="text" id="chrome_port" value="{CHROME_PORT}" required>
+
+            <label for="chrome_cdp_url">Chrome CDP URL (optional):</label>
+            <input type="text" id="chrome_cdp_url" value="{CHROME_CDP_URL}">
+
+            <div class="checkbox-group">
+                <label for="headless">Headless Mode:</label>
+                <input type="checkbox" id="headless"{' checked' if HEADLESS else ''}>
+            </div>
+
+            <div class="checkbox-group">
+                <label for="debug">Debug Mode:</label>
+                <input type="checkbox" id="debug"{' checked' if DEBUG else ''}>
+            </div>
+
+            <button type="submit" style="grid-column: span 2;">Update Configuration</button>
+        </form>
+    </div>
     """
-    
+
+    # Create the sessions section HTML
+    sessions_html = ""
     for state in session_states:
         status_class = state.get('status', 'unknown').lower()
-        html += f"""
+        sessions_html += f"""
         <div class="session">
             <h3>Session ID: {state['session_id']}
                 <span class="status {status_class}">{state['status']}</span>
@@ -462,36 +445,231 @@ async def get_debug_ui():
             </div>
         </div>
         """
-    
-    html += """
-    <script>
-        async function sendCommand(event, sessionId) {
-            event.preventDefault();
-            const form = event.target;
-            const prompt = document.getElementById(`prompt-${sessionId}`).value;
-            
-            try {
-                const response = await fetch(`${apiBaseUrl}/${sessionId}/command`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        prompt: prompt
-                    })
-                });
 
-                if (!response.ok) {
-                    throw new Error('Failed to send command');
-                }
+    # Combine all HTML sections
+    html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Browser Agent Debug UI</title>
+        <script>
+            // Determine if we're being accessed through Next.js
+            const isNextJs = window.location.pathname.startsWith('/browser-agent');
+            // API calls always use /api/browser-agent when through Next.js
+            const apiBaseUrl = isNextJs ? '/api/browser-agent' : '/browser-agent';
+            // Static files use /browser-agent/static when through Next.js
+            const staticBaseUrl = isNextJs ? '/browser-agent/static' : '/static';
+        </script>
+        <link rel="stylesheet" id="debug-css">
+        <style>
+            .config-section {{
+                background: #f5f5f5;
+                padding: 20px;
+                margin: 20px 0;
+                border-radius: 5px;
+            }}
+            .config-form {{
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 10px;
+            }}
+            .config-form label {{
+                font-weight: bold;
+            }}
+            .config-form input[type="text"],
+            .config-form input[type="number"] {{
+                width: 100%;
+                padding: 5px;
+            }}
+            .config-form .checkbox-group {{
+                display: flex;
+                align-items: center;
+                gap: 5px;
+            }}
+            .current-config {{
+                background: #e0e0e0;
+                padding: 10px;
+                margin-top: 10px;
+                border-radius: 3px;
+            }}
+            .preset-buttons {{
+                display: flex;
+                gap: 10px;
+                margin-bottom: 20px;
+            }}
+            .preset-buttons button {{
+                padding: 10px 20px;
+                border: none;
+                border-radius: 5px;
+                background: #007bff;
+                color: white;
+                cursor: pointer;
+            }}
+            .preset-buttons button:hover {{
+                background: #0056b3;
+            }}
+        </style>
+        <script>
+            // Set the CSS href dynamically
+            document.getElementById('debug-css').href = `${{staticBaseUrl}}/css/debug.css`;
 
-                // Reload page to show updated state
-                location.reload();
-            } catch (error) {
-                alert('Error sending command: ' + error.message);
-            }
-        }
-    </script>
+            // Configuration presets
+            const presets = {{
+                host: {{
+                    connection_mode: 'cdp',
+                    chrome_host: 'host.docker.internal',
+                    chrome_port: '9222',
+                    chrome_cdp_url: null,
+                    headless: false,
+                    debug: true
+                }},
+                local: {{
+                    connection_mode: 'application',
+                    chrome_host: 'localhost',
+                    chrome_port: '9222',
+                    chrome_cdp_url: null,
+                    headless: true,
+                    debug: false
+                }}
+            }};
+
+            // Apply configuration preset
+            async function applyPreset(presetName) {{
+                const config = presets[presetName];
+                if (!config) return;
+
+                try {{
+                    const response = await fetch(`${{apiBaseUrl}}/config/reset`, {{
+                        method: 'POST',
+                        headers: {{
+                            'Content-Type': 'application/json'
+                        }},
+                        body: JSON.stringify(config)
+                    }});
+
+                    if (!response.ok) {{
+                        throw new Error('Failed to apply preset');
+                    }}
+
+                    location.reload();
+                }} catch (error) {{
+                    alert('Error applying preset: ' + error.message);
+                }}
+            }}
+
+            // Auto-refresh page every 5 seconds
+            function refreshPage() {{
+                if (!document.querySelector('form:focus-within')) {{
+                    location.reload();
+                }}
+            }}
+            setInterval(refreshPage, 5000);
+
+            // Handle form submission
+            async function createSession(event) {{
+                event.preventDefault();
+                const form = event.target;
+                const prompt = form.querySelector('#prompt').value;
+
+                try {{
+                    const response = await fetch(`${{apiBaseUrl}}/session`, {{
+                        method: 'POST',
+                        headers: {{
+                            'Content-Type': 'application/json'
+                        }},
+                        body: JSON.stringify({{
+                            command: {{
+                                prompt: prompt,
+                            }}
+                        }})
+                    }});
+
+                    if (!response.ok) {{
+                        throw new Error('Failed to create session');
+                    }}
+
+                    location.reload();
+                }} catch (error) {{
+                    alert('Error creating session: ' + error.message);
+                }}
+            }}
+
+            // Handle configuration form submission
+            async function updateConfig(event) {{
+                event.preventDefault();
+                const form = event.target;
+                const config = {{
+                    connection_mode: form.querySelector('#connection_mode').value,
+                    chrome_host: form.querySelector('#chrome_host').value,
+                    chrome_port: form.querySelector('#chrome_port').value,
+                    chrome_cdp_url: form.querySelector('#chrome_cdp_url').value || null,
+                    headless: form.querySelector('#headless').checked,
+                    debug: form.querySelector('#debug').checked
+                }};
+
+                try {{
+                    const response = await fetch(`${{apiBaseUrl}}/config/reset`, {{
+                        method: 'POST',
+                        headers: {{
+                            'Content-Type': 'application/json'
+                        }},
+                        body: JSON.stringify(config)
+                    }});
+
+                    if (!response.ok) {{
+                        throw new Error('Failed to update configuration');
+                    }}
+
+                    location.reload();
+                }} catch (error) {{
+                    alert('Error updating configuration: ' + error.message);
+                }}
+            }}
+
+            async function sendCommand(event, sessionId) {{
+                event.preventDefault();
+                const form = event.target;
+                const prompt = document.getElementById(`prompt-${{sessionId}}`).value;
+                
+                try {{
+                    const response = await fetch(`${{apiBaseUrl}}/${{sessionId}}/command`, {{
+                        method: 'POST',
+                        headers: {{
+                            'Content-Type': 'application/json'
+                        }},
+                        body: JSON.stringify({{
+                            prompt: prompt
+                        }})
+                    }});
+
+                    if (!response.ok) {{
+                        throw new Error('Failed to send command');
+                    }}
+
+                    location.reload();
+                }} catch (error) {{
+                    alert('Error sending command: ' + error.message);
+                }}
+            }}
+        </script>
+    </head>
+    <body>
+        <h1>Browser Agent Debug UI</h1>
+
+        {config_section}
+
+        <div class="create-form">
+            <h2>Create New Session</h2>
+            <form onsubmit="createSession(event)">
+                <div class="form-group">
+                    <label for="prompt">Task Prompt:</label>
+                    <textarea id="prompt" placeholder="Enter task instructions here..."></textarea>
+                </div>
+                <button type="submit">Create Session</button>
+            </form>
+        </div>
+
+        {sessions_html}
     </body>
     </html>
     """
@@ -592,4 +770,47 @@ async def list_sessions():
             "state": browser.get_state()
         }
         for session_id, browser in sessions.items()
-    ] 
+    ]
+
+# Add new configuration model
+class ChromeConfig(BaseModel):
+    connection_mode: str = 'cdp'
+    chrome_host: str = 'localhost'
+    chrome_port: str = '9222'
+    chrome_cdp_url: Optional[str] = None
+    headless: bool = True
+    debug: bool = False
+
+@app.post("/browser-agent/config/reset")
+async def reset_config(config: ChromeConfig):
+    """Reset the browser agent configuration with new settings."""
+    global CONNECTION_MODE, CHROME_HOST, CHROME_PORT, CHROME_CDP_URL, HEADLESS, DEBUG
+    
+    # Update global configuration
+    CONNECTION_MODE = config.connection_mode
+    CHROME_HOST = config.chrome_host
+    CHROME_PORT = config.chrome_port
+    CHROME_CDP_URL = config.chrome_cdp_url or f'http://{CHROME_HOST}:{CHROME_PORT}'
+    HEADLESS = config.headless
+    DEBUG = config.debug
+    
+    # Close any existing browser instances
+    for session_id, session in sessions.items():
+        if session.browser:
+            await session.browser.close()
+    
+    # Clear all sessions
+    sessions.clear()
+    
+    return {
+        "status": "success",
+        "message": "Configuration reset successfully",
+        "config": {
+            "connection_mode": CONNECTION_MODE,
+            "chrome_host": CHROME_HOST,
+            "chrome_port": CHROME_PORT,
+            "chrome_cdp_url": CHROME_CDP_URL,
+            "headless": HEADLESS,
+            "debug": DEBUG
+        }
+    } 

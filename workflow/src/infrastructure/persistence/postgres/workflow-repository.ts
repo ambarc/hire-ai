@@ -32,7 +32,7 @@ export class PostgresWorkflowRepository implements WorkflowRepository {
         error: task.error,
         createdAt: task.createdAt,
         updatedAt: task.updatedAt,
-        workflow_id: workflow.id
+        workflowId: workflow.id
       }))
     };
     return entity;
@@ -53,7 +53,8 @@ export class PostgresWorkflowRepository implements WorkflowRepository {
         output: task.output,
         error: task.error,
         createdAt: task.createdAt,
-        updatedAt: task.updatedAt
+        updatedAt: task.updatedAt,
+        workflowId: entity.id
       })),
       createdAt: entity.createdAt,
       updatedAt: entity.updatedAt
