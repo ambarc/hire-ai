@@ -1,37 +1,16 @@
 'use client';
+import React from 'react';
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { Workflow, Task, TaskStatus, TaskType, isTaskOfType } from '../../../types/workflow';
-import { Allergy, Medication, Insurance } from '../../../types/clinical';
+import { Workflow, Task, TaskStatus, TaskType } from '../../../types/workflow';
 // import mockData from '../../../mock-data/test-scrape.json';
-
-interface Profile {
-    name: string;
-    birthDate?: string;
-    gender?: string;
-    phoneNumber?: string;
-}
 
 // Application memory for storing temporary data
 // const applicationMemory: Record<string, string> = {};
 
-// Function to get text from a browser location
-const getBrowserText = async (): Promise<string> => {
-    // TODO: Implement browser text extraction
-    return '';
-};
-
 // Utility function to format task type constants into readable titles
 const formatTaskType = (type: TaskType): string => {
-  return type
-    .split('_')
-    .map(word => word.charAt(0) + word.slice(1).toLowerCase())
-    .join(' ');
-};
-
-// Utility function to format source types
-const formatSourceType = (type: string): string => {
   return type
     .split('_')
     .map(word => word.charAt(0) + word.slice(1).toLowerCase())
@@ -90,7 +69,10 @@ const getStatusStyles = (status: TaskStatus) => {
 };
 
 // Utility function to recursively render nested data structures
-const renderNestedValue = (value: any, depth: number = 0): JSX.Element => {
+const renderNestedValue = (
+  value: Record<string, unknown> | unknown[] | string | number | boolean | null | unknown,
+  depth: number = 0
+): React.ReactElement => {
     if (Array.isArray(value)) {
         return (
             <div className="ml-4">
@@ -133,7 +115,6 @@ const renderNestedValue = (value: any, depth: number = 0): JSX.Element => {
 export default function ExecuteWorkflowPage() {
     const params = useParams();
     const [workflow, setWorkflow] = useState<Workflow | null>(null);
-    const [logs, setLogs] = useState<string[]>([]);
     const [status, setStatus] = useState<'loading' | 'idle' | 'executing' | 'completed' | 'error'>('loading');
     const [error, setError] = useState<string | null>(null);
     const [expandedTasks, setExpandedTasks] = useState<Record<string, boolean>>({});
@@ -143,10 +124,6 @@ export default function ExecuteWorkflowPage() {
             ...prev,
             [taskId]: !prev[taskId]
         }));
-    };
-
-    const addLog = (message: string) => {
-        setLogs(prev => [...prev, `[${new Date().toISOString()}] ${message}`]);
     };
 
     useEffect(() => {
@@ -176,24 +153,6 @@ export default function ExecuteWorkflowPage() {
         return () => clearInterval(pollInterval);
     }, [params.id]);
 
-    const updateTask = async (taskId: string, updates: Partial<Task>) => {
-        try {
-            const response = await fetch(`/workflow/${params.id}/task/${taskId}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(updates)
-            });
-
-            if (!response.ok) throw new Error('Failed to update task');
-            
-            const updatedWorkflow = await response.json();
-            setWorkflow(updatedWorkflow);
-        } catch (error) {
-            addLog(`Failed to update task: ${error}`);
-            throw error;
-        }
-    };
-
     const executeTask = async (taskId: string) => {
         try {
             const response = await fetch('/api/workflow/execute-task', {
@@ -210,29 +169,6 @@ export default function ExecuteWorkflowPage() {
             }
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to execute task');
-        }
-    };
-
-    const processNextTask = async () => {
-        try {
-            const response = await fetch('/api/workflow/queue/process-next', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ workflowId: params.id })
-            });
-            
-            if (!response.ok) {
-                throw new Error('Failed to process next task');
-            }
-            
-            // Refresh workflow data
-            const workflowResponse = await fetch(`/api/workflow/workflows/${params.id}`);
-            if (workflowResponse.ok) {
-                const data = await workflowResponse.json();
-                setWorkflow(data);
-            }
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to process task');
         }
     };
 
@@ -443,17 +379,6 @@ export default function ExecuteWorkflowPage() {
                     );
                 })}
             </div>
-
-            {logs.length > 0 && (
-                <div className="mt-8">
-                    <h2 className="text-lg font-medium text-gray-900 mb-4">Execution Logs</h2>
-                    <div className="bg-gray-900 text-gray-100 p-4 rounded-lg">
-                        <pre className="whitespace-pre-wrap text-sm">
-                            {logs.join('\n')}
-                        </pre>
-                    </div>
-                </div>
-            )}
         </div>
     );
 } 
