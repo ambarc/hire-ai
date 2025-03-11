@@ -569,70 +569,32 @@ export class CloudWorker {
   }
 
   private async handleExtractPatientProfile(task: Task): Promise<any> {
-    this.logger.info(`Extracting patient profile from: ${task.input.url}`);
+    this.logger.info(`Extracting patient profile from text`);
     
+
     try {
-      // Navigate to the patient chart
-      await this.callBrowserService('/browser/navigate', 'POST', {
-        url: task.input.url,
-        waitForSelector: '.patient-profile'
-      });
+      // Get the extracted text from the task input
+      const extractedText = JSON.stringify(mockData) // task.input.extractedText;
       
-      // Extract profile data
-      const profileData = await this.callBrowserService('/browser/extract', 'POST', {
-        selector: '.patient-profile',
-        attribute: 'innerText'
-      });
-      
-      // Use OpenAI to extract structured data
-      if (this.openai) {
-        const prompt = `
-          Extract the following patient information:
-          - Full name
-          - Age
-          - Gender
-          - Contact information (phone number)
-          
-          From this text:
-          ${profileData}
-          
-          Return the data in JSON format with keys: name, age, gender, contactInfo
-        `;
-        
-        const extractedData = await this.processWithOpenAI(prompt);
-        try {
-          return {
-            profile: JSON.parse(extractedData)
-          };
-        } catch (e) {
-          return {
-            profile: {
-              rawText: profileData,
-              aiExtracted: extractedData
-            }
-          };
-        }
+      if (!extractedText) {
+        throw new Error('No extracted text provided in task input');
       }
+
+      // Use the extract method to process the text and get profile information
+      const profileData = await this.extract(extractedText, 'profile');
       
-      // Fallback mock data
+      this.logger.info(`Successfully extracted profile information`);
+      
       return {
-        profile: {
-          name: "John Doe",
-          age: 45,
-          gender: "Male",
-          contactInfo: "555-123-4567"
-        }
+        success: true,
+        ...profileData
       };
-    } catch (error) {
-      this.logger.error(`Error extracting patient profile: ${error.message}`);
       
+    } catch (error) {
+      this.logger.error(`Error extracting patient profile: ${error instanceof Error ? error.message : String(error)}`);
       return {
-        profile: {
-          name: "John Doe",
-          age: 45,
-          gender: "Male",
-          contactInfo: "555-123-4567"
-        }
+        success: false,
+        error: error instanceof Error ? error.message : String(error)
       };
     }
   }
