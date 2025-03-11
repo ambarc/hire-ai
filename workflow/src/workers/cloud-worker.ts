@@ -691,13 +691,90 @@ export class CloudWorker {
 
   private async handleWriteMedications(task: Task): Promise<any> {
     this.logger.info(`Writing medications to: ${task.input.url}`);
-    this.logger.info(`Medications data: ${task.input.medications}`);
+
+    const mockMedications = 
+    [
+      {
+        "name": "Lisinopril",
+        "dosage": "10mg",
+        "frequency": "once daily"
+      },
+      {
+        "name": "Metformin",
+        "dosage": "500mg",
+        "frequency": "once daily"
+      }
+    ];
+
+    /*
+    the sample medication task is... 
+    {
+      "id": "6ba7b813-9dad-11d1-80b4-00c04fd430c8",
+      "type": "WRITE_MEDICATIONS",
+      "workflow_id": "workflow-1",
+      "status": "NOT_STARTED",
+      "input": {
+        "medications": "string",
+        "url": "string"
+      }
+    }
+    */
+
+    const mockUrl = 'http://localhost:8000/patients/3';
     
-    return {
-      success: true,
-      medicationsWritten: true,
-      timestamp: new Date().toISOString()
-    };
+    try {
+      // Parse medications from input
+      const medications = mockMedications; // JSON.parse(task.input.medications);
+      const url = mockUrl;
+      // if (!Array.isArray(medications) || medications.length === 0) {
+      //   throw new Error('No valid medications provided in task input');
+      // }
+
+      // Format medications for the browser prompt
+      const formattedMeds = medications.map(med => 
+        `${med.name} ${med.dosage} ${med.frequency}`
+      ).join('\n');
+
+      // Construct browser command
+      const browserPrompt = `
+        Navigate to ${mockUrl}.
+        Look for the medications section or form.
+        For each of the following medications, find the appropriate input fields and enter the information:
+        ${formattedMeds}
+        
+        For each medication:
+        1. Click "Add Medication" or similar button if present
+        2. Enter the medication name
+        3. Enter the dosage
+        4. Enter the frequency
+        5. Save or confirm the entry
+        
+        Verify all medications have been entered correctly.
+      `;
+
+      // Execute browser command
+      const commandResult = await this.executeBrowserCommand(browserPrompt);
+      
+      if (!commandResult) {
+        throw new Error('Failed to write medications to chart');
+      }
+
+      this.logger.info(`Successfully wrote ${medications.length} medications to chart`);
+      
+      return {
+        success: true,
+        medicationsWritten: medications.length,
+        timestamp: new Date().toISOString(),
+        url: task.input.url
+      };
+
+    } catch (error) {
+      this.logger.error(`Error writing medications: ${error instanceof Error ? error.message : String(error)}`);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error)
+      };
+    }
   }
 
   private async handleWriteAllergies(task: Task): Promise<any> {
