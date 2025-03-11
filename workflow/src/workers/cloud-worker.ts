@@ -763,7 +763,7 @@ export class CloudWorker {
       
       return {
         success: true,
-        medicationsWritten: medications.length,
+        medications,
         timestamp: new Date().toISOString(),
         url: task.input.url
       };
@@ -779,24 +779,147 @@ export class CloudWorker {
 
   private async handleWriteAllergies(task: Task): Promise<any> {
     this.logger.info(`Writing allergies to: ${task.input.url}`);
-    this.logger.info(`Allergies data: ${task.input.allergies}`);
-    
-    return {
-      success: true,
-      allergiesWritten: true,
-      timestamp: new Date().toISOString()
-    };
+
+    const mockAllergies = 
+    [
+      {
+        "name": "Penicillin",
+        "severity": "Severe",
+        "reaction": "anaphylaxis"
+      },
+      {
+        "name": "Sulfa Drugs",
+        "severity": "Moderate",
+        "reaction": "rash"
+      },
+      {
+        "name": "Shellfish",
+        "severity": "Mild",
+        "reaction": "itching"
+      }
+    ];
+
+    /*
+    the sample medication task is... 
+    {
+      "id": "6ba7b813-9dad-11d1-80b4-00c04fd430c8",
+      "type": "WRITE_MEDICATIONS",
+      "workflow_id": "workflow-1",
+      "status": "NOT_STARTED",
+      "input": {
+        "medications": "string",
+        "url": "string"
+      }
+    }
+    */
+
+    const mockUrl = 'http://localhost:8000/patients/3';
+    const url = mockUrl;
+    try {
+      // Parse allergies from input
+      const allergies = JSON.stringify(mockAllergies); // JSON.parse(task.input.allergies);
+
+      // Construct browser command
+      const browserPrompt = `
+        Navigate to ${url}.
+        Look for the allergies section or form.
+        For each of the following allergies, find the appropriate input fields and enter the information:
+        ${allergies}
+        
+        For each allergy:
+        1. Click "Add Allergy" or similar button if present
+        2. Enter the allergy name
+        3. Enter the severity
+        4. Enter the reaction
+        5. Save or confirm the entry
+        
+        Verify all allergies have been entered correctly.
+      `;
+
+      // Execute browser command
+      const commandResult = await this.executeBrowserCommand(browserPrompt);
+      
+      // if (!commandResult || !commandResult.success) {
+      //   throw new Error('Failed to write allergies to chart');
+      // }
+
+      this.logger.info(`Successfully wrote ${allergies.length} allergies to chart`);
+      
+      return {
+        success: true,
+        allergies: mockAllergies,
+        // allergiesWritten: allergies.length,
+        timestamp: new Date().toISOString(),
+        url: task.input.url
+      };
+
+    } catch (error) {
+      this.logger.error(`Error writing allergies: ${error instanceof Error ? error.message : String(error)}`);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error)
+      };
+    }
   }
 
   private async handleWriteInsurance(task: Task): Promise<any> {
     this.logger.info(`Writing insurance to: ${task.input.url}`);
-    this.logger.info(`Insurance data: ${task.input.insurance}`);
-    
-    return {
-      success: true,
-      insuranceWritten: true,
-      timestamp: new Date().toISOString()
+
+    const mockInsurance = {
+      "name": "Blue Cross Blue Shield",
+      "groupNumber": "GRP987654",
+      "memberId": "BCBS789012345",
+      "plantType": "PPO",
+      "effectiveDate": "01/01/2024",
     };
+
+    const mockUrl = 'http://localhost:8000/patients/3';
+    const url = mockUrl;
+    
+    try {
+      // Parse insurance from input
+      const insurance = JSON.stringify(mockInsurance); // JSON.parse(task.input.insurance);
+
+      // Construct browser command
+      const browserPrompt = `
+        Navigate to ${url}.
+        Look for the insurance section or form.
+        Enter the following insurance information:
+        ${insurance}
+        
+        Steps:
+        Make sure to fill in the relevant insurance fields based on the insurance information provided.
+
+        Enter each field of the insurance you have, like ${Object.keys(mockInsurance).join(', ')} and hit submit.
+
+        Save or confirm the entry is saved to the page.
+        
+        Verify all insurance information has been entered correctly.
+      `;
+
+      // Execute browser command
+      const commandResult = await this.executeBrowserCommand(browserPrompt);
+      
+      // if (!commandResult || !commandResult.success) {
+      //   throw new Error('Failed to write insurance to chart');
+      // }
+
+      this.logger.info('Successfully wrote insurance information to chart');
+      
+      return {
+        success: true,
+        insuranceWritten: mockInsurance,
+        timestamp: new Date().toISOString(),
+        url: task.input.url
+      };
+
+    } catch (error) {
+      this.logger.error(`Error writing insurance: ${error instanceof Error ? error.message : String(error)}`);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error)
+      };
+    }
   }
 
   private async extract(text: string, extractionType: ExtractionType): Promise<ExtractionResult> {

@@ -136,13 +136,6 @@ export default function ExecuteWorkflowPage() {
     const [logs, setLogs] = useState<string[]>([]);
     const [status, setStatus] = useState<'loading' | 'idle' | 'executing' | 'completed' | 'error'>('loading');
     const [error, setError] = useState<string | null>(null);
-    const [ingestExtractedText, setIngestExtractedText] = useState<string>('');
-    const [extractedMedications, setExtractedMedications] = useState<Medication[]>([]);
-    const [extractedAllergies, setExtractedAllergies] = useState<Allergy[]>([]);
-    const [extractedInsurance, setExtractedInsurance] = useState<Insurance | null>(null);
-    const [extractedProfile, setExtractedProfile] = useState<Profile | null>(null);
-    
-    const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
     const [expandedTasks, setExpandedTasks] = useState<Record<string, boolean>>({});
 
     const toggleTaskDetails = (taskId: string) => {
