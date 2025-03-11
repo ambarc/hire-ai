@@ -630,10 +630,63 @@ export class CloudWorker {
   }
 
   private async handleExtractAllergies(task: Task): Promise<any> {
+    this.logger.info(`Extracting allergies from text`);
+
+    try {
+      // Get the extracted text from the task input
+      const extractedText = JSON.stringify(mockData) // task.input.extractedText;
+      
+      if (!extractedText) {
+        throw new Error('No extracted text provided in task input');
+      }
+
+      // Use the extract method to process the text and get allergies information
+      const allergiesData = await this.extract(extractedText, 'allergies');
+      
+      this.logger.info(`Successfully extracted allergies information`);
+      
+      return {
+        success: true,
+        ...allergiesData
+      };
+      
+    } catch (error) {
+      this.logger.error(`Error extracting allergies: ${error instanceof Error ? error.message : String(error)}`);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error)
+      };
+    }
   }
 
   private async handleExtractInsurance(task: Task): Promise<any> {
-    this.logger.info(`Extracting insurance from: ${task.input.url}`);
+    this.logger.info(`Extracting insurance from text`);
+
+    try {
+      // Get the extracted text from the task input
+      const extractedText = JSON.stringify(mockData) // task.input.extractedText;
+      
+      if (!extractedText) {
+        throw new Error('No extracted text provided in task input');
+      }
+
+      // Use the extract method to process the text and get insurance information
+      const insuranceData = await this.extract(extractedText, 'insurance');
+      
+      this.logger.info(`Successfully extracted insurance information`);
+      
+      return {
+        success: true,
+        ...insuranceData
+      };
+      
+    } catch (error) {
+      this.logger.error(`Error extracting insurance: ${error instanceof Error ? error.message : String(error)}`);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error)
+      };
+    }
   }
 
   private async handleWriteMedications(task: Task): Promise<any> {
