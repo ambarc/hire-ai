@@ -89,6 +89,47 @@ const getStatusStyles = (status: TaskStatus) => {
   }
 };
 
+// Utility function to recursively render nested data structures
+const renderNestedValue = (value: any, depth: number = 0): JSX.Element => {
+    if (Array.isArray(value)) {
+        return (
+            <div className="ml-4">
+                {value.map((item, index) => (
+                    <div key={index} className="flex items-start mt-2">
+                        <span className="text-sm font-medium text-gray-500 min-w-[30px]">{index}:</span>
+                        <div className="flex-1">{renderNestedValue(item, depth + 1)}</div>
+                    </div>
+                ))}
+            </div>
+        );
+    }
+    
+    if (typeof value === 'object' && value !== null) {
+        return (
+            <div className={depth > 0 ? 'ml-4' : ''}>
+                {Object.entries(value).map(([key, val]) => (
+                    <div key={key} className="flex items-start mt-2">
+                        <span className="text-sm font-medium text-gray-500 min-w-[120px]">{key}:</span>
+                        <div className="flex-1">{renderNestedValue(val, depth + 1)}</div>
+                    </div>
+                ))}
+            </div>
+        );
+    }
+
+    // Handle primitive values
+    if (typeof value === 'string') {
+        try {
+            new URL(value);
+            return <span className="text-sm text-blue-600 hover:underline">🔗 {value}</span>;
+        } catch {
+            return <span className="text-sm text-gray-900">{value}</span>;
+        }
+    }
+    
+    return <span className="text-sm text-gray-900">{String(value)}</span>;
+};
+
 export default function ExecuteWorkflowPage() {
     const params = useParams();
     const [workflow, setWorkflow] = useState<Workflow | null>(null);
@@ -212,47 +253,14 @@ export default function ExecuteWorkflowPage() {
             );
         }
 
-        const formatValue = (value: any): string => {
-            if (typeof value === 'string') {
-                // Check if it's a URL
-                try {
-                    new URL(value);
-                    return `🔗 ${value}`;
-                } catch {
-                    return value;
-                }
-            }
-            if (typeof value === 'object' && value !== null) {
-                return JSON.stringify(value, null, 2);
-            }
-            return String(value);
-        };
-
         return (
             <div className="mt-4">
                 <div className="bg-white shadow-sm ring-1 ring-gray-900/5 rounded-lg">
                     <div className="px-4 py-3 border-b border-gray-200">
                         <h4 className="text-sm font-semibold text-gray-900">Input Parameters</h4>
                     </div>
-                    <div className="divide-y divide-gray-200">
-                        {Object.entries(task.input).map(([key, value]) => (
-                            <div key={key} className="px-4 py-3">
-                                <div className="flex items-start">
-                                    <dt className="text-sm font-medium text-gray-500 min-w-[100px]">
-                                        {key}
-                                    </dt>
-                                    <dd className="mt-0 text-sm text-gray-900 flex-1">
-                                        {typeof value === 'object' && value !== null ? (
-                                            <pre className="mt-1 text-xs bg-gray-50 p-2 rounded-md overflow-auto">
-                                                {formatValue(value)}
-                                            </pre>
-                                        ) : (
-                                            <span className="font-mono">{formatValue(value)}</span>
-                                        )}
-                                    </dd>
-                                </div>
-                            </div>
-                        ))}
+                    <div className="px-4 py-3">
+                        {renderNestedValue(task.input)}
                     </div>
                 </div>
             </div>
@@ -276,21 +284,7 @@ export default function ExecuteWorkflowPage() {
                         <h4 className="text-sm font-semibold text-gray-900">Output Details</h4>
                     </div>
                     <div className="px-4 py-3">
-                        <div className="space-y-3">
-                            {Object.entries(task.output).map(([key, value]) => (
-                                <div key={key} className="flex items-start">
-                                    <dt className="text-sm font-medium text-gray-500 min-w-[120px]">{key}</dt>
-                                    <dd className="mt-0 text-sm text-gray-900 flex-1">
-                                        <pre className="mt-1 text-xs bg-gray-50 p-2 rounded-md overflow-auto">
-                                            {typeof value === 'object' 
-                                                ? JSON.stringify(value, null, 2)
-                                                : String(value)
-                                            }
-                                        </pre>
-                                    </dd>
-                                </div>
-                            ))}
-                        </div>
+                        {renderNestedValue(task.output)}
                     </div>
                 </div>
             </div>
