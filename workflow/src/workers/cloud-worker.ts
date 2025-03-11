@@ -17,12 +17,52 @@ const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 // Task handler type definition
 type TaskHandler = (task: Task) => Promise<any>;
 
+type ExtractionType = 'medications' | 'allergies' | 'insurance' | 'profile';
+
+interface MedicationExtraction {
+  medications: Array<{
+    name: string;
+    dosage: string;
+    frequency: string;
+  }>;
+}
+
+interface AllergyExtraction {
+  allergies: Array<{
+    name: string;
+    severity: string;
+    reaction: string;
+  }>;
+}
+
+interface InsuranceExtraction {
+  insurance: {
+    name: string;
+    policyNumber: string;
+    groupNumber: string;
+    memberId: string;
+  };
+}
+
+interface ProfileExtraction {
+  profile: {
+    name: string;
+    dateOfBirth: string;
+    gender: string;
+    phoneNumber?: string;
+    email?: string;
+    address?: string;
+  };
+}
+
+type ExtractionResult = MedicationExtraction | AllergyExtraction | InsuranceExtraction | ProfileExtraction;
+
 export class CloudWorker {
   private taskHandlers: Map<string, TaskHandler> = new Map();
   private isRunning: boolean = false;
   private workerId: string;
   private logger: Logger;
-  private openai: OpenAI;
+  private openai: OpenAI | null = null;
 
   constructor(
     private queueManager: QueueManager,
@@ -689,5 +729,187 @@ export class CloudWorker {
   private async simulateCloudProcessing(ms: number): Promise<void> {
     this.logger.debug(`Simulating cloud processing for ${ms}ms`);
     return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  private async extract(text: string, extractionType: ExtractionType): Promise<ExtractionResult> {
+    if (!this.openai) {
+      throw new Error('OpenAI client is not initialized');
+    }
+
+    let prompt: string;
+    let schema: any;
+
+    switch (extractionType) {
+      case 'medications':
+        prompt = `Extract all medications from the following text. Include name, dosage, and frequency when available.
+        
+Text: ${text}
+
+Only include information that is explicitly mentioned in the text. Do not make assumptions or add information not present in the text. Return an empty array if no medications are found.`;
+        schema = {
+          type: "object",
+          properties: {
+            medications: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  name: { type: "string" },
+                  dosage: { type: "string" },
+                  frequency: { type: "string" },
+                },
+                required: ["name", "dosage", "frequency"]
+              }
+            }
+          }
+        };
+        break;
+
+      case 'allergies':
+        prompt = `Extract all allergies and intolerances from the following text. Include name, severity, and reaction when available.
+        
+Text: ${text}
+
+Only include information that is explicitly mentioned in the text. Do not make assumptions or add information not present in the text. Return an empty array if no allergies are found.`;
+        schema = {
+          type: "object",
+          properties: {
+            allergies: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  name: { type: "string" },
+                  severity: { type: "string" },
+                  reaction: { type: "string" },
+                },
+                required: ["name", "severity", "reaction"]
+              }
+            }
+          }
+        };
+        break;
+
+      case 'insurance':
+        prompt = `Extract all insurance information from the following text. Include name, policy number, group number, and member ID when available.
+        
+Text: ${text}
+
+Only include information that is explicitly mentioned in the text. Do not make assumptions or add information not present in the text. Return an empty array if no insurance information is found.`;
+        schema = {
+          type: "object",
+          properties: {
+            insurance: {
+              type: "object",
+              properties: {
+                name: { type: "string" },
+                policyNumber: { type: "string" },
+                groupNumber: { type: "string" },
+                memberId: { type: "string" },
+              },
+              required: ["name", "policyNumber", "groupNumber", "memberId"]
+            }
+          }
+        };
+        break;
+
+      case 'profile':
+        prompt = `Extract patient profile information from the following text. Include name, date of birth, gender, phone number, email, and address when available.
+        
+Text: ${text}
+
+Only include information that is explicitly mentioned in the text. Do not make assumptions or add information not present in the text.`;
+        schema = {
+          type: "object",
+          properties: {
+            profile: {
+              type: "object",
+              properties: {
+                name: { type: "string" },
+                dateOfBirth: { type: "string" },
+                gender: { type: "string" },
+                phoneNumber: { type: "string" },
+                email: { type: "string" },
+                address: { type: "string" }
+              },
+              required: ["name", "dateOfBirth", "gender"]
+            }
+          }
+        };
+        break;
+
+      default:
+        throw new Error(`Unsupported extraction type: ${extractionType}`);
+    }
+
+    try {
+      const completion = await this.openai.chat.completions.create({
+        model: "gpt-4",
+        messages: [
+          { 
+            role: "system", 
+            content: "You are a medical data extraction assistant. Extract structured data from medical text according to the specified schema. Only return valid JSON without any additional text." 
+          },
+          { role: "user", content: prompt }
+        ],
+        response_format: {
+          type: "json_object"
+        }
+      });
+
+      const content = completion.choices[0].message?.content;
+      if (!content) {
+        throw new Error('Empty response from OpenAI');
+      }
+
+      const parsed = JSON.parse(content);
+      
+      // Validate the response matches our schema
+      if (!this.validateResponse(parsed, extractionType)) {
+        throw new Error('OpenAI response did not match expected schema');
+      }
+
+      return parsed as ExtractionResult;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      this.logger.error(`Error in extract function: ${errorMessage}`);
+      throw error;
+    }
+  }
+
+  private validateResponse(response: any, type: ExtractionType): boolean {
+    switch (type) {
+      case 'medications':
+        return Array.isArray(response?.medications) &&
+          response.medications.every((med: any) => 
+            typeof med.name === 'string' &&
+            typeof med.dosage === 'string' &&
+            typeof med.frequency === 'string'
+          );
+
+      case 'allergies':
+        return Array.isArray(response?.allergies) &&
+          response.allergies.every((allergy: any) =>
+            typeof allergy.name === 'string' &&
+            typeof allergy.severity === 'string' &&
+            typeof allergy.reaction === 'string'
+          );
+
+      case 'insurance':
+        return response?.insurance &&
+          typeof response.insurance.name === 'string' &&
+          typeof response.insurance.policyNumber === 'string' &&
+          typeof response.insurance.groupNumber === 'string' &&
+          typeof response.insurance.memberId === 'string';
+
+      case 'profile':
+        return response?.profile &&
+          typeof response.profile.name === 'string' &&
+          typeof response.profile.dateOfBirth === 'string' &&
+          typeof response.profile.gender === 'string';
+
+      default:
+        return false;
+    }
   }
 } 
