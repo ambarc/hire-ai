@@ -78,7 +78,7 @@ async function main() {
 
     // Initialize use cases
     const workflowUseCases = new WorkflowUseCases(workflowRepository, taskTypeRegistry);
-    const queueManager = new QueueManager(taskQueue, workerPool, taskExecutor, workflowRepository);
+    const queueManager = new QueueManager(taskQueue, workerPool, taskExecutor, workflowRepository, workflowUseCases);
 
     // Start task processing loop
     // const processInterval = setInterval(async () => {

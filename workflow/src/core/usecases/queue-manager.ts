@@ -247,10 +247,10 @@ export class QueueManager extends EventEmitter {
 
     // Get the first task in the queue
     const task = this.queue.shift();
-    this.logger.info(`Retrieved task ${task.id} from queue`);
+    this.logger.info(`Retrieved task ${task?.id} from queue`);
     this.emit('taskDequeued', task);
     
-    return task;
+    return task ?? null;
   }
 
   private canTaskBeQueued(allTasks: Task[], task: Task): boolean {

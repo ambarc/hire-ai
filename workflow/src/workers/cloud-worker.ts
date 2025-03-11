@@ -161,7 +161,7 @@ export class CloudWorker {
     // Update task status to IN_PROGRESS and set execution details
     const startTime = new Date();
     await this.workflowUseCases.updateTask(
-      task.workflow_id,
+      task.workflowId,
       task.id,
       {
         status: TaskStatus.IN_PROGRESS,
@@ -188,7 +188,7 @@ export class CloudWorker {
       const completionTime = new Date();
       console.log('---handler done--------', task.workflowId, task.id, result, '-----------');
       await this.workflowUseCases.updateTask(
-        task.workflow_id,
+        task.workflowId,
         task.id,
         {
           status: TaskStatus.COMPLETED,
@@ -211,7 +211,7 @@ export class CloudWorker {
       // Update task with error, FAILED status, and execution details
       const completionTime = new Date();
       await this.workflowUseCases.updateTask(
-        task.workflow_id,
+        task.workflowId,
         task.id,
         {
           status: TaskStatus.FAILED,
@@ -242,7 +242,7 @@ export class CloudWorker {
         
         // Update task status to IN_PROGRESS
         await this.workflowUseCases.updateTaskStatus(
-          nextTask.workflow_id,
+          nextTask.workflowId,
           nextTask.id,
           TaskStatus.IN_PROGRESS
         );
@@ -264,7 +264,7 @@ export class CloudWorker {
           
           // Update task with result
           await this.workflowUseCases.updateTaskOutput(
-            nextTask.workflow_id,
+            nextTask.workflowId,
             nextTask.id,
             result
           );
@@ -272,7 +272,7 @@ export class CloudWorker {
           // Check result.success to determine task status
         
           await this.workflowUseCases.updateTaskStatus(
-            nextTask.workflow_id,
+            nextTask.workflowId,
             nextTask.id,
             status
           );
@@ -286,7 +286,7 @@ export class CloudWorker {
           
           // Mark as failed for execution errors
           await this.workflowUseCases.updateTaskStatus(
-            nextTask.workflow_id,
+            nextTask.workflowId,
             nextTask.id,
             TaskStatus.FAILED,
           );
@@ -742,7 +742,7 @@ export class CloudWorker {
     {
       "id": "6ba7b813-9dad-11d1-80b4-00c04fd430c8",
       "type": "WRITE_MEDICATIONS",
-      "workflow_id": "workflow-1",
+      "workflowIdd": "workflow-1",
       "status": "NOT_STARTED",
       "input": {
         "medications": "string",
@@ -835,7 +835,7 @@ export class CloudWorker {
     {
       "id": "6ba7b813-9dad-11d1-80b4-00c04fd430c8",
       "type": "WRITE_MEDICATIONS",
-      "workflow_id": "workflow-1",
+      "workflowId": "workflow-1",
       "status": "NOT_STARTED",
       "input": {
         "medications": "string",
@@ -958,17 +958,17 @@ export class CloudWorker {
 
     const mockVitals = {
       height: {
-        value: 167.6,
-        unit: "cm"
+        value: 66,
+        unit: "inches"
       },
       weight: {
-        value: 111.1,
-        unit: "kg"
+        value: 245,
+        unit: "lbs"
       }
     };
 
-    const heightInInches = mockVitals.height.value * 0.393701;
-    const weightInLbs = mockVitals.weight.value * 2.20462;
+    const heightInInches = mockVitals.height.value; // mockVitals.height.value * 0.393701;
+    const weightInLbs = mockVitals.weight.value; // mockVitals.weight.value * 2.20462;
 
     const calculateBMI = (weightLbs: number, heightIn: number): number => {
       const bmi = (weightLbs / (heightIn ** 2)) * 703;
@@ -984,7 +984,7 @@ export class CloudWorker {
       // Parse insurance from input
       const bmiInfo = JSON.stringify({
         bmi: bmi,
-        heightInInches: heightInInches,
+        heightInFeetAndInches: `5'6''`, // heightInInches,
         weightInLbs: weightInLbs,
       }); // JSON.parse(task.input.insurance);
 

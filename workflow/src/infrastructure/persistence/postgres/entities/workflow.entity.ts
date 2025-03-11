@@ -43,7 +43,7 @@ export const WorkflowEntitySchema = new EntitySchema<WorkflowEntity>({
     tasks: {
       type: 'one-to-many',
       target: 'tasks',
-      inverseSide: 'workflow_id'
+      inverseSide: 'workflowId'
     }
   }
 }); 

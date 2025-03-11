@@ -28,9 +28,7 @@ export async function createServer(
   const cloudWorker = new CloudWorker(queueManager, workflowUseCases);
   
   // Start the worker if enabled in config
-  if (config.ENABLE_WORKER) {
-    await cloudWorker.start();
-  }
+  await cloudWorker.start();
 
   // Register CORS
   await server.register(cors, {
@@ -171,7 +169,7 @@ export async function createServer(
       return { success: true, message: `Workflow ${id} queued successfully` };
     } catch (error) {
       console.error('Error queueing workflow:', error);
-      reply.code(500).send({ error: error?.message });
+      reply.code(500).send({ error: error instanceof Error ? error.message : 'Unknown error' });
     }
   });
 
@@ -182,7 +180,7 @@ export async function createServer(
       return { success: true, message: `Task ${taskId} queued successfully` };
     } catch (error) {
       console.error('Error queueing task:', error);
-      reply.code(500).send({ error: `${error?.message}` });
+      reply.code(500).send({ error: error instanceof Error ? error.message : 'Unknown error' });
     }
   });
 
