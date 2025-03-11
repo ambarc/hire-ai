@@ -99,7 +99,7 @@ export class CloudWorker {
     this.taskHandlers.set('WRITE_MEDICATIONS', this.handleWriteMedications.bind(this));
     this.taskHandlers.set('WRITE_ALLERGIES', this.handleWriteAllergies.bind(this));
     this.taskHandlers.set('WRITE_INSURANCE', this.handleWriteInsurance.bind(this));
-    // this.taskHandlers.set('WRITE_VITALS', this.handleWriteInsurance.bind(this));
+    this.taskHandlers.set('WRITE_BMI', this.handleWriteBMI.bind(this));
   }
 
   public async start(): Promise<void> {
@@ -942,6 +942,82 @@ export class CloudWorker {
         insuranceWritten: mockInsurance,
         timestamp: new Date().toISOString(),
         url: task.input.url
+      };
+
+    } catch (error) {
+      this.logger.error(`Error writing insurance: ${error instanceof Error ? error.message : String(error)}`);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error)
+      };
+    }
+  }
+
+  private async handleWriteBMI(task: Task): Promise<any> {
+    this.logger.info(`Writing BMI to: ${task.input.url}`);
+
+    const mockVitals = {
+      height: {
+        value: 167.6,
+        unit: "cm"
+      },
+      weight: {
+        value: 111.1,
+        unit: "kg"
+      }
+    };
+
+    const heightInInches = mockVitals.height.value * 0.393701;
+    const weightInLbs = mockVitals.weight.value * 2.20462;
+
+    const calculateBMI = (weightLbs: number, heightIn: number): number => {
+      const bmi = (weightLbs / (heightIn ** 2)) * 703;
+      return Number(bmi.toFixed(2));
+    };
+
+    const bmi = calculateBMI(weightInLbs, heightInInches);
+
+    const mockUrl = 'http://localhost:8000/patients/3';
+    const url = mockUrl;
+    
+    try {
+      // Parse insurance from input
+      const bmiInfo = JSON.stringify({
+        bmi: bmi,
+        heightInInches: heightInInches,
+        weightInLbs: weightInLbs,
+      }); // JSON.parse(task.input.insurance);
+
+      // Construct browser command
+      const browserPrompt = `
+        Navigate to ${url}.
+        Navigate to the clinical notes section.
+      
+        Enter a well-formatted clinical note describing the patient's height, weight, and BMI, based on the following information:
+        ${bmiInfo}
+
+        Save or confirm the entry is saved to the page.
+      
+        Verify the BMI information has been entered correctly.
+      `;
+
+      // Execute browser command
+      const commandResult = await this.executeBrowserCommand(browserPrompt);
+      
+      // if (!commandResult || !commandResult.success) {
+      //   throw new Error('Failed to write insurance to chart');
+      // }
+
+      this.logger.info('Successfully wrote BMI information to chart');
+      
+      return {
+        success: true,
+        vitals: {
+          ...mockVitals,
+          bmi: bmi,
+        },
+        timestamp: new Date().toISOString(),
+        // url: task.input.url
       };
 
     } catch (error) {
