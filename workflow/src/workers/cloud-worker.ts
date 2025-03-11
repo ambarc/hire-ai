@@ -393,8 +393,9 @@ export class CloudWorker {
     this.logger.info(`Reading obesity intake form`);
     
     try {
+      
         // Define browser prompt with clear instructions
-        const browserPrompt = "go to localhost:8000/ingest and scroll through the whole page. Scan all the text on the page and return it. Return the text itself. Do not summarize.";
+        const browserPrompt = `go to ${task.input.url}  and scroll through the whole page. Scan all the text on the page and return it. Return the text itself. Do not summarize.`;
         
         // Create a new browser session
         const commandResponse = await fetch('http://localhost:3000/api/browser-agent/browser-agent/session', {
