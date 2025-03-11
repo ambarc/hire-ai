@@ -8,11 +8,9 @@ import { Allergy, Medication, Insurance } from '../../../types/clinical';
 
 interface Profile {
     name: string;
-    dateOfBirth: string;
-    gender: string;
+    birthDate?: string;
+    gender?: string;
     phoneNumber?: string;
-    email?: string;
-    address?: string;
 }
 
 // Application memory for storing temporary data
@@ -206,234 +204,228 @@ export default function ExecuteWorkflowPage() {
 
     // Function to render task input details
     const renderTaskInput = (task: Task) => {
-        switch (task.type) {
-            case TaskType.READ_OBESITY_INTAKE_FORM:
-                return (
-                    <div className="mt-2 text-sm">
-                        <p className="font-medium text-gray-700">Browser Task</p>
-                        {task.input && 'url' in task.input.data && (
-                            <p className="text-gray-600">URL: {task.input.data.url || 'Not specified'}</p>
-                        )}
-                    </div>
-                );
-            case TaskType.WRITE_MEDICATIONS:
-                if (task.input && 'source' in task.input.data) {
-                    return (
-                        <div className="mt-2 text-sm">
-                            <p className="font-medium text-gray-700">Source: {formatSourceType(task.input.data.source.type)}</p>
-                            {'path' in task.input.data.source && task.input.data.source.path && (
-                                <p className="text-gray-600">Path: {task.input.data.source.path}</p>
-                            )}
-                        </div>
-                    );
-                }
-                return <p className="mt-2 text-sm text-gray-600">No input details available</p>;
-            case TaskType.WRITE_ALLERGIES:
-                break;
-            case TaskType.WRITE_INSURANCE:
-                if (task.input && 'source' in task.input.data) {
-                    return (
-                        <div className="mt-2 text-sm">
-                            <p className="font-medium text-gray-700">Source: {formatSourceType(task.input.data.source.type)}</p>
-                        </div>
-                    );
-                }
-                return <p className="mt-2 text-sm text-gray-600">No input details available</p>;
-            case TaskType.WRITE_TO_ATHENA: {
-                const writeToAthenaBrowserInput = task.input.type === TaskType.WRITE_TO_ATHENA ? task.input.data : null;
-                if (!writeToAthenaBrowserInput) {
-                    return <p className="mt-2 text-sm text-gray-600">No input details available</p>;
-                }
-
-    return (
-                    <div className="mt-2 text-sm">
-                        <p className="font-medium text-gray-700">{writeToAthenaBrowserInput.field}</p>
-                        
-                        {writeToAthenaBrowserInput.field === 'medications' && extractedMedications.length > 0 && (
-                            <div className="mt-3 space-y-2">
-                                <p className="text-xs font-medium text-gray-600">Medications to write:</p>
-                                <ul className="divide-y divide-gray-100 rounded-md border border-gray-200">
-                                    {extractedMedications.map((med, index) => (
-                                        <li key={index} className="flex items-center gap-2 px-4 py-3 hover:bg-gray-50">
-                                            <span className="font-medium text-gray-900">{med.name}</span>
-                                            {med.dosage && (
-                                                <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs text-blue-700">
-                                                    {med.dosage}
-                                                </span>
-                                            )}
-                                            {med.frequency && (
-                                                <span className="rounded-full bg-green-50 px-2 py-0.5 text-xs text-green-700">
-                                                    {med.frequency}
-                                                </span>
-                                            )}
-                                        </li>
-                                    ))}
-                                </ul>
-                    </div>
-                        )}
-                        
-                        {writeToAthenaBrowserInput.field === 'allergies' && extractedAllergies.length > 0 && (
-                            <div className="mt-3 space-y-2">
-                                <p className="text-xs font-medium text-gray-600">Allergies to write:</p>
-                                <ul className="divide-y divide-gray-100 rounded-md border border-gray-200">
-                                    {extractedAllergies.map((allergy, index) => (
-                                        <li key={index} className="flex items-center gap-2 px-4 py-3 hover:bg-gray-50">
-                                            <span className="font-medium text-gray-900">{allergy.name}</span>
-                                            {allergy.severity && (
-                                                <span className="rounded-full bg-orange-50 px-2 py-0.5 text-xs text-orange-700">
-                                                    {allergy.severity}
-                                                </span>
-                                            )}
-                                            {allergy.reaction && (
-                                                <span className="rounded-full bg-red-50 px-2 py-0.5 text-xs text-red-700">
-                                                    {allergy.reaction}
-                                                </span>
-                                            )}
-                                        </li>
-                                    ))}
-                                </ul>
-                            </div>
-                        )}
-                        {writeToAthenaBrowserInput.field === 'insurance' && extractedInsurance && (
-                            <div className="mt-3 space-y-2">
-                                <p className="text-xs font-medium text-gray-600">Insurance to write:</p>
-                                <p className="text-gray-600">{JSON.stringify(extractedInsurance)}</p>
-                            </div>
-                        )}
-                    </div>
-                );
-            }
-            case TaskType.IDENTIFY_CHART_IN_ATHENA:
-                if (!isTaskOfType(TaskType.IDENTIFY_CHART_IN_ATHENA, task)) {
-                    return <p className="mt-2 text-sm text-gray-600">Invalid task input</p>;
-                }
-                return (
-                    <div className="mt-2 text-sm">
-                        <p className="font-medium text-gray-700">Patient Profile Search</p>
-                        {extractedProfile ? (
-                            <div className="mt-1 space-y-1">
-                                <p className="text-gray-600">Name: {extractedProfile.name}</p>
-                                <p className="text-gray-600">DOB: {extractedProfile.dateOfBirth}</p>
-                                <p className="text-gray-600">Gender: {extractedProfile.gender}</p>
-                            </div>
-                        ) : (
-                            <p className="text-gray-600 italic">No profile data available</p>
-                        )}
-                    </div>
-                );
-            default:
-                return <p className="mt-2 text-sm text-gray-600">No input details available</p>;
+        if (!task.input) {
+            return (
+                <div className="mt-2">
+                    <p className="text-sm text-gray-500 italic">No input data available</p>
+                </div>
+            );
         }
+
+        const formatValue = (value: any): string => {
+            if (typeof value === 'string') {
+                // Check if it's a URL
+                try {
+                    new URL(value);
+                    return `🔗 ${value}`;
+                } catch {
+                    return value;
+                }
+            }
+            if (typeof value === 'object' && value !== null) {
+                return JSON.stringify(value, null, 2);
+            }
+            return String(value);
+        };
+
+        return (
+            <div className="mt-4">
+                <div className="bg-white shadow-sm ring-1 ring-gray-900/5 rounded-lg">
+                    <div className="px-4 py-3 border-b border-gray-200">
+                        <h4 className="text-sm font-semibold text-gray-900">Input Parameters</h4>
+                    </div>
+                    <div className="divide-y divide-gray-200">
+                        {Object.entries(task.input).map(([key, value]) => (
+                            <div key={key} className="px-4 py-3">
+                                <div className="flex items-start">
+                                    <dt className="text-sm font-medium text-gray-500 min-w-[100px]">
+                                        {key}
+                                    </dt>
+                                    <dd className="mt-0 text-sm text-gray-900 flex-1">
+                                        {typeof value === 'object' && value !== null ? (
+                                            <pre className="mt-1 text-xs bg-gray-50 p-2 rounded-md overflow-auto">
+                                                {formatValue(value)}
+                                            </pre>
+                                        ) : (
+                                            <span className="font-mono">{formatValue(value)}</span>
+                                        )}
+                                    </dd>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+        );
     };
 
     // Function to render task output details
     const renderTaskOutput = (task: Task) => {
-        if (!task.output) return <p className="text-sm text-gray-600">No output available</p>;
+        if (!task.output) {
+            return (
+                <div className="mt-2">
+                    <p className="text-sm text-gray-500 italic">No output available</p>
+                </div>
+            );
+        }
+
+        const renderStatusBadge = (success: boolean) => (
+            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                success ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+            }`}>
+                {success ? 'Success' : 'Failed'}
+            </span>
+        );
 
         switch (task.output.type) {
             case TaskType.READ_OBESITY_INTAKE_FORM:
                 return (
                     <div className="mt-2">
-                        <p className="font-medium text-sm text-gray-700">Status: {task.output.success ? 'Success' : 'Failed'}</p>
+                        <div className="flex items-center space-x-2">
+                            <h4 className="text-sm font-medium text-gray-700">Form Reading Result</h4>
+                            {renderStatusBadge(task.output.success)}
+                        </div>
                         {task.output.data?.rawText && (
-                            <div className="mt-1">
-                                <p className="text-xs text-gray-600">Text length: {task.output.data.rawText.length} characters</p>
+                            <div className="mt-2">
+                                <p className="text-sm text-gray-600">Extracted Text Length: {task.output.data.rawText.length} characters</p>
+                                <div className="mt-1 max-h-40 overflow-y-auto p-2 bg-gray-50 rounded-md">
+                                    <p className="text-sm text-gray-600 whitespace-pre-wrap">{task.output.data.rawText.substring(0, 200)}...</p>
+                                </div>
                             </div>
                         )}
                     </div>
                 );
+
+            case TaskType.EXTRACT_PATIENT_PROFILE:
+                const profile = task.output.data?.profile;
+                return (
+                    <div className="mt-2">
+                        <div className="flex items-center space-x-2">
+                            <h4 className="text-sm font-medium text-gray-700">Extracted Profile</h4>
+                            {renderStatusBadge(task.output.success)}
+                        </div>
+                        {profile && (
+                            <div className="mt-2 p-2 bg-gray-50 rounded-md space-y-1">
+                                <p className="text-sm text-gray-600">Name: {profile.name}</p>
+                                {profile.birthDate && (
+                                    <p className="text-sm text-gray-600">Birth Date: {profile.birthDate}</p>
+                                )}
+                                {profile.gender && (
+                                    <p className="text-sm text-gray-600">Gender: {profile.gender}</p>
+                                )}
+                                {profile.phoneNumber && (
+                                    <p className="text-sm text-gray-600">Phone: {profile.phoneNumber}</p>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                );
+
             case TaskType.WRITE_MEDICATIONS:
                 return (
                     <div className="mt-2">
-                        <p className="font-medium text-sm text-gray-700">Status: {task.output.success ? 'Success' : 'Failed'}</p>
+                        <div className="flex items-center space-x-2">
+                            <h4 className="text-sm font-medium text-gray-700">Medications Write Result</h4>
+                            {renderStatusBadge(task.output.success)}
+                        </div>
                         {task.output.data?.medications && (
-                            <div className="mt-1">
-                                <p className="text-xs text-gray-600">Medications found: {task.output.data.medications.length}</p>
-                                {task.output.data.medications.length > 0 && (
-                                    <ul className="mt-1 list-disc list-inside text-xs text-gray-600">
-                                        {task.output.data.medications.map((med: Medication, i: number) => (
-                                            <li key={i}>{med.name} {med.dosage && `- ${med.dosage}`} {med.frequency && `(${med.frequency})`}</li>
-                                        ))}
-                                    </ul>
-                                )}
+                            <div className="mt-2">
+                                <p className="text-sm text-gray-600">Written Medications:</p>
+                                <ul className="mt-1 divide-y divide-gray-100">
+                                    {task.output.data.medications.map((med, idx) => (
+                                        <li key={idx} className="py-2">
+                                            <div className="flex items-center space-x-2">
+                                                <span className="text-sm font-medium text-gray-700">{med.name}</span>
+                                                {med.dosage && <span className="px-2 py-0.5 bg-blue-100 text-blue-800 rounded-full text-xs">{med.dosage}</span>}
+                                                {med.frequency && <span className="px-2 py-0.5 bg-green-100 text-green-800 rounded-full text-xs">{med.frequency}</span>}
+                                            </div>
+                                        </li>
+                                    ))}
+                                </ul>
                             </div>
                         )}
                     </div>
                 );
+
             case TaskType.WRITE_ALLERGIES:
                 return (
                     <div className="mt-2">
-                        <p className="font-medium text-sm text-gray-700">Status: {task.output.success ? 'Success' : 'Failed'}</p>
+                        <div className="flex items-center space-x-2">
+                            <h4 className="text-sm font-medium text-gray-700">Allergies Write Result</h4>
+                            {renderStatusBadge(task.output.success)}
+                        </div>
                         {task.output.data?.allergies && (
-                            <div className="mt-1">
-                                <p className="text-xs text-gray-600">Allergies found: {task.output.data.allergies.length}</p>
-                                {task.output.data.allergies.length > 0 && (
-                                    <ul className="mt-1 list-disc list-inside text-xs text-gray-600">
-                                        {task.output.data.allergies.map((allergy: Allergy, i: number) => (
-                                            <li key={i}>{allergy.name} - {allergy.severity} ({allergy.reaction})</li>
-                                        ))}
-                                    </ul>
-                                )}
+                            <div className="mt-2">
+                                <p className="text-sm text-gray-600">Written Allergies:</p>
+                                <ul className="mt-1 divide-y divide-gray-100">
+                                    {task.output.data.allergies.map((allergy, idx) => (
+                                        <li key={idx} className="py-2">
+                                            <div className="flex items-center space-x-2">
+                                                <span className="text-sm font-medium text-gray-700">{allergy.name}</span>
+                                                {allergy.severity && (
+                                                    <span className="px-2 py-0.5 bg-orange-100 text-orange-800 rounded-full text-xs">
+                                                        {allergy.severity}
+                                                    </span>
+                                                )}
+                                                {allergy.reaction && (
+                                                    <span className="px-2 py-0.5 bg-red-100 text-red-800 rounded-full text-xs">
+                                                        {allergy.reaction}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </li>
+                                    ))}
+                                </ul>
                             </div>
                         )}
                     </div>
                 );
+
             case TaskType.WRITE_INSURANCE:
                 return (
                     <div className="mt-2">
-                        <p className="font-medium text-sm text-gray-700">Status: {task.output.success ? 'Success' : 'Failed'}</p>
+                        <div className="flex items-center space-x-2">
+                            <h4 className="text-sm font-medium text-gray-700">Insurance Write Result</h4>
+                            {renderStatusBadge(task.output.success)}
+                        </div>
                         {task.output.data?.insurance && (
-                            <div className="mt-1 text-xs text-gray-600">
-                                <p>Provider: {task.output.data.insurance.name}</p>
-                                <p>Policy #: {task.output.data.insurance.policyNumber}</p>
-                                <p>Group #: {task.output.data.insurance.groupNumber}</p>
-                                <p>Member ID: {task.output.data.insurance.memberId}</p>
+                            <div className="mt-2 p-2 bg-gray-50 rounded-md space-y-1">
+                                <p className="text-sm text-gray-600">Provider: {task.output.data.insurance.name}</p>
+                                <p className="text-sm text-gray-600">Policy #: {task.output.data.insurance.policyNumber}</p>
+                                <p className="text-sm text-gray-600">Group #: {task.output.data.insurance.groupNumber}</p>
+                                <p className="text-sm text-gray-600">Member ID: {task.output.data.insurance.memberId}</p>
                             </div>
                         )}
                     </div>
                 );
-            case TaskType.WRITE_TO_ATHENA:
-                return (
-                    <div className="mt-2">
-                        <p className="font-medium text-sm text-gray-700">Status: {task.output.success ? 'Success' : 'Failed'}</p>
-                    </div>
-                );
-            case TaskType.EXTRACT_PATIENT_PROFILE:
-                const profileData = task.output.data?.profile as Profile;
-                return (
-                    <div className="mt-2">
-                        <p className="font-medium text-sm text-gray-700">Status: {task.output.success ? 'Success' : 'Failed'}</p>
-                        {profileData && (
-                            <div className="mt-1 text-xs text-gray-600">
-                                <p>Name: {profileData.name}</p>
-                                <p>Date of Birth: {profileData.dateOfBirth}</p>
-                                <p>Gender: {profileData.gender}</p>
-                                {profileData.phoneNumber && (
-                                    <p>Phone: {profileData.phoneNumber}</p>
-                                )}
-                                {profileData.email && (
-                                    <p>Email: {profileData.email}</p>
-                                )}
-                                {profileData.address && (
-                                    <p>Address: {profileData.address}</p>
-                                )}
-                            </div>
-                        )}
-                    </div>
-                );
+
             case TaskType.IDENTIFY_CHART_IN_ATHENA:
                 return (
                     <div className="mt-2">
-                        <p className="font-medium text-sm text-gray-700">Status: {task.output.success ? 'Success' : 'Failed'}</p>
+                        <div className="flex items-center space-x-2">
+                            <h4 className="text-sm font-medium text-gray-700">Chart Identification Result</h4>
+                            {renderStatusBadge(task.output.success)}
+                        </div>
                         {task.output.data?.url && (
-                            <div className="mt-1 text-xs text-gray-600">
-                                <p>Patient Chart URL: {task.output.data.url}</p>
+                            <div className="mt-2 p-2 bg-gray-50 rounded-md">
+                                <p className="text-sm text-gray-600">Chart URL: {task.output.data.url}</p>
                             </div>
                         )}
                     </div>
                 );
+
             default:
-                return <p className="text-sm text-gray-600">No output details available</p>;
+                return (
+                    <div className="mt-2">
+                        <div className="flex items-center space-x-2">
+                            <h4 className="text-sm font-medium text-gray-700">Task Result</h4>
+                            {renderStatusBadge(task.output.success)}
+                        </div>
+                        {task.output.error && (
+                            <p className="mt-1 text-sm text-red-600">{task.output.error}</p>
+                        )}
+                    </div>
+                );
         }
     };
 
@@ -526,20 +518,16 @@ export default function ExecuteWorkflowPage() {
 
                             {isExpanded && (
                                 <div className="p-4 bg-white border-t">
-                                    <div className="space-y-4">
+                                    <div className="space-y-6">
                                         <div>
-                                            <h4 className="text-sm font-medium text-gray-500">Input</h4>
-                                            <pre className="mt-1 text-sm text-gray-900 bg-gray-50 p-2 rounded">
-                                                {JSON.stringify(task.input, null, 2)}
-                                            </pre>
+                                            <h4 className="text-sm font-medium text-gray-500 mb-2">Input Details</h4>
+                                            {renderTaskInput(task)}
                                         </div>
                                         
                                         {task.output && (
                                             <div>
-                                                <h4 className="text-sm font-medium text-gray-500">Output</h4>
-                                                <pre className="mt-1 text-sm text-gray-900 bg-gray-50 p-2 rounded">
-                                                    {JSON.stringify(task.output, null, 2)}
-                                                </pre>
+                                                <h4 className="text-sm font-medium text-gray-500 mb-2">Output Details</h4>
+                                                {renderTaskOutput(task)}
                                             </div>
                                         )}
 
@@ -553,18 +541,42 @@ export default function ExecuteWorkflowPage() {
                                         )}
 
                                         {task.executionDetails && (
-                                            <div>
-                                                <h4 className="text-sm font-medium text-gray-500">Execution Details</h4>
-                                                <div className="mt-1 text-sm text-gray-600">
-                                                    <p>Attempts: {task.executionDetails.attempts}</p>
+                                            <div className="border-t pt-4 mt-4">
+                                                <h4 className="text-sm font-medium text-gray-500 mb-2">Execution Details</h4>
+                                                <div className="grid grid-cols-2 gap-4">
+                                                    <div>
+                                                        <p className="text-sm text-gray-500">Attempts</p>
+                                                        <p className="text-sm font-medium text-gray-900">{task.executionDetails.attempts}</p>
+                                                    </div>
                                                     {task.executionDetails.queuedAt && (
-                                                        <p>Queued: {new Date(task.executionDetails.queuedAt).toLocaleString()}</p>
+                                                        <div>
+                                                            <p className="text-sm text-gray-500">Queued At</p>
+                                                            <p className="text-sm font-medium text-gray-900">
+                                                                {new Date(task.executionDetails.queuedAt).toLocaleString()}
+                                                            </p>
+                                                        </div>
                                                     )}
                                                     {task.executionDetails.startedAt && (
-                                                        <p>Started: {new Date(task.executionDetails.startedAt).toLocaleString()}</p>
+                                                        <div>
+                                                            <p className="text-sm text-gray-500">Started At</p>
+                                                            <p className="text-sm font-medium text-gray-900">
+                                                                {new Date(task.executionDetails.startedAt).toLocaleString()}
+                                                            </p>
+                                                        </div>
                                                     )}
                                                     {task.executionDetails.completedAt && (
-                                                        <p>Completed: {new Date(task.executionDetails.completedAt).toLocaleString()}</p>
+                                                        <div>
+                                                            <p className="text-sm text-gray-500">Completed At</p>
+                                                            <p className="text-sm font-medium text-gray-900">
+                                                                {new Date(task.executionDetails.completedAt).toLocaleString()}
+                                                            </p>
+                                                        </div>
+                                                    )}
+                                                    {task.executionDetails.workerId && (
+                                                        <div>
+                                                            <p className="text-sm text-gray-500">Worker ID</p>
+                                                            <p className="text-sm font-medium text-gray-900">{task.executionDetails.workerId}</p>
+                                                        </div>
                                                     )}
                                                 </div>
                                             </div>
