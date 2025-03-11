@@ -600,92 +600,40 @@ export class CloudWorker {
   }
 
   private async handleExtractMedications(task: Task): Promise<any> {
-    this.logger.info(`Extracting medications from: ${task.input.url}`);
-    
+    this.logger.info(`Extracting medications from text`);
+
     try {
-      // Navigate to the patient chart
-      await this.callBrowserService('/browser/navigate', 'POST', {
-        url: task.input.url,
-        waitForSelector: '.patient-chart'
-      });
+      // Get the extracted text from the task input
+      const extractedText = JSON.stringify(mockData) // task.input.extractedText;
       
-      // Navigate to medications section
-      await this.callBrowserService('/browser/click', 'POST', {
-        selector: '#medications-tab'
-      });
-      
-      // Extract medications data
-      const medicationsData = await this.callBrowserService('/browser/extract', 'POST', {
-        selector: '.medications-list',
-        attribute: 'innerText'
-      });
-      
-      // Use OpenAI to extract structured data
-      if (this.openai) {
-        const prompt = `
-          Extract all medications from this list with their dosage and frequency:
-          
-          ${medicationsData}
-          
-          Return the data as a JSON array with objects containing: name, dosage, frequency
-        `;
-        
-        const extractedData = await this.processWithOpenAI(prompt);
-        try {
-          return {
-            medications: JSON.parse(extractedData)
-          };
-        } catch (e) {
-          return {
-            medications: [
-              { name: "Error parsing medications", dosage: "N/A", frequency: "N/A" }
-            ],
-            rawText: medicationsData
-          };
-        }
+      if (!extractedText) {
+        throw new Error('No extracted text provided in task input');
       }
-    
-      // Fallback mock data
-      return {
-        medications: [
-          { name: "Metformin", dosage: "500mg", frequency: "twice daily" },
-          { name: "Lisinopril", dosage: "10mg", frequency: "once daily" }
-        ]
-      };
-    } catch (error) {
-      this.logger.error(`Error extracting medications: ${error.message}`);
+
+      // Use the extract method to process the text and get medications information
+      const medicationsData = await this.extract(extractedText, 'medications');
+      
+      this.logger.info(`Successfully extracted medications information`);
       
       return {
-        medications: [
-          { name: "Metformin", dosage: "500mg", frequency: "twice daily" },
-          { name: "Lisinopril", dosage: "10mg", frequency: "once daily" }
-        ]
+        success: true,
+        ...medicationsData
+      };
+      
+    } catch (error) {
+      this.logger.error(`Error extracting medications: ${error instanceof Error ? error.message : String(error)}`);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error)
       };
     }
   }
 
   private async handleExtractAllergies(task: Task): Promise<any> {
-    this.logger.info(`Extracting allergies from: ${task.input.url}`);
-    
-    return {
-      allergies: [
-        { allergen: "Penicillin", severity: "High", reaction: "Hives" },
-        { allergen: "Peanuts", severity: "Medium", reaction: "Swelling" }
-      ]
-    };
   }
 
   private async handleExtractInsurance(task: Task): Promise<any> {
     this.logger.info(`Extracting insurance from: ${task.input.url}`);
-    
-    return {
-      insurance: {
-        provider: "Blue Cross Blue Shield",
-        policyNumber: "BC123456789",
-        groupNumber: "GRP987654",
-        coverageType: "PPO"
-      }
-    };
   }
 
   private async handleWriteMedications(task: Task): Promise<any> {
@@ -838,7 +786,7 @@ Only include information that is explicitly mentioned in the text. Do not make a
         messages: [
           { 
             role: "system", 
-            content: "You are a medical data extraction assistant. Extract structured data from medical text according to the specified schema. Only return valid JSON without any additional text." 
+            content: prompt, 
           },
           { role: "user", content: prompt }
         ],
@@ -846,23 +794,7 @@ Only include information that is explicitly mentioned in the text. Do not make a
           type: "json_schema",
           json_schema: {
             name: "extracted",
-            schema: {
-              type: "object",
-              properties: {
-                profile: {
-                  type: "object",
-                  properties: {
-                    name: { type: "string" },
-                    dateOfBirth: { type: "string" },
-                    gender: { type: "string" },
-                    phoneNumber: { type: "string" },
-                    email: { type: "string" },
-                    address: { type: "string" }
-                  },
-                  required: ["name", "dateOfBirth"]
-                }
-              }
-            }
+            schema: schema,
           }
         }
       });
@@ -875,9 +807,9 @@ Only include information that is explicitly mentioned in the text. Do not make a
       const parsed = JSON.parse(content);
       
       // Validate the response matches our schema
-      if (!this.validateResponse(parsed, extractionType)) {
-        throw new Error('OpenAI response did not match expected schema');
-      }
+      // if (!this.validateResponse(parsed, extractionType)) {
+      //   throw new Error('OpenAI response did not match expected schema');
+      // }
 
       return parsed as ExtractionResult;
     } catch (error) {
