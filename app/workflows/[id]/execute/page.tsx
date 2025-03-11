@@ -269,164 +269,32 @@ export default function ExecuteWorkflowPage() {
             );
         }
 
-        const renderStatusBadge = (success: boolean) => (
-            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                success ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-            }`}>
-                {success ? 'Success' : 'Failed'}
-            </span>
-        );
-
-        switch (task.output.type) {
-            case TaskType.READ_OBESITY_INTAKE_FORM:
-                return (
-                    <div className="mt-2">
-                        <div className="flex items-center space-x-2">
-                            <h4 className="text-sm font-medium text-gray-700">Form Reading Result</h4>
-                            {renderStatusBadge(task.output.success)}
-                        </div>
-                        {task.output.data?.rawText && (
-                            <div className="mt-2">
-                                <p className="text-sm text-gray-600">Extracted Text Length: {task.output.data.rawText.length} characters</p>
-                                <div className="mt-1 max-h-40 overflow-y-auto p-2 bg-gray-50 rounded-md">
-                                    <p className="text-sm text-gray-600 whitespace-pre-wrap">{task.output.data.rawText.substring(0, 200)}...</p>
+        return (
+            <div className="mt-4">
+                <div className="bg-white shadow-sm ring-1 ring-gray-900/5 rounded-lg">
+                    <div className="px-4 py-3 border-b border-gray-200">
+                        <h4 className="text-sm font-semibold text-gray-900">Output Details</h4>
+                    </div>
+                    <div className="px-4 py-3">
+                        <div className="space-y-3">
+                            {Object.entries(task.output).map(([key, value]) => (
+                                <div key={key} className="flex items-start">
+                                    <dt className="text-sm font-medium text-gray-500 min-w-[120px]">{key}</dt>
+                                    <dd className="mt-0 text-sm text-gray-900 flex-1">
+                                        <pre className="mt-1 text-xs bg-gray-50 p-2 rounded-md overflow-auto">
+                                            {typeof value === 'object' 
+                                                ? JSON.stringify(value, null, 2)
+                                                : String(value)
+                                            }
+                                        </pre>
+                                    </dd>
                                 </div>
-                            </div>
-                        )}
-                    </div>
-                );
-
-            case TaskType.EXTRACT_PATIENT_PROFILE:
-                const profile = task.output.data?.profile;
-                return (
-                    <div className="mt-2">
-                        <div className="flex items-center space-x-2">
-                            <h4 className="text-sm font-medium text-gray-700">Extracted Profile</h4>
-                            {renderStatusBadge(task.output.success)}
+                            ))}
                         </div>
-                        {profile && (
-                            <div className="mt-2 p-2 bg-gray-50 rounded-md space-y-1">
-                                <p className="text-sm text-gray-600">Name: {profile.name}</p>
-                                {profile.birthDate && (
-                                    <p className="text-sm text-gray-600">Birth Date: {profile.birthDate}</p>
-                                )}
-                                {profile.gender && (
-                                    <p className="text-sm text-gray-600">Gender: {profile.gender}</p>
-                                )}
-                                {profile.phoneNumber && (
-                                    <p className="text-sm text-gray-600">Phone: {profile.phoneNumber}</p>
-                                )}
-                            </div>
-                        )}
                     </div>
-                );
-
-            case TaskType.WRITE_MEDICATIONS:
-                return (
-                    <div className="mt-2">
-                        <div className="flex items-center space-x-2">
-                            <h4 className="text-sm font-medium text-gray-700">Medications Write Result</h4>
-                            {renderStatusBadge(task.output.success)}
-                        </div>
-                        {task.output.data?.medications && (
-                            <div className="mt-2">
-                                <p className="text-sm text-gray-600">Written Medications:</p>
-                                <ul className="mt-1 divide-y divide-gray-100">
-                                    {task.output.data.medications.map((med, idx) => (
-                                        <li key={idx} className="py-2">
-                                            <div className="flex items-center space-x-2">
-                                                <span className="text-sm font-medium text-gray-700">{med.name}</span>
-                                                {med.dosage && <span className="px-2 py-0.5 bg-blue-100 text-blue-800 rounded-full text-xs">{med.dosage}</span>}
-                                                {med.frequency && <span className="px-2 py-0.5 bg-green-100 text-green-800 rounded-full text-xs">{med.frequency}</span>}
-                                            </div>
-                                        </li>
-                                    ))}
-                                </ul>
-                            </div>
-                        )}
-                    </div>
-                );
-
-            case TaskType.WRITE_ALLERGIES:
-                return (
-                    <div className="mt-2">
-                        <div className="flex items-center space-x-2">
-                            <h4 className="text-sm font-medium text-gray-700">Allergies Write Result</h4>
-                            {renderStatusBadge(task.output.success)}
-                        </div>
-                        {task.output.data?.allergies && (
-                            <div className="mt-2">
-                                <p className="text-sm text-gray-600">Written Allergies:</p>
-                                <ul className="mt-1 divide-y divide-gray-100">
-                                    {task.output.data.allergies.map((allergy, idx) => (
-                                        <li key={idx} className="py-2">
-                                            <div className="flex items-center space-x-2">
-                                                <span className="text-sm font-medium text-gray-700">{allergy.name}</span>
-                                                {allergy.severity && (
-                                                    <span className="px-2 py-0.5 bg-orange-100 text-orange-800 rounded-full text-xs">
-                                                        {allergy.severity}
-                                                    </span>
-                                                )}
-                                                {allergy.reaction && (
-                                                    <span className="px-2 py-0.5 bg-red-100 text-red-800 rounded-full text-xs">
-                                                        {allergy.reaction}
-                                                    </span>
-                                                )}
-                                            </div>
-                                        </li>
-                                    ))}
-                                </ul>
-                            </div>
-                        )}
-                    </div>
-                );
-
-            case TaskType.WRITE_INSURANCE:
-                return (
-                    <div className="mt-2">
-                        <div className="flex items-center space-x-2">
-                            <h4 className="text-sm font-medium text-gray-700">Insurance Write Result</h4>
-                            {renderStatusBadge(task.output.success)}
-                        </div>
-                        {task.output.data?.insurance && (
-                            <div className="mt-2 p-2 bg-gray-50 rounded-md space-y-1">
-                                <p className="text-sm text-gray-600">Provider: {task.output.data.insurance.name}</p>
-                                <p className="text-sm text-gray-600">Policy #: {task.output.data.insurance.policyNumber}</p>
-                                <p className="text-sm text-gray-600">Group #: {task.output.data.insurance.groupNumber}</p>
-                                <p className="text-sm text-gray-600">Member ID: {task.output.data.insurance.memberId}</p>
-                            </div>
-                        )}
-                    </div>
-                );
-
-            case TaskType.IDENTIFY_CHART_IN_ATHENA:
-                return (
-                    <div className="mt-2">
-                        <div className="flex items-center space-x-2">
-                            <h4 className="text-sm font-medium text-gray-700">Chart Identification Result</h4>
-                            {renderStatusBadge(task.output.success)}
-                        </div>
-                        {task.output.data?.url && (
-                            <div className="mt-2 p-2 bg-gray-50 rounded-md">
-                                <p className="text-sm text-gray-600">Chart URL: {task.output.data.url}</p>
-                            </div>
-                        )}
-                    </div>
-                );
-
-            default:
-                return (
-                    <div className="mt-2">
-                        <div className="flex items-center space-x-2">
-                            <h4 className="text-sm font-medium text-gray-700">Task Result</h4>
-                            {renderStatusBadge(task.output.success)}
-                        </div>
-                        {task.output.error && (
-                            <p className="mt-1 text-sm text-red-600">{task.output.error}</p>
-                        )}
-                    </div>
-                );
-        }
+                </div>
+            </div>
+        );
     };
 
     if (status === 'loading') {

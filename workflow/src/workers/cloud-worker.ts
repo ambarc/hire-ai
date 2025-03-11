@@ -142,6 +142,7 @@ export class CloudWorker {
 
       // Update task with result, COMPLETED status, and execution details
       const completionTime = new Date();
+      console.log('---handler done--------', task.workflow_id, task.id, result, '-----------');
       await this.workflowUseCases.updateTask(
         task.workflow_id, // TODO(ambar): unify casing for workflow service internals and externals (eugh)
         task.id,
@@ -389,114 +390,96 @@ export class CloudWorker {
     }
   }
 
+  private async executeBrowserCommand(prompt: string): Promise<any> {
+    // Create a new browser session
+    const commandResponse = await fetch('http://localhost:3000/api/browser-agent/browser-agent/session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        command: { prompt }
+      }),
+    });
+    
+    if (!commandResponse.ok) {
+      throw new Error(`Failed to send browser command: ${commandResponse.statusText}`);
+    }
+    
+    const commandData = await commandResponse.json();
+    const { session_id: sessionId, command_id: commandId } = commandData;
+    
+    if (!sessionId || !commandId) {
+      throw new Error('Invalid response from browser service: missing session_id or command_id');
+    }
+    
+    // Poll for command completion
+    const maxAttempts = 30;
+    let attempts = 0;
+    
+    while (attempts < maxAttempts) {
+      this.logger.info(`Polling for command completion: ${attempts} of ${maxAttempts}`);
+      await new Promise(resolve => setTimeout(resolve, 5000));
+      
+      const stateResponse = await fetch(`http://localhost:3000/api/browser-agent/browser-agent/${sessionId}/state`);
+      if (!stateResponse.ok) {
+        throw new Error(`Failed to get session state: ${stateResponse.statusText}`);
+      }
+      
+      const stateData = await stateResponse.json();
+      const commandHistory = stateData.command_history || [];
+      
+      // Check for completion
+      const completedCommand = commandHistory.find((cmd: { command_id: string, result: { status: string } }) => 
+        cmd.command_id === commandId && 
+        cmd.result && 
+        cmd.result.status === 'success'
+      );
+      
+      if (completedCommand) {
+        return completedCommand.result;
+      }
+      
+      // Check for failure
+      const failedCommand = commandHistory.find((cmd: { command_id: string, result: { status: string } }) => 
+        cmd.command_id === commandId && 
+        cmd.result && 
+        cmd.result.status === 'error'
+      );
+      
+      if (failedCommand) {
+        throw new Error(`Browser command failed: ${failedCommand.result.message || 'Unknown error'}`);
+      }
+      
+      if (stateData.status === 'error') {
+        throw new Error(`Browser session in error state: ${stateData.error || 'Unknown error'}`);
+      }
+      
+      attempts++;
+    }
+    
+    throw new Error('Browser command timed out after multiple attempts');
+  }
+
   private async handleReadObesityIntakeForm(task: Task): Promise<any> {
     this.logger.info(`Reading obesity intake form`);
     
     try {
+      const browserPrompt = `go to ${task.input.url} and scroll through the whole page. Scan all the text on the page and return it. Return the text itself. Do not summarize.`;
       
-        // Define browser prompt with clear instructions
-        const browserPrompt = `go to ${task.input.url}  and scroll through the whole page. Scan all the text on the page and return it. Return the text itself. Do not summarize.`;
-        
-        // Create a new browser session
-        const commandResponse = await fetch('http://localhost:3000/api/browser-agent/browser-agent/session', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                command: {
-                    prompt: browserPrompt
-                }
-            }),
-        });
-
-        console.log('---commandResponse--------', commandResponse, '-----------');
-        
-        if (!commandResponse.ok) {
-            throw new Error(`Failed to send browser command: ${commandResponse.statusText}`);
-        }
-        
-        const commandData = await commandResponse.json();
-        const sessionId = commandData.session_id;
-        const commandId = commandData.command_id;
-
-        console.log('---commandData--------', commandData, '-----------');
-        
-        if (!sessionId || !commandId) {
-            throw new Error('Invalid response from browser service: missing session_id or command_id');
-        }
-        
-        // Poll for command completion
-        const maxAttempts = 30; // Prevent infinite polling
-        let attempts = 0;
-        let commandResult = null;
-        this.logger.info(`Polling for command completion: ${attempts} of ${maxAttempts}`);
-        
-        while (attempts < maxAttempts) {
-            this.logger.info(`Polling for command completion: ${attempts} of ${maxAttempts}`);
-            await new Promise(resolve => setTimeout(resolve, 5000)); // Poll every 5 seconds
-            
-            const stateResponse = await fetch(`http://localhost:3000/api/browser-agent/browser-agent/${sessionId}/state`);
-            if (!stateResponse.ok) {
-                throw new Error(`Failed to get session state: ${stateResponse.statusText}`);
-            }
-            
-            const stateData = await stateResponse.json();
-            
-            // Check if the command has completed
-            const commandHistory = stateData.command_history || [];
-            const completedCommand = commandHistory.find((cmd: { command_id: string, result: { status: string } }) => 
-                cmd.command_id === commandId && 
-                cmd.result && 
-                cmd.result.status === 'success'
-            );
-            
-            if (completedCommand) {
-                commandResult = completedCommand.result;
-                break;
-            }
-            
-            // Check if the command failed
-            const failedCommand = commandHistory.find((cmd: { command_id: string, result: { status: string } }) => 
-                cmd.command_id === commandId && 
-                cmd.result && 
-                cmd.result.status === 'error'
-            );
-            
-            if (failedCommand) {
-                throw new Error(`Browser command failed: ${failedCommand.result.message || 'Unknown error'}`);
-            }
-            
-            // If the session is in error state, throw an error
-            if (stateData.status === 'error') {
-                throw new Error(`Browser session in error state: ${stateData.error || 'Unknown error'}`);
-            }
-            
-            attempts++;
-        }
-        
-        if (!commandResult) {
-            throw new Error('Browser command timed out after multiple attempts');
-        }
-        
-        // Extract the text from the command result
-        const extractedText = commandResult.summary || '';
-        this.logger.info(`Successfully extracted text of length: ${extractedText.length}`);
-        
-        // Return success with the extracted text
-        return {
-            type: 'READ_OBESITY_INTAKE_FORM',
-            success: true,
-            data: {
-                rawText: extractedText
-            }
-        };
-        
+      const commandResult = await this.executeBrowserCommand(browserPrompt);
+      const extractedText = commandResult.summary || '';
+      
+      this.logger.info(`Successfully extracted text of length: ${extractedText.length}`);
+      
+      return {
+        success: true,
+        extractedText,
+      };
     } catch (error: unknown) {
-        this.logger.error(`Error reading obesity intake form: ${error instanceof Error ? error.message : String(error)}`);
-        return {
-            type: 'READ_OBESITY_INTAKE_FORM',
-            success: false,
-            error: error instanceof Error ? error.message : String(error)
-        };
+      this.logger.error(`Error reading obesity intake form: ${error instanceof Error ? error.message : String(error)}`);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error)
+      };
     }
   }
 
