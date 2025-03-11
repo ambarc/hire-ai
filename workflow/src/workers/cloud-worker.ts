@@ -19,7 +19,7 @@ const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 // Task handler type definition
 type TaskHandler = (task: Task) => Promise<any>;
 
-type ExtractionType = 'medications' | 'allergies' | 'insurance' | 'profile';
+type ExtractionType = 'medications' | 'allergies' | 'insurance' | 'profile' | 'vitals';
 
 interface MedicationExtraction {
   medications: Array<{
@@ -95,9 +95,11 @@ export class CloudWorker {
     this.taskHandlers.set('EXTRACT_MEDICATIONS', this.handleExtractMedications.bind(this));
     this.taskHandlers.set('EXTRACT_ALLERGIES', this.handleExtractAllergies.bind(this));
     this.taskHandlers.set('EXTRACT_INSURANCE', this.handleExtractInsurance.bind(this));
+    this.taskHandlers.set('EXTRACT_VITALS', this.handleExtractVitals.bind(this));
     this.taskHandlers.set('WRITE_MEDICATIONS', this.handleWriteMedications.bind(this));
     this.taskHandlers.set('WRITE_ALLERGIES', this.handleWriteAllergies.bind(this));
     this.taskHandlers.set('WRITE_INSURANCE', this.handleWriteInsurance.bind(this));
+    // this.taskHandlers.set('WRITE_VITALS', this.handleWriteInsurance.bind(this));
   }
 
   public async start(): Promise<void> {
@@ -599,6 +601,35 @@ export class CloudWorker {
     }
   }
 
+  private async handleExtractVitals(task: Task): Promise<any> {
+    this.logger.info(`Extracting vitals from text`);
+
+    try {
+      // Get the extracted text from the task input
+      const extractedText = JSON.stringify(mockData) // task.input.extractedText;     
+
+      if (!extractedText) {
+        throw new Error('No extracted text provided in task input');
+      }
+
+      // Use the extract method to process the text and get vitals information
+      const vitalsData = await this.extract(extractedText, 'vitals');
+
+      this.logger.info(`Successfully extracted vitals information`);
+      
+      return {
+        success: true,
+        ...vitalsData
+      };  
+    } catch (error) {
+      this.logger.error(`Error extracting vitals: ${error instanceof Error ? error.message : String(error)}`);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error)
+      };  
+    }
+  }
+
   private async handleExtractMedications(task: Task): Promise<any> {
     this.logger.info(`Extracting medications from text`);
 
@@ -1029,6 +1060,44 @@ Only include information that is explicitly mentioned in the text. Do not make a
         };
         break;
 
+      case 'vitals':
+        prompt = `Extract current vitals information from the following text. Include height, weight, and blood pressure when available.
+        
+Text: ${text}
+
+For each vital, the value will be a number, and the unit will be an SI or imperial unit.
+You can ignore historical vital signs, go only for the current vitals.
+
+Only include information that is explicitly mentioned in the text. Do not make assumptions or add information not present in the text.`;
+        schema = {
+          type: "object",
+          properties: {
+            vitals: {
+              type: "object",
+              properties: {
+                height: {
+                  type: "object",
+                  properties: {
+                    value: { type: "string" },
+                    unit: { type: "string" }
+                  },
+                  required: ["value", "unit"]
+                },
+                weight: {
+                  type: "object",
+                  properties: {
+                    value: { type: "string" },
+                    unit: { type: "string" }
+                  },
+                  required: ["value", "unit"]
+                }
+              },
+              required: ["height", "weight"]
+            }
+          },
+          required: ["vitals"]
+        };
+        break;
       default:
         throw new Error(`Unsupported extraction type: ${extractionType}`);
     }
