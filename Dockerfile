@@ -74,6 +74,8 @@ RUN /app/venv/bin/pip install --no-cache-dir -r requirements.txt
 COPY browser_service/server.py ./
 COPY browser_service/openapi.yaml ./
 COPY browser_service/static/ ./static/
+RUN chmod -R 755 ./static && \
+    chown -R node:node ./static
 RUN mkdir -p recordings
 
 # Set up workflow service
