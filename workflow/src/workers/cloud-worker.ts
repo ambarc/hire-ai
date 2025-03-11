@@ -113,8 +113,6 @@ export class CloudWorker {
       throw new Error(`No handler registered for task type: ${task.type}`);
     }
 
-    
-
     try {
       // Execute the task
       const result = await handler(task);
@@ -175,7 +173,7 @@ export class CloudWorker {
           }
 
           // Execute the task
-          const result = await handler(nextTask);
+          const result = await handler(nextTask); 
 
           const status = result.success === false ? TaskStatus.FAILED : TaskStatus.COMPLETED;
 
@@ -364,7 +362,7 @@ export class CloudWorker {
         const browserPrompt = "go to localhost:8000/ingest and scroll through the whole page. Scan all the text on the page and return it. Return the text itself. Do not summarize.";
         
         // Create a new browser session
-        const commandResponse = await fetch('/api/browser-agent/session', {
+        const commandResponse = await fetch('http://localhost:3000/api/browser-agent/browser-agent/session', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
@@ -373,6 +371,8 @@ export class CloudWorker {
                 }
             }),
         });
+
+        console.log('---commandResponse--------', commandResponse, '-----------');
         
         if (!commandResponse.ok) {
             throw new Error(`Failed to send browser command: ${commandResponse.statusText}`);
@@ -381,6 +381,8 @@ export class CloudWorker {
         const commandData = await commandResponse.json();
         const sessionId = commandData.session_id;
         const commandId = commandData.command_id;
+
+        console.log('---commandData--------', commandData, '-----------');
         
         if (!sessionId || !commandId) {
             throw new Error('Invalid response from browser service: missing session_id or command_id');
@@ -390,12 +392,13 @@ export class CloudWorker {
         const maxAttempts = 30; // Prevent infinite polling
         let attempts = 0;
         let commandResult = null;
+        this.logger.info(`Polling for command completion: ${attempts} of ${maxAttempts}`);
         
         while (attempts < maxAttempts) {
             this.logger.info(`Polling for command completion: ${attempts} of ${maxAttempts}`);
             await new Promise(resolve => setTimeout(resolve, 5000)); // Poll every 5 seconds
             
-            const stateResponse = await fetch(`/api/browser-agent/${sessionId}/state`);
+            const stateResponse = await fetch(`http://localhost:3000/api/browser-agent/browser-agent/${sessionId}/state`);
             if (!stateResponse.ok) {
                 throw new Error(`Failed to get session state: ${stateResponse.statusText}`);
             }

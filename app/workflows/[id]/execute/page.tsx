@@ -106,6 +106,7 @@ export default function ExecuteWorkflowPage() {
     const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
     const [expandedTasks, setExpandedTasks] = useState<Record<string, boolean>>({});
     const [isProcessing, setIsProcessing] = useState(false);
+    const [executingTaskId, setExecutingTaskId] = useState<string | null>(null);
 
     const toggleTaskDetails = (taskId: string) => {
         setExpandedTasks(prev => ({
@@ -163,628 +164,50 @@ export default function ExecuteWorkflowPage() {
         }
     };
 
-    const executeTask = async (task: Task) => {
-        setActiveTaskId(task.id);
-        
+    const executeTask = async (taskId: string) => {
+        setExecutingTaskId(taskId);
         try {
-            // Update task status to in progress
-            await updateTask(task.id, { status: TaskStatus.IN_PROGRESS });
-            
-            switch (task.type) {
-                case TaskType.READ_OBESITY_INTAKE_FORM: {
-                          // Define browser prompt
-                    const browserPrompt = "go to localhost:8000/ingest and scroll through the whole page. Scan all the text on the page and return it. Return the text itself. Do not summarize.";
-                          
-                    // Send command to browser service
-                          const commandResponse = await fetch('/api/browser-agent/session', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ 
-                              command: {
-                                prompt: browserPrompt
-                              }
-                            }),
-                          });
-                          
-                          if (!commandResponse.ok) {
-                            throw new Error(`Failed to send browser command: ${commandResponse.statusText}`);
-                          }
-                          
-                          const commandData = await commandResponse.json();
-                    
-                          const sessionId = commandData.session_id;
-                          const commandId = commandData.command_id;
-                          
-                    if (!sessionId || !commandId) {
-                        throw new Error('Invalid response from browser service: missing session_id or command_id');
-                    }
-                          
-                          // Poll for command completion
-                          const maxAttempts = 30; // Prevent infinite polling
-                          let attempts = 0;
-                    let commandResult = null;
-                          
-                          while (attempts < maxAttempts) {
-                        await new Promise(resolve => setTimeout(resolve, 5000)); // Poll every 5 seconds
-                            
-                            const stateResponse = await fetch(`/api/browser-agent/${sessionId}/state`);
-                            
-                            if (!stateResponse.ok) {
-                              throw new Error(`Failed to get session state: ${stateResponse.statusText}`);
-                            }
-                            
-                            const stateData = await stateResponse.json();
-                            
-                        // Check if the command has completed
-                        const commandHistory = stateData.command_history || [];
-                        const completedCommand = commandHistory.find((cmd: { command_id: string, result: { status: string } }) => 
-                            cmd.command_id === commandId && 
-                            cmd.result && 
-                            cmd.result.status === 'success'
-                        );
-                        
-                        if (completedCommand) {
-                            commandResult = completedCommand.result;
-                              break;
-                            }
-                        
-                        // Check if the command failed
-                        const failedCommand = commandHistory.find((cmd: { command_id: string, result: { status: string } }) => 
-                            cmd.command_id === commandId && 
-                            cmd.result && 
-                            cmd.result.status === 'error'
-                        );
-                        
-                        if (failedCommand) {
-                            throw new Error(`Browser command failed: ${failedCommand.result.message || 'Unknown error'}`);
-                        }
-                        
-                        // If the session is in error state, throw an error
-                        if (stateData.status === 'error') {
-                            throw new Error(`Browser session in error state: ${stateData.error || 'Unknown error'}`);
-                        }
-                            
-                            attempts++;
-                          }
-                          
-                    if (!commandResult) {
-                            throw new Error('Browser command timed out after multiple attempts');
-                          }
-                          
-                    // Extract the text from the command result
-                    const extractedText = commandResult.summary || '';
-                    console.log('extractedText', extractedText);
-                    
-                    // Save the extracted text to state variable
-                    setIngestExtractedText(extractedText);
-                    
-                    // Update task with the output
-                          await updateTask(task.id, {
-                            status: TaskStatus.COMPLETED,
-                        output: {
-                            type: TaskType.READ_OBESITY_INTAKE_FORM,
-                            success: true,
-                            data: {
-                                rawText: extractedText
-                            }
-                        }
-                    });
-                    
-                    break;
-                }
-
-                case TaskType.WRITE_MEDICATIONS:
-                    try {
-                        const rawText = ingestExtractedText || '';
-                        
-                        // Make generic extract API call to extract medications
-                        const extractResponse: Response = await fetch('/api/extract', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ 
-                              text: rawText,
-                              extractionType: 'medications',
-                              schema: {
-                                type: 'object',
-                                properties: {
-                                  type: 'array',
-                                  properties: {
-                                    name: { type: 'string' },
-                                    dosage: { type: 'string' },
-                                    frequency: { type: 'string' },
-                                  },
-                                  required: ['name']
-                                }
-                              }
-                            })
-                        });
-                        
-                        if (!extractResponse.ok) {
-                            throw new Error(`Extract API error: ${extractResponse.statusText}`);
-                        }
-                        
-                        const medications = await extractResponse.json();
-                        setExtractedMedications(medications.medications ? medications.medications : []);
-                        // Update task with the extracted medications
-                          await updateTask(task.id, {
-                            status: TaskStatus.COMPLETED,
-                            output: {
-                                type: TaskType.WRITE_MEDICATIONS,
-                                success: true,
-                                data: {
-                                    medications: medications.medications ? medications.medications : [],
-                                }
-                            },
-                          });
-                    } catch (error) {
-                        throw error;
-                        }
-                        break;
-
-                case TaskType.WRITE_ALLERGIES: {
-                    // Make generic extract API call to extract allergies
-                    const extractResponse: Response = await fetch('/api/extract', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ 
-                          text: ingestExtractedText,
-                          extractionType: 'allergies',
-                          schema: {
-                            type: 'object',
-                            properties: {
-                              type: 'array',
-                              properties: {
-                                name: { type: 'string' },
-                                severity: { type: 'string' },
-                                reaction: { type: 'string' },
-                              },
-                              required: ['name', 'severity', 'reaction']
-                            }
-                          }
-                        })
-                    });
-
-                    if (!extractResponse.ok) {
-                        throw new Error(`Extract API error: ${extractResponse.statusText}`);
-                    }
-                    const allergies = await extractResponse.json();
-                    
-                    // Store the extracted allergies in state
-                    setExtractedAllergies(allergies.allergies ? allergies.allergies : []);
-                    
-                    // Update task with the extracted allergies
-                await updateTask(task.id, {
-                        status: TaskStatus.COMPLETED,
-                        output: {
-                            type: TaskType.WRITE_ALLERGIES,
-                            success: true,
-                            data: {
-                                allergies: allergies.allergies ? allergies.allergies : [],
-                            }
-                        },
-                    });
-                    
-                    break;
-                }
-
-                case TaskType.WRITE_INSURANCE: {
-                    // Make generic extract API call to extract insurance
-                    const extractResponse: Response = await fetch('/api/extract', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ 
-                          text: ingestExtractedText,
-                          extractionType: 'insurance',
-                          schema: {
-                            type: 'object',
-                            properties: {
-                              name: { type: 'string' },
-                              policyNumber: { type: 'string' },
-                              groupNumber: { type: 'string' },
-                              memberId: { type: 'string' },
-                            },
-                            required: ['name', 'policyNumber', 'groupNumber', 'memberId']
-                          }
-                        })
-                    });
-
-                    if (!extractResponse.ok) {
-                        throw new Error(`Extract API error: ${extractResponse.statusText}`);
-                    }
-                    const insurance = await extractResponse.json();
-                    
-                    // Store the extracted insurance in state
-                    setExtractedInsurance(insurance.insurance ? insurance.insurance : null);
-                    
-                    // Update task with the extracted insurance
-                    await updateTask(task.id, {
-                        status: TaskStatus.COMPLETED,
-                        output: {
-                            type: TaskType.WRITE_INSURANCE,
-                            success: true,
-                            data: {
-                                insurance: insurance.insurance ? insurance.insurance : null,
-                            }
-                        },
-                    });
-                    
-                    break;
-                }
-
-                case TaskType.EXTRACT_PATIENT_PROFILE:
-                    if (!isTaskOfType(TaskType.EXTRACT_PATIENT_PROFILE, task)) {
-                        throw new Error('Invalid task type');
-                    }
-
-                    let textToExtract = '';
-                    if (task.input.data.source.type === 'APPLICATION_MEMORY') {
-                        if (!task.input.data.source.applicationMemoryKey) {
-                            throw new Error('Application memory key is required');
-                        }
-                        // textToExtract = mockData.rawText;
-                        textToExtract = ingestExtractedText;
-                    } else if (task.input.data.source.type === 'BROWSER') {
-                        if (!task.input.data.source.browserLocation) {
-                            throw new Error('Browser location is required');
-                        }
-                        textToExtract = await getBrowserText();
-                    }
-
-                    const profileExtractResponse = await fetch('/api/extract', {
-                        method: 'POST',
+            const response = await fetch('/api/workflow/execute-task', {
+                method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ 
-                            text: textToExtract,
-                            extractionType: 'profile',
-                            schema: {
-                                type: 'object',
-                                properties: {
-                                    name: { type: 'string' },
-                                    dateOfBirth: { type: 'string' },
-                                    gender: { type: 'string' },
-                                    phoneNumber: { type: 'string' },
-                                    email: { type: 'string' },
-                                    address: { type: 'string' }
-                                },
-                                required: ['name', 'dateOfBirth', 'gender']
-                            }
-                        })
-                    });
-
-                    if (!profileExtractResponse.ok) {
-                        throw new Error(`Extract API error: ${profileExtractResponse.statusText}`);
-                    }
-                    const profileData = await profileExtractResponse.json();
-                    
-                    // Store the extracted profile in state
-                    setExtractedProfile(profileData.profile);
-                    
-                    await updateTask(task.id, {
-                        status: TaskStatus.COMPLETED,
-                        output: {
-                            type: TaskType.EXTRACT_PATIENT_PROFILE,
-                            success: true,
-                            data: {
-                                profile: profileData.profile
-                            }
-                        },
-                    });
-                    break;
-
-                case TaskType.WRITE_TO_ATHENA: {
-                    // TODO(ambar): feature-ize how you'd manage internally generated state.
-                    const mockMeds: Medication[] = [
-                        {
-                            "name": "Lisinopril",
-                            "dosage": "10mg",
-                            "frequency": "daily"
-                        },
-                        {
-                            "name": "Metformin",
-                            "dosage": "500mg",
-                            "frequency": "daily"
-                        }
-                    ]
-
-                    const mockAllergies: Allergy[] = [
-                        {
-                            "name": "Penicillin",
-                            "severity": "Severe",
-                            "reaction": "Anaphylaxis"
-                        },
-                        {
-                            "name": "Sulfa Drugs",
-                            "severity": "moderate",
-                            "reaction": "itching"
-                        },
-                        {
-                            "name": "Shellfish",
-                            "severity": "mild",
-                            "reaction": "itching"
-                        },
-                        {
-                            "name": "Lactose Intolerance",
-                            "severity": "mild",
-                            "reaction": "GI symptoms"
-                        }
-                    ]
-
-                    const mockInsurance: Insurance = {
-                        "name": "Blue Cross Blue Shield",
-                        "planType": "HMO",
-                        "policyNumber": "1234567890",
-                        "groupNumber": "1234567890",
-                        "memberId": "1234567890",
-                        "effectiveDate": "2024-01-01"
-                    }
-
-                    const useMeds = mockMeds; 
-                    const useAllergies = mockAllergies;
-                    const useInsurance = mockInsurance;
-
-                    const writeToAthenaBrowserInput = task.input.type === TaskType.WRITE_TO_ATHENA ? task.input.data : null;
-                    if (!writeToAthenaBrowserInput) {
-                        throw new Error('Invalid input for WRITE_TO_ATHENA task');
-                    }
-
-                    // Construct the browser prompt based on the field
-                    let browserPrompt = '';
-                    let additionalData = '';
-
-                    if (writeToAthenaBrowserInput.field === 'medications' && useMeds.length > 0) {
-                        additionalData = JSON.stringify(useMeds);
-                        browserPrompt = `go to localhost:8000, search for james smith, and go to his profile. once there, save the following medications to the medications form, one at a time: ${additionalData}`;
-                    } else if (writeToAthenaBrowserInput.field === 'allergies' && useAllergies.length > 0) {
-                        additionalData = JSON.stringify(useAllergies);
-                        browserPrompt = `go to localhost:8000, search for james smith, and go to his profile. once there, save the following allergies to the allergies form, one at a time: ${additionalData}`;
-                    } else if (writeToAthenaBrowserInput.field === 'insurance' && useInsurance) {
-                        additionalData = JSON.stringify(useInsurance);
-                        browserPrompt = `go to localhost:8000, search for james smith, and go to his profile. once there, save the following insurance to the insurance form: ${additionalData}. The end date field is optional to enter; skip it if you don't have it. If asked, the subscriber name is the name given to you. `;
-                    } else {
-                        throw new Error(`Unsupported field type: ${writeToAthenaBrowserInput.field}`);
-                    }
-                    
-                    // Send command to browser service
-                    const commandResponse = await fetch('/api/browser-agent/session', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ 
-                            command: {
-                                prompt: browserPrompt
-                            }
-                        }),
-                    });
-                    
-                    if (!commandResponse.ok) {
-                        throw new Error(`Failed to send browser command: ${commandResponse.statusText}`);
-                    }
-                    
-                    const commandData = await commandResponse.json();
-                    
-                    const sessionId = commandData.session_id;
-                    const commandId = commandData.command_id;
-                    
-                    if (!sessionId || !commandId) {
-                        throw new Error('Invalid response from browser service: missing session_id or command_id');
-                    }
-                    
-                    // Poll for command completion
-                    const maxAttempts = 30; // Prevent infinite polling
-                    let attempts = 0;
-                    let commandResult = null;
-                    
-                    while (attempts < maxAttempts) {
-                        await new Promise(resolve => setTimeout(resolve, 10000)); // Poll every 10 seconds
-                        
-                        const stateResponse = await fetch(`/api/browser-agent/${sessionId}/state`);
-                        
-                        if (!stateResponse.ok) {
-                            throw new Error(`Failed to get session state: ${stateResponse.statusText}`);
-                        }
-                        
-                        const stateData = await stateResponse.json();
-                        
-                        // Check if the command has completed
-                        const commandHistory = stateData.command_history || [];
-                        const completedCommand = commandHistory.find((cmd: { command_id: string, result: { status: string } }) => 
-                            cmd.command_id === commandId && 
-                            cmd.result && 
-                            cmd.result.status === 'success'
-                        );
-                        
-                        if (completedCommand) {
-                            commandResult = completedCommand.result;
-                            break;
-                        }
-                        
-                        // Check if the command failed
-                        const failedCommand = commandHistory.find((cmd: { command_id: string, result: { status: string } }) => 
-                            cmd.command_id === commandId && 
-                            cmd.result && 
-                            cmd.result.status === 'error'
-                        );
-                        
-                        if (failedCommand) {
-                            throw new Error(`Browser command failed: ${failedCommand.result.message || 'Unknown error'}`);
-                        }
-                        
-                        // If the session is in error state, throw an error
-                        if (stateData.status === 'error') {
-                            throw new Error(`Browser session in error state: ${stateData.error || 'Unknown error'}`);
-                        }
-                        
-                        attempts++;
-                    }
-                    
-                    if (!commandResult) {
-                        throw new Error('Browser command timed out after multiple attempts');
-                    }
-                    
-                    // Update task with the output
-                    await updateTask(task.id, {
-                        status: TaskStatus.COMPLETED,
-                        output: {
-                            type: TaskType.WRITE_TO_ATHENA,
-                        success: true,
-                        data: {
-                                success: true
-                            }
-                        }
-                    });
-                    
-                    break;
-                }
-
-                case TaskType.IDENTIFY_CHART_IN_ATHENA: {
-                    if (!isTaskOfType(TaskType.IDENTIFY_CHART_IN_ATHENA, task)) {
-                        throw new Error('Invalid task type');
-                    }
-
-                    // Check if we have profile data
-                    if (!extractedProfile) {
-                        throw new Error('No profile data available. Please run EXTRACT_PATIENT_PROFILE task first.');
-                    }
-
-                    // Construct a clear and specific prompt for the browser service
-                    const browserPrompt = `Go to localhost:8000 (not localhost:8000/ingest) and find the patient chart for ${extractedProfile.name}. Here's how:
-1. Look for a search box or patient lookup field
-2. Enter the patient's name: "${extractedProfile.name}"
-3. In the search results, verify it's the correct patient by checking:
-   - Date of birth: ${extractedProfile.dateOfBirth}.
-4. Click on the matching patient's name to go to their profile
-5. Once on the profile page, confirm you're on the correct patient's chart
-Return the current URL of the patient's chart page.`;
-
-                    // Send command to browser service
-                    const commandResponse = await fetch('/api/browser-agent/session', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ 
-                            command: {
-                                prompt: browserPrompt
-                            }
-                        }),
-                    });
-                    
-                    if (!commandResponse.ok) {
-                        throw new Error(`Failed to send browser command: ${commandResponse.statusText}`);
-                    }
-                    
-                    const commandData = await commandResponse.json();
-                    const sessionId = commandData.session_id;
-                    const commandId = commandData.command_id;
-                    
-                    if (!sessionId || !commandId) {
-                        throw new Error('Invalid response from browser service: missing session_id or command_id');
-                    }
-                    
-                    // Poll for command completion
-                    const maxAttempts = 30;
-                    let attempts = 0;
-                    let commandResult = null;
-                    
-                    while (attempts < maxAttempts) {
-                        await new Promise(resolve => setTimeout(resolve, 5000));
-                        
-                        const stateResponse = await fetch(`/api/browser-agent/${sessionId}/state`);
-                        if (!stateResponse.ok) {
-                            throw new Error(`Failed to get session state: ${stateResponse.statusText}`);
-                        }
-                        
-                        const stateData = await stateResponse.json();
-                        
-                        // Check if the command has completed
-                        const commandHistory = stateData.command_history || [];
-                        const completedCommand = commandHistory.find((cmd: { command_id: string, result: { status: string } }) => 
-                            cmd.command_id === commandId && 
-                            cmd.result && 
-                            cmd.result.status === 'success'
-                        );
-                        
-                        if (completedCommand) {
-                            commandResult = completedCommand.result;
-                    break;
-                        }
-                        
-                        // Check for failures
-                        const failedCommand = commandHistory.find((cmd: { command_id: string, result: { status: string } }) => 
-                            cmd.command_id === commandId && 
-                            cmd.result && 
-                            cmd.result.status === 'error'
-                        );
-                        
-                        if (failedCommand) {
-                            throw new Error(`Browser command failed: ${failedCommand.result.message || 'Unknown error'}`);
-                        }
-                        
-                        if (stateData.status === 'error') {
-                            throw new Error(`Browser session in error state: ${stateData.error || 'Unknown error'}`);
-                        }
-                        
-                        attempts++;
-                    }
-                    
-                    if (!commandResult) {
-                        throw new Error('Browser command timed out after multiple attempts');
-                    }
-
-                    console.log("seeing command result", commandResult)
-
-                    // Extract the URL from the command result
-                    const chartUrl = commandResult.last_url;
-                    if (!chartUrl) {
-                        throw new Error('Failed to get patient chart URL from browser service');
-                    }
-
-                    // Update task with the output
-                    await updateTask(task.id, { 
-                    status: TaskStatus.COMPLETED,
-                        output: {
-                            type: TaskType.IDENTIFY_CHART_IN_ATHENA,
-                            success: true,
-                            data: {
-                                url: chartUrl
-                            }
-                        }
-                    });
-                    break;
-                }
-
-                default:
-                    throw new Error(`Unknown task type: ${task.type}`);
-            }
-            
-        } catch (error) {
-            await updateTask(task.id, {
-                status: TaskStatus.FAILED,
-                error: error instanceof Error ? error.message : String(error)
+                body: JSON.stringify({ 
+                    workflowId: params.id,
+                    taskId: taskId 
+                })
             });
+            
+            if (!response.ok) {
+                throw new Error('Failed to execute task');
+            }
+            // No need to manually fetch workflow - polling will handle updates
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Failed to execute task');
         } finally {
-            setActiveTaskId(null);
+            setExecutingTaskId(null);
         }
     };
 
     const processNextTask = async () => {
+        setIsProcessing(true);
         try {
-            setIsProcessing(true);
             const response = await fetch('/api/workflow/queue/process-next', {
                 method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ workflowId: params.id })
             });
             
             if (!response.ok) {
                 throw new Error('Failed to process next task');
             }
             
-            addLog('Triggered next task processing');
-            
-            // Refresh workflow data to get updated task statuses
+            // Refresh workflow data
             const workflowResponse = await fetch(`/api/workflow/workflows/${params.id}`);
-            if (!workflowResponse.ok) throw new Error('Failed to fetch workflow');
-            const updatedWorkflow = await workflowResponse.json();
-            setWorkflow(updatedWorkflow);
-        } catch (error) {
-            addLog(`Error processing next task: ${error instanceof Error ? error.message : 'Unknown error'}`);
-            setError(error instanceof Error ? error.message : 'Failed to process next task');
+            if (workflowResponse.ok) {
+                const data = await workflowResponse.json();
+                setWorkflow(data);
+            }
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Failed to process task');
         } finally {
             setIsProcessing(false);
         }
@@ -1043,33 +466,6 @@ Return the current URL of the patient's chart page.`;
 
     return (
         <div className="p-8 max-w-7xl mx-auto">
-            <div className="mb-8 flex justify-between items-center">
-                <div>
-                    <h1 className="text-2xl font-bold text-gray-900">{workflow.name}</h1>
-                    <p className="text-gray-500">ID: {workflow.id}</p>
-                </div>
-                <button
-                    onClick={processNextTask}
-                    disabled={isProcessing}
-                    className={`px-4 py-2 rounded-md text-white font-medium ${
-                        isProcessing 
-                            ? 'bg-blue-400 cursor-not-allowed' 
-                            : 'bg-blue-600 hover:bg-blue-700'
-                    }`}
-                >
-                    {isProcessing ? (
-                        <span className="flex items-center">
-                            <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
-                            Processing...
-                        </span>
-                    ) : (
-                        'Process Next Task'
-                    )}
-                </button>
-            </div>
 
             <div className="space-y-4">
                 {workflow.tasks.map((task) => {
@@ -1101,6 +497,30 @@ Return the current URL of the patient's chart page.`;
                                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusStyles.bg} ${statusStyles.text}`}>
                                             {task.status}
                                         </span>
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                executeTask(task.id);
+                                            }}
+                                            disabled={executingTaskId === task.id}
+                                            className={`px-3 py-1 rounded-md text-white text-sm font-medium ${
+                                                executingTaskId === task.id
+                                                    ? 'bg-gray-400 cursor-not-allowed'
+                                                    : 'bg-blue-600 hover:bg-blue-700'
+                                            }`}
+                                        >
+                                            {executingTaskId === task.id ? (
+                                                <span className="flex items-center">
+                                                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                    </svg>
+                                                    Executing...
+                                                </span>
+                                            ) : (
+                                                'Execute'
+                                            )}
+                                        </button>
                                         <svg 
                                             className={`w-5 h-5 text-gray-400 transform transition-transform ${isExpanded ? 'rotate-180' : ''}`} 
                                             fill="none" 

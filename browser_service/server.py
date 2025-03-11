@@ -123,7 +123,7 @@ def get_browser():
             browser = Browser(
                 config=BrowserConfig(
                     chrome_instance_path=chrome_path,
-                    launch_args=launch_args
+                    # launch_args=launch_args
                 )
             )
             
