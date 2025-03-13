@@ -7,7 +7,7 @@ from botocore.exceptions import ClientError
 client = boto3.client("bedrock-runtime", region_name="us-east-1")
 
 # Set the model ID, e.g., Claude 3 Haiku.
-model_id = "us.anthropic.claude-3-5-haiku-20241022-v1:0"
+model_id = "us.anthropic.claude-3-7-sonnet-20250219-v1:0"
 
 # Start a conversation with the user message.
 user_message = "Describe the purpose of a 'hello world' program in one line."

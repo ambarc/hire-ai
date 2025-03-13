@@ -3,12 +3,15 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
-from typing import Optional, Dict, List, Any
+from langchain_aws import ChatBedrock
+import boto3
+from typing import Optional, Dict, List, Any, Literal
 import json
 from datetime import datetime
 import os
 from browser_use import Agent, Browser, BrowserConfig
 from langchain_openai import ChatOpenAI
+from langchain_ollama import ChatOllama
 from collections import deque
 import uuid
 import asyncio
@@ -28,12 +31,42 @@ app.mount("/static", StaticFiles(directory=static_dir), name="static")
 app.mount("/browser-agent/static", StaticFiles(directory=static_dir), name="browser_agent_static")
 
 # Browser configuration from environment
-CONNECTION_MODE = os.getenv('CONNECTION_MODE', 'cdp')  # Options: application, cdp
+CONNECTION_MODE = os.getenv('CONNECTION_MODE', 'application')  # Options: application, cdp
 CHROME_HOST = os.getenv('CHROME_HOST', 'localhost')
 CHROME_PORT = os.getenv('CHROME_PORT', '9222')
 CHROME_CDP_URL = os.getenv('CHROME_CDP_URL', f'http://{CHROME_HOST}:{CHROME_PORT}')
 HEADLESS = os.getenv('HEADLESS', 'False').lower() == 'true'
 DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
+
+# Add LLM configuration
+LLM_PROVIDER = os.getenv('LLM_PROVIDER', 'bedrock')  # bedrock, openai, or ollama
+LLM_MODEL = os.getenv('LLM_MODEL', 'us.anthropic.claude-3-7-sonnet-20250219-v1:0')  # model ID for the selected provider
+LLM_TEMPERATURE = float(os.getenv('LLM_TEMPERATURE', '0.5'))
+
+def get_llm():
+    """Get LLM based on current configuration"""
+    if LLM_PROVIDER == 'bedrock':
+        # Ensure model ID has "us." prefix for Bedrock models (x-region inference profiles in AWS bedrock)
+        model_id = LLM_MODEL if LLM_MODEL.startswith("us.") else f"us.{LLM_MODEL}"
+        
+        return ChatBedrock(
+            model_id=model_id,
+            region_name="us-east-1",
+            model_kwargs={"temperature": LLM_TEMPERATURE},
+            client=boto3.client("bedrock-runtime", region_name="us-east-1")
+        )
+    elif LLM_PROVIDER == 'openai':
+        return ChatOpenAI(
+            model=LLM_MODEL,
+            temperature=LLM_TEMPERATURE
+        )
+    elif LLM_PROVIDER == 'ollama':
+        return ChatOllama(
+            model=LLM_MODEL,
+            temperature=LLM_TEMPERATURE
+        )
+    else:
+        raise ValueError(f"Unsupported LLM provider: {LLM_PROVIDER}")
 
 # Check if running in Docker by looking for container environment
 def is_running_in_docker():
@@ -250,10 +283,7 @@ class BrowserSession:
 
             print("Debug: Creating new context for agent")
             print("Debug: Initializing agent")
-            llm = ChatOpenAI(
-                model="gpt-4o",
-                temperature=0
-            )
+            llm = get_llm()
             print("Debug: self browser" + str(self.browser))
             self.agent = Agent(
                 llm=llm,
@@ -302,7 +332,7 @@ class BrowserSession:
                 "summary": summary,
                 "last_url": last_url
             }
-            print(f"Debug: Final result: {self.result}")
+            # print(f"Debug: Final result: {self.result}")
 
             # Update history
             print("Debug: Updating command history")
@@ -371,54 +401,97 @@ async def get_debug_ui():
     # Create the configuration section HTML
     config_section = f"""
     <div class="config-section">
-        <h2>Agent Configuration</h2>
-        <div class="current-config">
-            <h3>Current Configuration:</h3>
-            <pre>
+        <div class="panel">
+            <div class="panel-header" onclick="togglePanel('agent-config')">
+                <h2>Agent Configuration</h2>
+                <span class="toggle-icon">▼</span>
+            </div>
+            <div id="agent-config" class="panel-content">
+                <div class="current-config">
+                    <h3>Current Configuration:</h3>
+                    <pre>
 CONNECTION_MODE: {CONNECTION_MODE}
 CHROME_HOST: {CHROME_HOST}
 CHROME_PORT: {CHROME_PORT}
 CHROME_CDP_URL: {CHROME_CDP_URL}
 HEADLESS: {HEADLESS}
 DEBUG: {DEBUG}
-            </pre>
-        </div>
+LLM_PROVIDER: {LLM_PROVIDER}
+LLM_MODEL: {LLM_MODEL}
+LLM_TEMPERATURE: {LLM_TEMPERATURE}
+                    </pre>
+                </div>
 
-        <h3>Configuration Presets</h3>
-        <div class="preset-buttons" style="margin-bottom: 20px;">
-            <button onclick="applyPreset('host')" type="button">Host Browser (Docker)</button>
-            <button onclick="applyPreset('local')" type="button">Local Application</button>
-        </div>
+                <div class="panel">
+                    <div class="panel-header" onclick="togglePanel('llm-config')">
+                        <h3>LLM Configuration</h3>
+                        <span class="toggle-icon">▼</span>
+                    </div>
+                    <div id="llm-config" class="panel-content">
+                        <form class="config-form" onsubmit="updateLLMConfig(event)">
+                            <label for="llm_provider">Provider:</label>
+                            <select id="llm_provider" required onchange="updateModelOptions()">
+                                <option value="bedrock"{' selected' if LLM_PROVIDER == 'bedrock' else ''}>Bedrock</option>
+                                <option value="openai"{' selected' if LLM_PROVIDER == 'openai' else ''}>OpenAI</option>
+                                <option value="ollama"{' selected' if LLM_PROVIDER == 'ollama' else ''}>Ollama</option>
+                            </select>
 
-        <h3>Manual Configuration:</h3>
-        <form class="config-form" onsubmit="updateConfig(event)">
-            <label for="connection_mode">Connection Mode:</label>
-            <select id="connection_mode" required>
-                <option value="cdp"{' selected' if CONNECTION_MODE == 'cdp' else ''}>CDP</option>
-                <option value="application"{' selected' if CONNECTION_MODE == 'application' else ''}>Application</option>
-            </select>
+                            <label for="llm_model">Model:</label>
+                            <select id="llm_model" required>
+                                <!-- Options will be populated by JavaScript -->
+                            </select>
 
-            <label for="chrome_host">Chrome Host:</label>
-            <input type="text" id="chrome_host" value="{CHROME_HOST}" required>
+                            <label for="llm_temperature">Temperature:</label>
+                            <input type="number" id="llm_temperature" value="{LLM_TEMPERATURE}" min="0" max="2" step="0.1" required>
 
-            <label for="chrome_port">Chrome Port:</label>
-            <input type="text" id="chrome_port" value="{CHROME_PORT}" required>
+                            <button type="submit" style="grid-column: span 2;">Update LLM Configuration</button>
+                        </form>
+                    </div>
+                </div>
 
-            <label for="chrome_cdp_url">Chrome CDP URL (optional):</label>
-            <input type="text" id="chrome_cdp_url" value="{CHROME_CDP_URL}">
+                <div class="panel">
+                    <div class="panel-header" onclick="togglePanel('browser-config')">
+                        <h3>Browser Configuration</h3>
+                        <span class="toggle-icon">▼</span>
+                    </div>
+                    <div id="browser-config" class="panel-content">
+                        <div class="preset-buttons" style="margin-bottom: 20px;">
+                            <button onclick="applyPreset('host')" type="button">Host Browser (Docker)</button>
+                            <button onclick="applyPreset('local')" type="button">Local Application</button>
+                        </div>
 
-            <div class="checkbox-group">
-                <label for="headless">Headless Mode:</label>
-                <input type="checkbox" id="headless"{' checked' if HEADLESS else ''}>
+                        <form class="config-form" onsubmit="updateConfig(event)">
+                            <label for="connection_mode">Connection Mode:</label>
+                            <select id="connection_mode" required>
+                                <option value="cdp"{' selected' if CONNECTION_MODE == 'cdp' else ''}>CDP</option>
+                                <option value="application"{' selected' if CONNECTION_MODE == 'application' else ''}>Application</option>
+                            </select>
+
+                            <label for="chrome_host">Chrome Host:</label>
+                            <input type="text" id="chrome_host" value="{CHROME_HOST}" required>
+
+                            <label for="chrome_port">Chrome Port:</label>
+                            <input type="text" id="chrome_port" value="{CHROME_PORT}" required>
+
+                            <label for="chrome_cdp_url">Chrome CDP URL (optional):</label>
+                            <input type="text" id="chrome_cdp_url" value="{CHROME_CDP_URL}">
+
+                            <div class="checkbox-group">
+                                <label for="headless">Headless Mode:</label>
+                                <input type="checkbox" id="headless"{' checked' if HEADLESS else ''}>
+                            </div>
+
+                            <div class="checkbox-group">
+                                <label for="debug">Debug Mode:</label>
+                                <input type="checkbox" id="debug"{' checked' if DEBUG else ''}>
+                            </div>
+
+                            <button type="submit" style="grid-column: span 2;">Update Configuration</button>
+                        </form>
+                    </div>
+                </div>
             </div>
-
-            <div class="checkbox-group">
-                <label for="debug">Debug Mode:</label>
-                <input type="checkbox" id="debug"{' checked' if DEBUG else ''}>
-            </div>
-
-            <button type="submit" style="grid-column: span 2;">Update Configuration</button>
-        </form>
+        </div>
     </div>
     """
 
@@ -507,6 +580,38 @@ DEBUG: {DEBUG}
             }}
             .preset-buttons button:hover {{
                 background: #0056b3;
+            }}
+            .panel {{
+                border: 1px solid #e5e7eb;
+                border-radius: 8px;
+                margin-bottom: 1rem;
+                background: white;
+            }}
+            .panel-header {{
+                padding: 1rem;
+                background: #f9fafb;
+                border-bottom: 1px solid #e5e7eb;
+                cursor: pointer;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                border-radius: 8px 8px 0 0;
+            }}
+            .panel-header:hover {{
+                background: #f3f4f6;
+            }}
+            .panel-content {{
+                padding: 1rem;
+                display: block;
+            }}
+            .panel-content.collapsed {{
+                display: none;
+            }}
+            .toggle-icon {{
+                transition: transform 0.2s ease;
+            }}
+            .toggle-icon.collapsed {{
+                transform: rotate(-90deg);
             }}
         </style>
         <script>
@@ -651,6 +756,96 @@ DEBUG: {DEBUG}
                     alert('Error sending command: ' + error.message);
                 }}
             }}
+
+            // Model options for each provider
+            const modelOptions = {{
+                bedrock: [
+                    'us.anthropic.claude-3-7-sonnet-20250219-v1:0',
+                    'us.anthropic.claude-3-5-haiku-20241022-v1:0',
+                    'us.deepseek.r1-v1:0',
+                ],
+                openai: [
+                    'gpt-4o',
+                    'gpt-4-turbo-preview',
+                    'gpt-3.5-turbo'
+                ],
+                ollama: [
+                    'llama2',
+                    'mistral',
+                    'qwen2.5:7b'
+                ]
+            }};
+
+            function updateModelOptions() {{
+                const provider = document.getElementById('llm_provider').value;
+                const modelSelect = document.getElementById('llm_model');
+                modelSelect.innerHTML = '';
+                
+                modelOptions[provider].forEach(model => {{
+                    const option = document.createElement('option');
+                    option.value = model;
+                    option.textContent = model;
+                    option.selected = model === '{LLM_MODEL}';
+                    modelSelect.appendChild(option);
+                }});
+            }}
+
+            async function updateLLMConfig(event) {{
+                event.preventDefault();
+                const config = {{
+                    provider: document.getElementById('llm_provider').value,
+                    model: document.getElementById('llm_model').value,
+                    temperature: parseFloat(document.getElementById('llm_temperature').value)
+                }};
+
+                try {{
+                    const response = await fetch(`${{apiBaseUrl}}/config/llm`, {{
+                        method: 'POST',
+                        headers: {{
+                            'Content-Type': 'application/json'
+                        }},
+                        body: JSON.stringify(config)
+                    }});
+
+                    if (!response.ok) {{
+                        throw new Error('Failed to update LLM configuration');
+                    }}
+
+                    location.reload();
+                }} catch (error) {{
+                    alert('Error updating LLM configuration: ' + error.message);
+                }}
+            }}
+
+            // Panel toggle functionality
+            function togglePanel(panelId) {{
+                const panel = document.getElementById(panelId);
+                const icon = panel.parentElement.querySelector('.toggle-icon');
+                
+                panel.classList.toggle('collapsed');
+                icon.classList.toggle('collapsed');
+                
+                // Store panel state in localStorage
+                localStorage.setItem(panelId + '-collapsed', panel.classList.contains('collapsed'));
+            }}
+
+            // Restore panel states on page load
+            document.addEventListener('DOMContentLoaded', () => {{
+                const panels = ['agent-config', 'llm-config', 'browser-config'];
+                panels.forEach(panelId => {{
+                    const isCollapsed = localStorage.getItem(panelId + '-collapsed') === 'true';
+                    const panel = document.getElementById(panelId);
+                    const icon = panel.parentElement.querySelector('.toggle-icon');
+                    
+                    if (isCollapsed) {{
+                        panel.classList.add('collapsed');
+                        icon.classList.add('collapsed');
+                    }}
+                }});
+                
+                // Initialize model options
+                updateModelOptions();
+            }});
         </script>
     </head>
     <body>
@@ -812,5 +1007,30 @@ async def reset_config(config: ChromeConfig):
             "chrome_cdp_url": CHROME_CDP_URL,
             "headless": HEADLESS,
             "debug": DEBUG
+        }
+    }
+
+# Add new configuration model for LLM settings
+class LLMConfig(BaseModel):
+    provider: Literal['bedrock', 'openai', 'ollama']
+    model: str
+    temperature: float = 0.5
+
+@app.post("/browser-agent/config/llm")
+async def update_llm_config(config: LLMConfig):
+    """Update the LLM configuration."""
+    global LLM_PROVIDER, LLM_MODEL, LLM_TEMPERATURE
+    
+    LLM_PROVIDER = config.provider
+    LLM_MODEL = config.model
+    LLM_TEMPERATURE = config.temperature
+    
+    return {
+        "status": "success",
+        "message": "LLM configuration updated successfully",
+        "config": {
+            "provider": LLM_PROVIDER,
+            "model": LLM_MODEL,
+            "temperature": LLM_TEMPERATURE
         }
     } 
