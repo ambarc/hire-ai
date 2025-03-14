@@ -6,7 +6,7 @@ import { Logger } from '../utils/logger';
 import OpenAI from 'openai';
 import axios from 'axios';
 import * as dotenv from 'dotenv';
-
+import { extractOriginalData, scrapeFrameSource } from './puppet-nex-form';
 import mockData from './mockData.json';
 
 // Load environment variables
@@ -91,6 +91,7 @@ export class CloudWorker {
     // Register all task handlers
     this.taskHandlers.set('IDENTIFY_CHART_ATHENA', this.handleIdentifyChartAthena.bind(this));
     this.taskHandlers.set('READ_OBESITY_INTAKE_FORM', this.handleReadObesityIntakeForm.bind(this));
+    this.taskHandlers.set('READ_OBESITY_INTAKE_FORM_DIRECT', this.handleReadObesityIntakeFormDirect.bind(this));
     this.taskHandlers.set('EXTRACT_PATIENT_PROFILE', this.handleExtractPatientProfile.bind(this));
     this.taskHandlers.set('EXTRACT_MEDICATIONS', this.handleExtractMedications.bind(this));
     this.taskHandlers.set('EXTRACT_ALLERGIES', this.handleExtractAllergies.bind(this));
@@ -179,6 +180,8 @@ export class CloudWorker {
     try {
       // Execute the task
       const result = await handler(task);
+
+      console.log('task result', result);
 
       if (result.success === false) {
         throw new Error(result.error || 'Task failed with success: false');
@@ -549,8 +552,9 @@ export class CloudWorker {
   private async handleReadObesityIntakeForm(task: Task): Promise<any> {
     this.logger.info(`Reading obesity intake form`);
     
+    const REVOLUTION_MEDICINE_FORM_STRING = `Revolution New Patient Intake Form`;
     try {
-      const browserPrompt = `go to ${task.input.url} and scroll through the whole page. Scan all the text on the page and return it. Return the text itself. Do not summarize.`;
+      const browserPrompt = `go to ${task.input.url} and open the most recent ${REVOLUTION_MEDICINE_FORM_STRING}. Once that form's open, scan all the text on the page and return it. Return the text itself. Do not summarize.`;
       
       const commandResult = await this.executeBrowserCommand(browserPrompt);
       const extractedText = commandResult.summary || '';
@@ -567,6 +571,44 @@ export class CloudWorker {
         success: false,
         error: error instanceof Error ? error.message : String(error)
       };
+    }
+  }
+
+  private async handleReadObesityIntakeFormDirect(task: Task): Promise<any> {
+    this.logger.info(`Reading obesity intake form directly`);
+
+    let extractedData = JSON.stringify(mockData) // task.input.extractedText;
+    const CONNOR_MOCK_URL = 'https://app.nexhealth.com/app/patients/342722791?tab=forms';
+    
+    // run a sub-routine to scrape the frame source
+    try {
+      
+      const scraped = await scrapeFrameSource({
+          websiteUrl: CONNOR_MOCK_URL,
+          buttonSelector: '#radix-\\:rp\\:-content-forms > div > div > div > div > div > div > table > tbody > tr:nth-child(1) > td:nth-child(2) > div > div:nth-child(2) > button',
+          iframeSelector: '#headlessui-dialog-panel-\:r4n\: > div.flex.w-full.items-start > div > div > iframe',
+          headless: false,  // set to true for production
+          timeout: 30000    // 30 seconds
+      });
+
+      const originalDataString = extractOriginalData(scraped);
+      if (!originalDataString) {
+          throw new Error('Failed to extract original data');
+      }
+      extractedData = JSON.parse(originalDataString);
+      
+      console.log('Raw frame source:', extractedData);
+    } catch (error) {
+        // console.error('Main execution error:', error);
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : String(error)
+        }
+    }
+
+    return {
+      success: true,
+      extractedData,
     }
   }
 
@@ -1252,4 +1294,4 @@ Only include information that is explicitly mentioned in the text. Do not make a
         return false;
     }
   }
-} 
+}
