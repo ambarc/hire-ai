@@ -8,6 +8,12 @@ export async function scrapeFrameSource({
     iframeSelector,
     headless = false,
     timeout = 30000
+}: {
+    websiteUrl: string,
+    buttonSelector: string,
+    iframeSelector: string,
+    headless?: boolean,
+    timeout?: number
 }) {
     let browser = null;
     
@@ -42,16 +48,19 @@ export async function scrapeFrameSource({
         await page.waitForFunction(() => {
             const buttons = document.querySelectorAll('button span');
             const button = Array.from(buttons).find(span => 
-                span.textContent.trim().includes('Revolution New Patient Intake Form')
+                span.textContent?.trim()?.includes('Revolution New Patient Intake Form')
             )?.closest('button');
             return button !== null;
         }, {}, {timeout: 30000});
         
         await page.evaluate(() => {
             const buttons = document.querySelectorAll('button span');
-            const button = Array.from(buttons).find(span => 
-                span.textContent.trim().includes('Revolution New Patient Intake Form')
-            ).closest('button');
+            const span = Array.from(buttons).find(span => 
+                span.textContent?.trim()?.includes('Revolution New Patient Intake Form')
+            );
+            if (!span) throw new Error('Button not found');
+            const button = span.closest('button');
+            if (!button) throw new Error('Button element not found');
             button.click();
         });
 
@@ -65,7 +74,10 @@ export async function scrapeFrameSource({
 
         // Get iframe content
         const frameHandle = await page.$('iframe[data-testid="iframe-154244124"]');
+        if (!frameHandle) throw new Error('Iframe not found');
+        
         const frame = await frameHandle.contentFrame();
+        if (!frame) throw new Error('Could not access iframe content');
 
         
         // Get the frame's HTML content
