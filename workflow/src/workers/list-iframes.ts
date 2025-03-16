@@ -39,31 +39,81 @@ export async function listIframes(url: string) {
             console.log('Found existing tab with the URL, reusing it...');
         }
 
-        // Get all iframes
-        const iframeInfo = await page.evaluate(() => {
-            const iframes = document.querySelectorAll('iframe');
-            return Array.from(iframes).map((iframe, index) => {
+        // Get all frames and iframes
+        const frameInfo = await page.evaluate(() => {
+            function generateSelector(element: Element): string {
+                if (element.id) {
+                    return `#${element.id}`;
+                }
+                
+                if (element.hasAttribute('name')) {
+                    return `${element.tagName.toLowerCase()}[name="${element.getAttribute('name')}"]`;
+                }
+
+                let path = [];
+                let current = element;
+                
+                while (current) {
+                    let selector = current.tagName.toLowerCase();
+                    let parent = current.parentElement;
+                    
+                    if (parent) {
+                        let siblings = Array.from(parent.children);
+                        if (siblings.length > 1) {
+                            let index = siblings.indexOf(current) + 1;
+                            selector += `:nth-child(${index})`;
+                        }
+                    }
+                    
+                    path.unshift(selector);
+                    current = parent;
+                }
+                
+                return path.join(' > ');
+            }
+
+            function getFrameContent(element: HTMLElement | HTMLFrameElement | HTMLIFrameElement, depth = 0): any {
                 // Get all attributes
-                const attributes = Array.from(iframe.attributes).reduce((acc, attr) => {
+                const attributes = Array.from(element.attributes).reduce((acc, attr) => {
                     acc[attr.name] = attr.value;
                     return acc;
                 }, {} as Record<string, string>);
 
                 // Get computed styles
-                const styles = window.getComputedStyle(iframe);
+                const styles = window.getComputedStyle(element);
 
-                // Get the current src and try to get content document src
-                let currentSrc = iframe.src || '';
+                // Initialize frame-specific properties
+                let currentSrc = '';
                 let contentSrc = '';
                 let hasInnerDocument = false;
                 let innerHtml = '';
-                let outerHtml = iframe.outerHTML || '';
+                let outerHtml = element.outerHTML || '';
+                let childFrames: any[] = [];
                 
+                // Handle different types of frames
+                if ('src' in element) {
+                    currentSrc = (element as HTMLFrameElement | HTMLIFrameElement).src || '';
+                }
+
                 try {
-                    if (iframe.contentDocument) {
-                        contentSrc = iframe.contentDocument.location?.href || '';
+                    // Try to access content document for frames and iframes
+                    const contentDoc = (element as HTMLFrameElement | HTMLIFrameElement).contentDocument;
+                    if (contentDoc) {
+                        contentSrc = contentDoc.location?.href || '';
                         hasInnerDocument = true;
-                        innerHtml = iframe.contentDocument.documentElement?.outerHTML || '';
+                        innerHtml = contentDoc.documentElement?.outerHTML || '';
+
+                        // Recursively get nested frames
+                        const frames = Array.from(contentDoc.getElementsByTagName('frame'));
+                        const iframes = Array.from(contentDoc.getElementsByTagName('iframe'));
+                        const framesets = Array.from(contentDoc.getElementsByTagName('frameset'));
+                        const nestedFrames = frames.concat(iframes).concat(framesets);
+
+                        if (nestedFrames.length > 0) {
+                            childFrames = nestedFrames.map((frame, idx) => 
+                                getFrameContent(frame as HTMLElement, depth + 1)
+                            );
+                        }
                     }
                 } catch (e) {
                     // Cross-origin access might be blocked
@@ -71,135 +121,126 @@ export async function listIframes(url: string) {
                 }
 
                 return {
-                    index: index + 1,
+                    type: element.tagName.toLowerCase(),
+                    index: depth,
                     attributes,
                     dimensions: {
                         width: styles.width,
                         height: styles.height
                     },
-                    position: iframe.getBoundingClientRect(),
+                    position: element.getBoundingClientRect(),
                     isVisible: styles.display !== 'none' && styles.visibility !== 'hidden',
-                    selector: generateSelector(iframe),
+                    selector: generateSelector(element),
                     sources: {
                         attribute: currentSrc,
                         content: contentSrc
                     },
                     hasInnerDocument,
                     innerHtml,
-                    outerHtml
+                    outerHtml,
+                    childFrames
                 };
-            });
-
-            function generateSelector(element: Element): string {
-                if (element.id) {
-                    return `#${element.id}`;
-                }
-                
-                let selector = element.tagName.toLowerCase();
-                if (element.className) {
-                    selector += `.${element.className.split(' ').join('.')}`;
-                }
-                
-                // Add data attributes if present
-                Array.from(element.attributes)
-                    .filter(attr => attr.name.startsWith('data-'))
-                    .forEach(attr => {
-                        selector += `[${attr.name}="${attr.value}"]`;
-                    });
-                
-                return selector;
             }
+
+            // Get all top-level frames
+            const frames = Array.from(document.getElementsByTagName('frame'));
+            const iframes = Array.from(document.getElementsByTagName('iframe'));
+            const framesets = Array.from(document.getElementsByTagName('frameset'));
+            const allFrames = frames.concat(iframes).concat(framesets);
+
+            return allFrames.map((frame, idx) => getFrameContent(frame as HTMLElement));
         });
 
-        console.log('\nFound iframes:', iframeInfo.length);
+        console.log('\nFound frames:', frameInfo.length);
         console.log('===================');
         
-        iframeInfo.forEach(iframe => {
-            console.log(`\nIframe ${iframe.index}:`);
-            console.log('Attributes:');
-            Object.entries(iframe.attributes).forEach(([key, value]) => {
-                console.log(`  ${key}: ${value}`);
+        function logFrameInfo(frame: any, depth = 0) {
+            const indent = '  '.repeat(depth);
+            console.log(`\n${indent}${frame.type} ${frame.index}:`);
+            console.log(`${indent}Attributes:`);
+            Object.entries(frame.attributes).forEach(([key, value]) => {
+                console.log(`${indent}  ${key}: ${value}`);
             });
             
-            console.log('Sources:');
-            console.log(`  Attribute src: ${iframe.sources.attribute}`);
-            console.log(`  Content src: ${iframe.sources.content}`);
-            console.log(`  Has inner document: ${iframe.hasInnerDocument}`);
+            console.log(`${indent}Sources:`);
+            console.log(`${indent}  Attribute src: ${frame.sources.attribute}`);
+            console.log(`${indent}  Content src: ${frame.sources.content}`);
+            console.log(`${indent}  Has inner document: ${frame.hasInnerDocument}`);
             
-            console.log('Dimensions:');
-            console.log(`  Width: ${iframe.dimensions.width}`);
-            console.log(`  Height: ${iframe.dimensions.height}`);
+            console.log(`${indent}Dimensions:`);
+            console.log(`${indent}  Width: ${frame.dimensions.width}`);
+            console.log(`${indent}  Height: ${frame.dimensions.height}`);
             
-            console.log('Position:');
-            console.log(`  Top: ${iframe.position.top}`);
-            console.log(`  Left: ${iframe.position.left}`);
+            console.log(`${indent}Position:`);
+            console.log(`${indent}  Top: ${frame.position.top}`);
+            console.log(`${indent}  Left: ${frame.position.left}`);
             
-            console.log(`Visible: ${iframe.isVisible}`);
-            console.log(`CSS Selector: ${iframe.selector}`);
-            console.log('-------------------');
-        });
+            console.log(`${indent}Visible: ${frame.isVisible}`);
+            console.log(`${indent}CSS Selector: ${frame.selector}`);
 
-        console.log('\nSaving iframe contents...');
+            if (frame.childFrames.length > 0) {
+                console.log(`${indent}Child frames: ${frame.childFrames.length}`);
+                frame.childFrames.forEach((child: any) => logFrameInfo(child, depth + 1));
+            }
+            
+            console.log(`${indent}-------------------`);
+        }
+
+        frameInfo.forEach(frame => logFrameInfo(frame));
+
+        console.log('\nSaving frame contents...');
         
-        // Modify the saving logic to include the iframe element
-        for (const iframe of iframeInfo) {
+        async function saveFrameContent(frame: any, outputDir: string, parentIndex = '') {
             try {
-                if (iframe.hasInnerDocument) {
-                    // Create a combined HTML file with both the iframe element and its content
+                const frameIndex = parentIndex ? `${parentIndex}_${frame.index}` : `${frame.index}`;
+                
+                if (frame.hasInnerDocument) {
                     const combinedContent = `
-<!-- Original iframe element -->
-${iframe.outerHtml}
+<!-- Original ${frame.type} element -->
+${frame.outerHtml}
 
 <!-- Inner document content -->
-${iframe.innerHtml}`;
+${frame.innerHtml}`;
                     
-                    const filename = sanitizeFilename(`iframe_${iframe.index}_complete.html`);
+                    const filename = sanitizeFilename(`${frame.type}_${frameIndex}_complete.html`);
                     const filePath = path.join(outputDir, filename);
                     await fs.writeFile(filePath, combinedContent);
-                    console.log(`Saved complete content for iframe ${iframe.index} to ${filename}`);
+                    console.log(`Saved complete content for ${frame.type} ${frameIndex} to ${filename}`);
                 }
 
-                // Continue with existing source URL saving logic
-                const sourceUrl = iframe.sources.attribute;
-                if (!sourceUrl || sourceUrl === 'about:blank') {
-                    if (!iframe.hasInnerDocument) {
-                        console.log(`Skipping iframe ${iframe.index} (no source URL or inner content)`);
+                // Save source URL content if available
+                const sourceUrl = frame.sources.attribute;
+                if (sourceUrl && sourceUrl !== 'about:blank') {
+                    try {
+                        const response = await fetch(sourceUrl);
+                        const content = await response.text();
+                        const filename = sanitizeFilename(`${frame.type}_${frameIndex}_${new URL(sourceUrl).hostname}.html`);
+                        const filePath = path.join(outputDir, filename);
+                        await fs.writeFile(filePath, content);
+                        console.log(`Saved source content for ${frame.type} ${frameIndex} to ${filename}`);
+                    } catch (error) {
+                        console.error(`Failed to fetch source content for ${frame.type} ${frameIndex}:`, error.message);
                     }
-                    continue;
                 }
 
-                // Create a new page to fetch the iframe content
-                const iframePage = await browser.newPage();
-                await iframePage.setDefaultTimeout(30000);
-
-                // Navigate to the iframe URL
-                await iframePage.goto(sourceUrl, {
-                    waitUntil: ['load', 'domcontentloaded'],
-                    timeout: 60000
-                });
-
-                // Get the content
-                const content = await iframePage.content();
-
-                // Create a sanitized filename
-                const filename = sanitizeFilename(`iframe_${iframe.index}_${new URL(sourceUrl).hostname}.html`);
-                const filePath = path.join(outputDir, filename);
-
-                // Save the content
-                await fs.writeFile(filePath, content);
-                console.log(`Saved content for iframe ${iframe.index} to ${filename}`);
-
-                // Close the page
-                await iframePage.close();
+                // Recursively save child frames
+                for (const childFrame of frame.childFrames) {
+                    await saveFrameContent(childFrame, outputDir, frameIndex);
+                }
 
             } catch (error) {
-                console.error(`Failed to save iframe ${iframe.index} content:`, error.message);
+                console.error(`Failed to save ${frame.type} ${frame.index} content:`, error.message);
             }
         }
 
-        console.log(`\nAll iframe contents saved to: ${outputDir}`);
+        // Save all frames
+        for (const frame of frameInfo) {
+            await saveFrameContent(frame, outputDir);
+        }
 
-        return iframeInfo;
+        console.log(`\nAll frame contents saved to: ${outputDir}`);
+
+        return frameInfo;
 
     } catch (error) {
         console.error('Error occurred:', error);
@@ -226,4 +267,4 @@ if (require.main === module) {
             console.error('Error:', error);
             process.exit(1);
         });
-} 
+} } 
