@@ -39,8 +39,8 @@ HEADLESS = os.getenv('HEADLESS', 'False').lower() == 'true'
 DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
 
 # Add LLM configuration
-LLM_PROVIDER = os.getenv('LLM_PROVIDER', 'bedrock')  # bedrock, openai, or ollama
-LLM_MODEL = os.getenv('LLM_MODEL', 'us.anthropic.claude-3-7-sonnet-20250219-v1:0')  # model ID for the selected provider
+LLM_PROVIDER = os.getenv('LLM_PROVIDER', 'openai')  # Changed default from 'bedrock' to 'openai'
+LLM_MODEL = os.getenv('LLM_MODEL', 'gpt-4o')  # Changed default from Claude to GPT-4o
 LLM_TEMPERATURE = float(os.getenv('LLM_TEMPERATURE', '0.5'))
 
 def get_llm():
