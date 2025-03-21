@@ -48,3 +48,9 @@ workflow/.workflows
 
 scratch/*
 .workflows/*
+
+iframe-content/*
+
+athena_logs*
+logs*
+screenshots/*

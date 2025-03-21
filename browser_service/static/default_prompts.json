@@ -1,0 +1,8 @@
+{
+    "prompts": [
+        {
+            "name": "Search Google",
+            "prompt": "Go to google.com and search for monkeys"
+        }
+    ]
+} 

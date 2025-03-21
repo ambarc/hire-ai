@@ -8,7 +8,7 @@ import axios from 'axios';
 import * as dotenv from 'dotenv';
 import { extractOriginalData, scrapeFrameSource } from './puppet-nex-form';
 import mockData from './mockData.json';
-
+import nexFormData from './nex-form-data.json';
 // Load environment variables
 dotenv.config();
 
@@ -618,7 +618,7 @@ export class CloudWorker {
 
     try {
       // Get the extracted text from the task input
-      const extractedText = JSON.stringify(mockData) // task.input.extractedText;
+      const extractedText = JSON.stringify(nexFormData.originalData); // task.input.extractedText;
       
       if (!extractedText) {
         throw new Error('No extracted text provided in task input');
@@ -674,11 +674,10 @@ export class CloudWorker {
 
   private async handleExtractMedications(task: Task): Promise<any> {
     this.logger.info(`Extracting medications from text`);
-
     try {
       // Get the extracted text from the task input
-      const extractedText = JSON.stringify(mockData) // task.input.extractedText;
-      
+      const extractedText = JSON.stringify(nexFormData.originalData); //  JSON.stringify(mockData) // task.input.extractedText;
+
       if (!extractedText) {
         throw new Error('No extracted text provided in task input');
       }
@@ -737,7 +736,7 @@ export class CloudWorker {
 
     try {
       // Get the extracted text from the task input
-      const extractedText = JSON.stringify(mockData) // task.input.extractedText;
+      const extractedText = JSON.stringify(nexFormData.originalData); // task.input.extractedText;
       
       if (!extractedText) {
         throw new Error('No extracted text provided in task input');
@@ -1096,7 +1095,7 @@ Only include information that is explicitly mentioned in the text. Do not make a
                 properties: {
                   name: { type: "string" },
                   dosage: { type: "string" },
-                  frequency: { type: "string" },
+                  frequency: { type: "string", "description": "The frequency of the medication, such as 'daily', 'weekly', 'monthly', 'as needed'", "enum": ["daily", "weekly", "monthly", "as needed"] },
                 },
                 required: ["name", "dosage", "frequency"]
               }
