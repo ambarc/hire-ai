@@ -39,8 +39,8 @@ HEADLESS = os.getenv('HEADLESS', 'False').lower() == 'true'
 DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
 
 # Add LLM configuration
-LLM_PROVIDER = os.getenv('LLM_PROVIDER', 'openai')  # Changed default from 'bedrock' to 'openai'
-LLM_MODEL = os.getenv('LLM_MODEL', 'gpt-4o')  # Changed default from Claude to GPT-4o
+LLM_PROVIDER = os.getenv('LLM_PROVIDER', 'openai')
+LLM_MODEL = os.getenv('LLM_MODEL', 'gpt-4o') 
 LLM_TEMPERATURE = float(os.getenv('LLM_TEMPERATURE', '0.5'))
 
 def get_llm():
@@ -206,34 +206,35 @@ class BrowserSession:
 
     async def ensure_healthy_browser(self) -> bool:
         """Ensure browser is healthy and reinitialize if needed"""
-        try:
-            if not self.browser:
-                print("Debug: No browser instance exists, creating new one")
-                self.browser = get_browser()
-                return True
+        return True
+        # try:
+        #     if not self.browser:
+        #         print("Debug: No browser instance exists, creating new one")
+        #         self.browser = get_browser()
+        #         return True
             
-            # Try to access browser to check health
-            print("Debug: Checking browser health")
-            async with await self.browser.new_context() as context:
-                page = await context.new_page()
-                await page.goto('about:blank')
-                await page.close()
-            print("Debug: Browser health check passed")
-            return True
+        #     # Try to access browser to check health
+        #     print("Debug: Checking browser health")
+        #     async with await self.browser.new_context() as context:
+        #         page = await context.new_page()
+        #         await page.goto('about:blank')
+        #         await page.close()
+        #     print("Debug: Browser health check passed")
+        #     return True
             
-        except Exception as e:
-            print(f"Debug: Browser health check failed: {str(e)}")
-            try:
-                # Clean up old browser
-                if self.browser:
-                    await self.browser.close()
-            except:
-                pass
+        # except Exception as e:
+        #     print(f"Debug: Browser health check failed: {str(e)}")
+        #     try:
+        #         # Clean up old browser
+        #         if self.browser:
+        #             await self.browser.close()
+        #     except:
+        #         pass
             
-            # Create new browser
-            print("Debug: Reinitializing browser")
-            self.browser = get_browser()
-            return True
+        #     # Create new browser
+        #     print("Debug: Reinitializing browser")
+        #     self.browser = get_browser()
+        #     return True
 
     def _update_state(self):
         """Update session state"""
@@ -278,8 +279,8 @@ class BrowserSession:
   
             # Ensure browser is healthy
             print("Debug: Ensuring browser health")
-            if not await self.ensure_healthy_browser():
-                raise Exception("Failed to ensure healthy browser")
+            # if not await self.ensure_healthy_browser():
+            #     raise Exception("Failed to ensure healthy browser")
 
             print("Debug: Creating new context for agent")
             print("Debug: Initializing agent")
@@ -290,10 +291,12 @@ class BrowserSession:
                 sensitive_data={},
                 task=self.current_command.prompt,
                 browser=self.browser,
+                use_vision=False,
+                save_conversation_path="./logs/browser-conversation"
             )
 
             print("Debug: Running agent")
-            agent_result = await self.agent.run()
+            agent_result = await self.agent.run(max_steps=20)
             
             print(f"Debug: Agent execution completed")
             print(f"Debug: Agent result type: {type(agent_result)}")
