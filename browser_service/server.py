@@ -26,6 +26,16 @@ static_dir = os.path.join(current_dir, "static")
 # Create static directory if it doesn't exist
 os.makedirs(static_dir, exist_ok=True)
 
+# Load default prompts
+default_prompts_path = os.path.join(static_dir, "default_prompts.json")
+DEFAULT_PROMPTS = []
+try:
+    with open(default_prompts_path, 'r') as f:
+        DEFAULT_PROMPTS = json.load(f)["prompts"]
+except Exception as e:
+    print(f"Error loading default prompts: {e}")
+    DEFAULT_PROMPTS = []
+
 # Mount static files directory at both paths
 app.mount("/static", StaticFiles(directory=static_dir), name="static")
 app.mount("/browser-agent/static", StaticFiles(directory=static_dir), name="browser_agent_static")
@@ -498,6 +508,38 @@ LLM_TEMPERATURE: {LLM_TEMPERATURE}
     </div>
     """
 
+    # Create the saved prompts section HTML
+    saved_prompts_section = """
+    <div class="saved-prompts-section">
+        <div class="panel">
+            <div class="panel-header" onclick="togglePanel('saved-prompts')">
+                <h2>Saved Prompts</h2>
+                <span class="toggle-icon">▼</span>
+            </div>
+            <div id="saved-prompts" class="panel-content">
+                <div class="save-prompt-form">
+                    <h3>Save New Prompt</h3>
+                    <form onsubmit="savePrompt(event)">
+                        <div class="form-group">
+                            <label for="prompt-name">Name:</label>
+                            <input type="text" id="prompt-name" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="prompt-text">Prompt:</label>
+                            <textarea id="prompt-text" required></textarea>
+                        </div>
+                        <button type="submit">Save Prompt</button>
+                    </form>
+                </div>
+                <div class="saved-prompts-list">
+                    <h3>Saved Prompts</h3>
+                    <div id="prompts-list"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    """
+
     # Create the sessions section HTML
     sessions_html = ""
     for state in session_states:
@@ -522,12 +564,252 @@ LLM_TEMPERATURE: {LLM_TEMPERATURE}
         </div>
         """
 
+    # Add CSS for saved prompts section
+    saved_prompts_css = """
+    <style>
+        .saved-prompts-section {
+            margin: 20px 0;
+        }
+        
+        .save-prompt-form {
+            margin-bottom: 20px;
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+        }
+        
+        .save-prompt-form h3 {
+            margin-top: 0;
+            margin-bottom: 15px;
+            color: #333;
+        }
+        
+        .save-prompt-form .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .save-prompt-form label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+        
+        .save-prompt-form input[type="text"],
+        .save-prompt-form textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        .save-prompt-form textarea {
+            min-height: 100px;
+            font-family: monospace;
+        }
+        
+        .save-prompt-form button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.2s;
+        }
+        
+        .save-prompt-form button:hover {
+            background: #0056b3;
+        }
+        
+        .saved-prompt {
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            background: white;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        
+        .prompt-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e5e7eb;
+            border-radius: 8px 8px 0 0;
+        }
+        
+        .prompt-header strong {
+            font-size: 15px;
+            color: #333;
+        }
+        
+        .prompt-actions {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .prompt-actions button {
+            padding: 6px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: white;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        .prompt-actions button[onclick*="usePrompt"] {
+            background: #28a745;
+            color: white;
+            border-color: #28a745;
+        }
+        
+        .prompt-actions button[onclick*="usePrompt"]:hover {
+            background: #218838;
+            border-color: #1e7e34;
+        }
+        
+        .prompt-actions button[onclick*="deletePrompt"] {
+            background: white;
+            color: #dc3545;
+            border-color: #dc3545;
+        }
+        
+        .prompt-actions button[onclick*="deletePrompt"]:hover {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .prompt-text {
+            margin: 0;
+            padding: 12px 16px;
+            background: white;
+            border-radius: 0 0 8px 8px;
+            font-family: monospace;
+            font-size: 13px;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            color: #333;
+            border-top: none;
+        }
+        
+        .saved-prompts-list h3 {
+            margin-bottom: 16px;
+            color: #333;
+        }
+    </style>
+    """
+
+    # Add JavaScript for managing saved prompts
+    saved_prompts_js = """
+    <script>
+        // Load prompts from localStorage, initialize with defaults if empty
+        function loadSavedPrompts() {
+            let savedPrompts = JSON.parse(localStorage.getItem('savedPrompts') || '[]');
+            
+            // Load default prompts if they don't exist in localStorage
+            const defaultPrompts = """ + json.dumps(DEFAULT_PROMPTS) + """;
+            defaultPrompts.forEach(defaultPrompt => {
+                if (!savedPrompts.some(p => p.name === defaultPrompt.name)) {
+                    savedPrompts.push(defaultPrompt);
+                }
+            });
+            
+            localStorage.setItem('savedPrompts', JSON.stringify(savedPrompts));
+            return savedPrompts;
+        }
+
+        // Save prompt to localStorage
+        function savePrompt(event) {
+            event.preventDefault();
+            const name = document.getElementById('prompt-name').value;
+            const prompt = document.getElementById('prompt-text').value;
+            
+            let savedPrompts = loadSavedPrompts();
+            
+            // Check if prompt with same name exists
+            const existingIndex = savedPrompts.findIndex(p => p.name === name);
+            if (existingIndex >= 0) {
+                if (!confirm('A prompt with this name already exists. Do you want to overwrite it?')) {
+                    return;
+                }
+                savedPrompts[existingIndex] = { name, prompt };
+            } else {
+                savedPrompts.push({ name, prompt });
+            }
+            
+            localStorage.setItem('savedPrompts', JSON.stringify(savedPrompts));
+            document.getElementById('prompt-name').value = '';
+            document.getElementById('prompt-text').value = '';
+            displaySavedPrompts();
+        }
+
+        // Delete prompt from localStorage
+        function deletePrompt(name) {
+            let savedPrompts = loadSavedPrompts();
+            savedPrompts = savedPrompts.filter(p => p.name !== name);
+            localStorage.setItem('savedPrompts', JSON.stringify(savedPrompts));
+            displaySavedPrompts();
+        }
+
+        // Copy prompt to clipboard
+        function usePrompt(name) {
+            const savedPrompts = loadSavedPrompts();
+            const prompt = savedPrompts.find(p => p.name === name);
+            if (prompt) {
+                navigator.clipboard.writeText(prompt.prompt);
+            }
+        }
+
+        // Display saved prompts in the UI
+        function displaySavedPrompts() {
+            const savedPrompts = loadSavedPrompts();
+            const promptsList = document.getElementById('prompts-list');
+            
+            promptsList.innerHTML = savedPrompts.map(p => `
+                <div class="saved-prompt">
+                    <div class="prompt-header">
+                        <strong>${p.name}</strong>
+                        <div class="prompt-actions">
+                            <button onclick="usePrompt('${p.name}')" title="Copy prompt to clipboard">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/>
+                                </svg>
+                                Copy
+                            </button>
+                            <button onclick="deletePrompt('${p.name}')" title="Delete this prompt">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                </svg>
+                                Delete
+                            </button>
+                        </div>
+                    </div>
+                    <pre class="prompt-text">${p.prompt}</pre>
+                </div>
+            `).join('');
+        }
+
+        // Initialize saved prompts on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            displaySavedPrompts();
+        });
+    </script>
+    """
+
     # Combine all HTML sections
     html = f"""
     <!DOCTYPE html>
     <html>
     <head>
         <title>Browser Agent Debug UI</title>
+        {saved_prompts_css}
         <script>
             // Determine if we're being accessed through Next.js
             const isNextJs = window.location.pathname.startsWith('/browser-agent');
@@ -855,6 +1137,8 @@ LLM_TEMPERATURE: {LLM_TEMPERATURE}
         <h1>Browser Agent Debug UI</h1>
 
         {config_section}
+        
+        {saved_prompts_section}
 
         <div class="create-form">
             <h2>Create New Session</h2>
@@ -868,6 +1152,7 @@ LLM_TEMPERATURE: {LLM_TEMPERATURE}
         </div>
 
         {sessions_html}
+        {saved_prompts_js}
     </body>
     </html>
     """
